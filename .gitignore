@@ -132,3 +132,6 @@ dist
 .DS_Store
 forge-cache/
 cache/
+
+lcov-report/
+lcov*
