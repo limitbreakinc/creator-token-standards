@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
+import "./mocks/ClonerMock.sol";
 import "./mocks/ContractMock.sol";
 import "./mocks/ERC721CMock.sol";
 import "./interfaces/ITestCreatorToken.sol";
@@ -56,10 +57,6 @@ contract CreatorTokenTransferValidatorERC721V2Test is Test {
     // function testV2DeterministicAddressForCreatorTokenValidator() public {
     //     assertEq(address(validator), 0xD679fBb2C884Eb28ED08B33e7095caFd63C76e99);
     // }
-
-    function testV2Throwaway() public {
-
-    }
 
     function testV2TransferSecurityLevelRecommended() public {
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
@@ -1179,5 +1176,1214 @@ contract CreatorTokenTransferValidatorERC721V2Test is Test {
         vm.assume(addr != address(0));
         vm.assume(addr != address(0x000000000000000000636F6e736F6c652e6c6f67));
         vm.assume(addr != address(0xDDc10602782af652bB913f7bdE1fD82981Db7dd9));
+    }
+
+    function testV2CreateList(address listOwner, string memory name) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(bytes(name).length < 200);
+
+        uint120 firstListId = 1;
+        for (uint120 i = 0; i < 5; ++i) {
+            uint120 expectedId = firstListId + i;
+
+            vm.expectEmit(true, true, true, false);
+            emit CreatedList(expectedId, name);
+
+            vm.expectEmit(true, true, true, false);
+            emit ReassignedListOwnership(expectedId, listOwner);
+
+            vm.prank(listOwner);
+            uint120 actualId = validator.createList(name);
+            assertEq(actualId, expectedId);
+            assertEq(validator.listOwners(actualId), listOwner);
+        }
+    }
+
+    function testV2CreateListCopy(address listOwnerSource, address listOwnerTarget, string memory nameSource, string memory nameTarget) public {
+        _sanitizeAddress(listOwnerSource);
+        _sanitizeAddress(listOwnerTarget);
+        vm.assume(bytes(nameSource).length < 200);
+        vm.assume(bytes(nameTarget).length < 200);
+
+        address[] memory blAccounts = new address[](5);
+        address[] memory wlAccounts = new address[](5);
+        bytes32[] memory blCodehashes = new bytes32[](1);
+        bytes32[] memory wlCodehashes = new bytes32[](1);
+
+        for (uint256 a = 1; a <= 5; ++a) {
+            blAccounts[a - 1] = vm.addr(a);
+        }
+
+        for (uint256 a = 6; a <= 10; ++a) {
+            wlAccounts[a - 6] = vm.addr(a);
+        }
+
+        blCodehashes[0] = address(new ContractMock()).codehash;
+        wlCodehashes[0] = address(new ClonerMock()).codehash;
+
+        uint120 firstListId = 1;
+        for (uint120 i = 0; i < 5; ++i) {
+            uint120 expectedId = firstListId + i;
+
+            vm.expectEmit(true, true, true, false);
+            emit CreatedList(expectedId, nameSource);
+
+            vm.expectEmit(true, true, true, false);
+            emit ReassignedListOwnership(expectedId, listOwnerSource);
+
+            vm.prank(listOwnerSource);
+            uint120 actualId = validator.createList(nameSource);
+            assertEq(actualId, expectedId);
+            assertEq(validator.listOwners(actualId), listOwnerSource);
+
+            vm.startPrank(listOwnerSource);
+            validator.addAccountsToBlacklist(actualId, blAccounts);
+            validator.addAccountsToWhitelist(actualId, wlAccounts);
+            validator.addCodeHashesToBlacklist(actualId, blCodehashes);
+            validator.addCodeHashesToWhitelist(actualId, wlCodehashes);
+            vm.stopPrank();
+        }
+
+        for (uint120 i = 0; i < 5; ++i) {
+            uint120 sourceId = firstListId + i;
+            uint120 expectedId = firstListId + 5 + i;
+
+            vm.expectEmit(true, true, true, false);
+            emit CreatedList(expectedId, nameTarget);
+
+            vm.expectEmit(true, true, true, false);
+            emit ReassignedListOwnership(expectedId, listOwnerTarget);
+
+            vm.prank(listOwnerTarget);
+            uint120 actualId = validator.createListCopy(nameSource, sourceId);
+            assertEq(actualId, expectedId);
+            assertEq(validator.listOwners(actualId), listOwnerTarget);
+
+            address[] memory blAccountsTarget = validator.getBlacklistedAccounts(actualId);
+            address[] memory wlAccountsTarget = validator.getWhitelistedAccounts(actualId);
+            bytes32[] memory blCodehashesTarget = validator.getBlacklistedCodeHashes(actualId);
+            bytes32[] memory wlCodehashesTarget = validator.getWhitelistedCodeHashes(actualId);
+
+            assertEq(blAccountsTarget.length, blAccounts.length);
+            assertEq(wlAccountsTarget.length, wlAccounts.length);
+            assertEq(blCodehashesTarget.length, blCodehashes.length);
+            assertEq(wlCodehashesTarget.length, wlCodehashes.length);
+
+            for (uint256 index = 0; index < blAccounts.length; ++index) {
+                assertEq(blAccountsTarget[index], blAccounts[index]);
+            }
+
+            for (uint256 index = 0; index < wlAccounts.length; ++index) {
+                assertEq(wlAccountsTarget[index], wlAccounts[index]);
+            }
+
+            for (uint256 index = 0; index < blCodehashes.length; ++index) {
+                assertEq(blCodehashesTarget[index], blCodehashes[index]);
+            }
+
+            for (uint256 index = 0; index < wlCodehashes.length; ++index) {
+                assertEq(wlCodehashesTarget[index], wlCodehashes[index]);
+            }
+        }
+    }
+
+    function testV2ListCopyRevertsWhenCopyingANonExistentList(uint120 sourceListId) public {
+        vm.assume(sourceListId > validator.lastListId());
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ListDoesNotExist.selector);
+        validator.createListCopy("", sourceListId);
+    }
+
+    function testV2ReassignOwnershipOfList(address originalListOwner, address newListOwner) public {
+        vm.assume(originalListOwner != address(0));
+        vm.assume(newListOwner != address(0));
+        vm.assume(originalListOwner != newListOwner);
+
+        vm.prank(originalListOwner);
+        uint120 listId = validator.createList("test");
+        assertEq(validator.listOwners(listId), originalListOwner);
+
+        vm.expectEmit(true, true, true, false);
+        emit ReassignedListOwnership(listId, newListOwner);
+
+        vm.prank(originalListOwner);
+        validator.reassignOwnershipOfList(listId, newListOwner);
+        assertEq(validator.listOwners(listId), newListOwner);
+    }
+
+    function testV2RevertsWhenReassigningOwnershipOfListToZero(address originalListOwner) public {
+        vm.assume(originalListOwner != address(0));
+
+        vm.prank(originalListOwner);
+        uint120 listId = validator.createList("test");
+        assertEq(validator.listOwners(listId), originalListOwner);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ListOwnershipCannotBeTransferredToZeroAddress.selector);
+        validator.reassignOwnershipOfList(listId, address(0));
+    }
+
+    function testV2RenounceOwnershipOfList(address originalListOwner) public {
+        vm.assume(originalListOwner != address(0));
+
+        vm.prank(originalListOwner);
+        uint120 listId = validator.createOperatorWhitelist("test");
+        assertEq(validator.listOwners(listId), originalListOwner);
+
+        vm.expectEmit(true, true, true, false);
+        emit ReassignedListOwnership(listId, address(0));
+
+        vm.prank(originalListOwner);
+        validator.renounceOwnershipOfList(listId);
+        assertEq(validator.listOwners(listId), address(0));
+    }
+
+    function testV2RevertsWhenNonOwnerRenouncesOwnershipOfList(
+        address originalListOwner,
+        address unauthorizedUser
+    ) public {
+        vm.assume(originalListOwner != address(0));
+        vm.assume(unauthorizedUser != address(0));
+        vm.assume(originalListOwner != unauthorizedUser);
+
+        vm.prank(originalListOwner);
+        uint120 listId = validator.createList("test");
+        assertEq(validator.listOwners(listId), originalListOwner);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.renounceOwnershipOfList(listId);
+    }
+
+    function testV2RevertsWhenNonOwnerAddsAccountToBlacklist(address listOwner, address unauthorizedUser, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addAccountsToBlacklist(listId, accounts);
+    }
+
+    function testV2RevertsWhenBlacklistingEmptyAccountArray(address listOwner) public {
+        _sanitizeAddress(listOwner);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.prank(listOwner);
+        validator.addAccountsToBlacklist(listId, accounts);
+    }
+
+    function testV2RevertsWhenBlacklistingZeroAddress(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](2);
+        accounts[0] = account;
+        accounts[1] = address(0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ZeroAddressNotAllowed.selector);
+        vm.prank(listOwner);
+        validator.addAccountsToBlacklist(listId, accounts);
+    }
+
+    function testV2NoDuplicateAddressesInBlacklist(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](3);
+        accounts[0] = account;
+        accounts[1] = account;
+        accounts[2] = account;
+
+        vm.startPrank(listOwner);
+        validator.addAccountsToBlacklist(listId, accounts);
+        validator.addAccountsToBlacklist(listId, accounts);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedAccounts(listId).length, 1);
+        assertEq(validator.getBlacklistedAccounts(listId)[0], account);
+        assertTrue(validator.isAccountBlacklisted(listId, account));
+
+        ITestCreatorToken token = _deployNewToken(address(this));
+        validator.applyListToCollection(address(token), listId);
+
+        assertEq(validator.getBlacklistedAccountsByCollection(address(token)).length, 1);
+        assertEq(validator.getBlacklistedAccountsByCollection(address(token))[0], account);
+        assertTrue(validator.isAccountBlacklistedByCollection(address(token), account));
+
+        assertEq(token.getBlacklistedAccounts().length, 1);
+        assertEq(token.getBlacklistedAccounts()[0], account);
+        assertTrue(token.isAccountBlacklisted(account));
+    }
+
+    function testV2AddAccountsToBlacklist(address listOwner, address account1, address account2, address account3) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account1);
+        _sanitizeAddress(account2);
+        _sanitizeAddress(account3);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](2);
+        accounts[0] = account1;
+        accounts[1] = account2;
+
+        address[] memory accountsBatch2 = new address[](1);
+        accountsBatch2[0] = account3;
+
+        vm.startPrank(listOwner);
+        validator.addAccountsToBlacklist(listId, accounts);
+        validator.addAccountsToBlacklist(listId, accountsBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedAccounts(listId).length, 3);
+        assertTrue(validator.isAccountBlacklisted(listId, account1));
+        assertTrue(validator.isAccountBlacklisted(listId, account2));
+        assertTrue(validator.isAccountBlacklisted(listId, account3));
+
+        ITestCreatorToken token = _deployNewToken(address(this));
+        validator.applyListToCollection(address(token), listId);
+
+        assertEq(validator.getBlacklistedAccountsByCollection(address(token)).length, 3);
+        assertTrue(validator.isAccountBlacklistedByCollection(address(token), account1));
+        assertTrue(validator.isAccountBlacklistedByCollection(address(token), account2));
+        assertTrue(validator.isAccountBlacklistedByCollection(address(token), account3));
+
+        assertEq(token.getBlacklistedAccounts().length, 3);
+        assertTrue(token.isAccountBlacklisted(account1));
+        assertTrue(token.isAccountBlacklisted(account2));
+        assertTrue(token.isAccountBlacklisted(account3));
+    }
+
+    function testV2RevertsWhenNonOwnerAddsAccountToWhitelist(address listOwner, address unauthorizedUser, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addAccountsToWhitelist(listId, accounts);
+    }
+
+    function testV2RevertsWhenWhitelistingEmptyAccountArray(address listOwner) public {
+        _sanitizeAddress(listOwner);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.prank(listOwner);
+        validator.addAccountsToWhitelist(listId, accounts);
+    }
+
+    function testV2RevertsWhenWhitelistingZeroAddress(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](2);
+        accounts[0] = account;
+        accounts[1] = address(0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ZeroAddressNotAllowed.selector);
+        vm.prank(listOwner);
+        validator.addAccountsToWhitelist(listId, accounts);
+    }
+
+    function testV2NoDuplicateAddressesInWhitelist(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](3);
+        accounts[0] = account;
+        accounts[1] = account;
+        accounts[2] = account;
+
+        vm.startPrank(listOwner);
+        validator.addAccountsToWhitelist(listId, accounts);
+        validator.addAccountsToWhitelist(listId, accounts);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedAccounts(listId).length, 1);
+        assertEq(validator.getWhitelistedAccounts(listId)[0], account);
+        assertTrue(validator.isAccountWhitelisted(listId, account));
+
+        ITestCreatorToken token = _deployNewToken(address(this));
+        validator.applyListToCollection(address(token), listId);
+
+        assertEq(validator.getWhitelistedAccountsByCollection(address(token)).length, 1);
+        assertEq(validator.getWhitelistedAccountsByCollection(address(token))[0], account);
+        assertTrue(validator.isAccountWhitelistedByCollection(address(token), account));
+
+        assertEq(token.getWhitelistedAccounts().length, 1);
+        assertEq(token.getWhitelistedAccounts()[0], account);
+        assertTrue(token.isAccountWhitelisted(account));
+    }
+
+    function testV2AddAccountsToWhitelist(address listOwner, address account1, address account2, address account3) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account1);
+        _sanitizeAddress(account2);
+        _sanitizeAddress(account3);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](2);
+        accounts[0] = account1;
+        accounts[1] = account2;
+
+        address[] memory accountsBatch2 = new address[](1);
+        accountsBatch2[0] = account3;
+
+        vm.startPrank(listOwner);
+        validator.addAccountsToWhitelist(listId, accounts);
+        validator.addAccountsToWhitelist(listId, accountsBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedAccounts(listId).length, 3);
+        assertTrue(validator.isAccountWhitelisted(listId, account1));
+        assertTrue(validator.isAccountWhitelisted(listId, account2));
+        assertTrue(validator.isAccountWhitelisted(listId, account3));
+
+        ITestCreatorToken token = _deployNewToken(address(this));
+        validator.applyListToCollection(address(token), listId);
+
+        assertEq(validator.getWhitelistedAccountsByCollection(address(token)).length, 3);
+        assertTrue(validator.isAccountWhitelistedByCollection(address(token), account1));
+        assertTrue(validator.isAccountWhitelistedByCollection(address(token), account2));
+        assertTrue(validator.isAccountWhitelistedByCollection(address(token), account3));
+
+        assertEq(token.getWhitelistedAccounts().length, 3);
+        assertTrue(token.isAccountWhitelisted(account1));
+        assertTrue(token.isAccountWhitelisted(account2));
+        assertTrue(token.isAccountWhitelisted(account3));
+    }
+
+    function testV2RevertsWhenNonOwnerAddsCodehashToBlacklist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+        
+        vm.assume(codehash != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](1);
+        codehashes[0] = codehash;
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addCodeHashesToBlacklist(listId, codehashes);
+    }
+
+    function testV2RevertsWhenBlacklistingEmptyCodehashArray(address listOwner) public {
+        _sanitizeAddress(listOwner);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.prank(listOwner);
+        validator.addCodeHashesToBlacklist(listId, codehashes);
+    }
+
+    function testV2RevertsWhenBlacklistingZeroHash(address listOwner, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](2);
+        codehashes[0] = codehash;
+        codehashes[1] = bytes32(0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ZeroCodeHashNotAllowed.selector);
+        vm.prank(listOwner);
+        validator.addCodeHashesToBlacklist(listId, codehashes);
+    }
+
+    function testV2NoDuplicateCodehashesInBlacklist(address listOwner, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](3);
+        codehashes[0] = codehash;
+        codehashes[1] = codehash;
+        codehashes[2] = codehash;
+
+        vm.startPrank(listOwner);
+        validator.addCodeHashesToBlacklist(listId, codehashes);
+        validator.addCodeHashesToBlacklist(listId, codehashes);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedCodeHashes(listId).length, 1);
+        assertEq(validator.getBlacklistedCodeHashes(listId)[0], codehash);
+        assertTrue(validator.isCodeHashBlacklisted(listId, codehash));
+
+        ITestCreatorToken token = _deployNewToken(address(this));
+        validator.applyListToCollection(address(token), listId);
+
+        assertEq(validator.getBlacklistedCodeHashesByCollection(address(token)).length, 1);
+        assertEq(validator.getBlacklistedCodeHashesByCollection(address(token))[0], codehash);
+        assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash));
+
+        assertEq(token.getBlacklistedCodeHashes().length, 1);
+        assertEq(token.getBlacklistedCodeHashes()[0], codehash);
+        assertTrue(token.isCodeHashBlacklisted(codehash));
+    }
+
+    function testV2AddCodeHashesToBlacklist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash1 != bytes32(0));
+        vm.assume(codehash2 != bytes32(0));
+        vm.assume(codehash3 != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashesBatch1 = new bytes32[](2);
+        codehashesBatch1[0] = codehash1;
+        codehashesBatch1[1] = codehash2;
+
+        bytes32[] memory codehashesBatch2 = new bytes32[](1);
+        codehashesBatch2[0] = codehash3;
+
+        vm.startPrank(listOwner);
+        validator.addCodeHashesToBlacklist(listId, codehashesBatch1);
+        validator.addCodeHashesToBlacklist(listId, codehashesBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedCodeHashes(listId).length, 3);
+        assertTrue(validator.isCodeHashBlacklisted(listId, codehash1));
+        assertTrue(validator.isCodeHashBlacklisted(listId, codehash2));
+        assertTrue(validator.isCodeHashBlacklisted(listId, codehash3));
+
+        ITestCreatorToken token = _deployNewToken(address(this));
+        validator.applyListToCollection(address(token), listId);
+
+        assertEq(validator.getBlacklistedCodeHashesByCollection(address(token)).length, 3);
+        assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash1));
+        assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash2));
+        assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash3));
+
+        assertEq(token.getBlacklistedCodeHashes().length, 3);
+        assertTrue(token.isCodeHashBlacklisted(codehash1));
+        assertTrue(token.isCodeHashBlacklisted(codehash2));
+        assertTrue(token.isCodeHashBlacklisted(codehash3));
+    }
+
+    function testV2RevertsWhenNonOwnerAddsCodehashToWhitelist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+        
+        vm.assume(codehash != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](1);
+        codehashes[0] = codehash;
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addCodeHashesToWhitelist(listId, codehashes);
+    }
+
+    function testV2RevertsWhenWhitelistingEmptyCodehashArray(address listOwner) public {
+        _sanitizeAddress(listOwner);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.prank(listOwner);
+        validator.addCodeHashesToWhitelist(listId, codehashes);
+    }
+
+    function testV2RevertsWhenWhitelistingZeroHash(address listOwner, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](2);
+        codehashes[0] = codehash;
+        codehashes[1] = bytes32(0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ZeroCodeHashNotAllowed.selector);
+        vm.prank(listOwner);
+        validator.addCodeHashesToWhitelist(listId, codehashes);
+    }
+
+    function testV2NoDuplicateCodehashesInWhitelist(address listOwner, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](3);
+        codehashes[0] = codehash;
+        codehashes[1] = codehash;
+        codehashes[2] = codehash;
+
+        vm.startPrank(listOwner);
+        validator.addCodeHashesToWhitelist(listId, codehashes);
+        validator.addCodeHashesToWhitelist(listId, codehashes);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedCodeHashes(listId).length, 1);
+        assertEq(validator.getWhitelistedCodeHashes(listId)[0], codehash);
+        assertTrue(validator.isCodeHashWhitelisted(listId, codehash));
+
+        ITestCreatorToken token = _deployNewToken(address(this));
+        validator.applyListToCollection(address(token), listId);
+
+        assertEq(validator.getWhitelistedCodeHashesByCollection(address(token)).length, 1);
+        assertEq(validator.getWhitelistedCodeHashesByCollection(address(token))[0], codehash);
+        assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash));
+
+        assertEq(token.getWhitelistedCodeHashes().length, 1);
+        assertEq(token.getWhitelistedCodeHashes()[0], codehash);
+        assertTrue(token.isCodeHashWhitelisted(codehash));
+    }
+
+    function testV2AddCodeHashesToWhitelist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash1 != bytes32(0));
+        vm.assume(codehash2 != bytes32(0));
+        vm.assume(codehash3 != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashesBatch1 = new bytes32[](2);
+        codehashesBatch1[0] = codehash1;
+        codehashesBatch1[1] = codehash2;
+
+        bytes32[] memory codehashesBatch2 = new bytes32[](1);
+        codehashesBatch2[0] = codehash3;
+
+        vm.startPrank(listOwner);
+        validator.addCodeHashesToWhitelist(listId, codehashesBatch1);
+        validator.addCodeHashesToWhitelist(listId, codehashesBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedCodeHashes(listId).length, 3);
+        assertTrue(validator.isCodeHashWhitelisted(listId, codehash1));
+        assertTrue(validator.isCodeHashWhitelisted(listId, codehash2));
+        assertTrue(validator.isCodeHashWhitelisted(listId, codehash3));
+
+        ITestCreatorToken token = _deployNewToken(address(this));
+        validator.applyListToCollection(address(token), listId);
+
+        assertEq(validator.getWhitelistedCodeHashesByCollection(address(token)).length, 3);
+        assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash1));
+        assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash2));
+        assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash3));
+
+        assertEq(token.getWhitelistedCodeHashes().length, 3);
+        assertTrue(token.isCodeHashWhitelisted(codehash1));
+        assertTrue(token.isCodeHashWhitelisted(codehash2));
+        assertTrue(token.isCodeHashWhitelisted(codehash3));
+    }
+
+    //
+
+    function testV2RevertsWhenNonOwnerRemovesAccountFromBlacklist(address listOwner, address unauthorizedUser, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeAccountsFromBlacklist(listId, accounts);
+    }
+
+    function testV2RevertsWhenUnblacklistingEmptyAccountArray(address listOwner) public {
+        _sanitizeAddress(listOwner);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.prank(listOwner);
+        validator.removeAccountsFromBlacklist(listId, accounts);
+    }
+
+    function testV2NoRevertWhenRemovingAddressesFromBlacklistIfTheyDoNotExist(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](3);
+        accounts[0] = account;
+        accounts[1] = account;
+        accounts[2] = account;
+
+        vm.startPrank(listOwner);
+        validator.addAccountsToBlacklist(listId, accounts);
+        validator.addAccountsToBlacklist(listId, accounts);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedAccounts(listId).length, 1);
+        assertEq(validator.getBlacklistedAccounts(listId)[0], account);
+        assertTrue(validator.isAccountBlacklisted(listId, account));
+
+        vm.startPrank(listOwner);
+        validator.removeAccountsFromBlacklist(listId, accounts);
+        validator.removeAccountsFromBlacklist(listId, accounts);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedAccounts(listId).length, 0);
+        assertFalse(validator.isAccountBlacklisted(listId, account));
+    }
+
+    function testV2RemoveAccountsFromBlacklist(address listOwner, address account1, address account2, address account3) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account1);
+        _sanitizeAddress(account2);
+        _sanitizeAddress(account3);
+        vm.assume(account1 != account2);
+        vm.assume(account2 != account3);
+        vm.assume(account1 != account3);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](2);
+        accounts[0] = account1;
+        accounts[1] = account2;
+
+        address[] memory accountsBatch2 = new address[](1);
+        accountsBatch2[0] = account3;
+
+        vm.startPrank(listOwner);
+        validator.addAccountsToBlacklist(listId, accounts);
+        validator.addAccountsToBlacklist(listId, accountsBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedAccounts(listId).length, 3);
+        assertTrue(validator.isAccountBlacklisted(listId, account1));
+        assertTrue(validator.isAccountBlacklisted(listId, account2));
+        assertTrue(validator.isAccountBlacklisted(listId, account3));
+
+        vm.startPrank(listOwner);
+        validator.removeAccountsFromBlacklist(listId, accounts);
+        validator.removeAccountsFromBlacklist(listId, accountsBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedAccounts(listId).length, 0);
+        assertFalse(validator.isAccountBlacklisted(listId, account1));
+        assertFalse(validator.isAccountBlacklisted(listId, account2));
+        assertFalse(validator.isAccountBlacklisted(listId, account3));
+    }
+
+    function testV2RevertsWhenNonOwnerRemovesAccountFromWhitelist(address listOwner, address unauthorizedUser, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeAccountsFromWhitelist(listId, accounts);
+    }
+
+    function testV2RevertsWhenUnwhitelistingEmptyAccountArray(address listOwner) public {
+        _sanitizeAddress(listOwner);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.prank(listOwner);
+        validator.removeAccountsFromWhitelist(listId, accounts);
+    }
+
+    function testV2NoRevertWhenRemovingAddressesFromWhitelistIfTheyDoNotExist(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](3);
+        accounts[0] = account;
+        accounts[1] = account;
+        accounts[2] = account;
+
+        vm.startPrank(listOwner);
+        validator.addAccountsToWhitelist(listId, accounts);
+        validator.addAccountsToWhitelist(listId, accounts);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedAccounts(listId).length, 1);
+        assertEq(validator.getWhitelistedAccounts(listId)[0], account);
+        assertTrue(validator.isAccountWhitelisted(listId, account));
+
+        vm.startPrank(listOwner);
+        validator.removeAccountsFromWhitelist(listId, accounts);
+        validator.removeAccountsFromWhitelist(listId, accounts);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedAccounts(listId).length, 0);
+        assertFalse(validator.isAccountWhitelisted(listId, account));
+    }
+
+    function testV2RemoveAccountsFromWhitelist(address listOwner, address account1, address account2, address account3) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account1);
+        _sanitizeAddress(account2);
+        _sanitizeAddress(account3);
+        vm.assume(account1 != account2);
+        vm.assume(account2 != account3);
+        vm.assume(account1 != account3);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accounts = new address[](2);
+        accounts[0] = account1;
+        accounts[1] = account2;
+
+        address[] memory accountsBatch2 = new address[](1);
+        accountsBatch2[0] = account3;
+
+        vm.startPrank(listOwner);
+        validator.addAccountsToWhitelist(listId, accounts);
+        validator.addAccountsToWhitelist(listId, accountsBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedAccounts(listId).length, 3);
+        assertTrue(validator.isAccountWhitelisted(listId, account1));
+        assertTrue(validator.isAccountWhitelisted(listId, account2));
+        assertTrue(validator.isAccountWhitelisted(listId, account3));
+
+        vm.startPrank(listOwner);
+        validator.removeAccountsFromWhitelist(listId, accounts);
+        validator.removeAccountsFromWhitelist(listId, accountsBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedAccounts(listId).length, 0);
+        assertFalse(validator.isAccountWhitelisted(listId, account1));
+        assertFalse(validator.isAccountWhitelisted(listId, account2));
+        assertFalse(validator.isAccountWhitelisted(listId, account3));
+    }
+
+    // 
+
+    function testV2RevertsWhenNonOwnerRemovesCodeHashFromBlacklist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](1);
+        codehashes[0] = codehash;
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeCodeHashesFromBlacklist(listId, codehashes);
+    }
+
+    function testV2RevertsWhenUnblacklistingEmptyCodeHashArray(address listOwner) public {
+        _sanitizeAddress(listOwner);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.prank(listOwner);
+        validator.removeCodeHashesFromBlacklist(listId, codehashes);
+    }
+
+    function testV2NoRevertWhenRemovingCodeHashesFromBlacklistIfTheyDoNotExist(address listOwner, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](3);
+        codehashes[0] = codehash;
+        codehashes[1] = codehash;
+        codehashes[2] = codehash;
+
+        vm.startPrank(listOwner);
+        validator.addCodeHashesToBlacklist(listId, codehashes);
+        validator.addCodeHashesToBlacklist(listId, codehashes);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedCodeHashes(listId).length, 1);
+        assertEq(validator.getBlacklistedCodeHashes(listId)[0], codehash);
+        assertTrue(validator.isCodeHashBlacklisted(listId, codehash));
+
+        vm.startPrank(listOwner);
+        validator.removeCodeHashesFromBlacklist(listId, codehashes);
+        validator.removeCodeHashesFromBlacklist(listId, codehashes);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedCodeHashes(listId).length, 0);
+        assertFalse(validator.isCodeHashBlacklisted(listId, codehash));
+    }
+
+    function testV2RemoveCodeHashesFromBlacklist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash1 != bytes32(0));
+        vm.assume(codehash2 != bytes32(0));
+        vm.assume(codehash3 != bytes32(0));
+        vm.assume(codehash1 != codehash2);
+        vm.assume(codehash2 != codehash3);
+        vm.assume(codehash1 != codehash3);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashesBatch1 = new bytes32[](2);
+        codehashesBatch1[0] = codehash1;
+        codehashesBatch1[1] = codehash2;
+
+        bytes32[] memory codehashesBatch2 = new bytes32[](1);
+        codehashesBatch2[0] = codehash3;
+
+        vm.startPrank(listOwner);
+        validator.addCodeHashesToBlacklist(listId, codehashesBatch1);
+        validator.addCodeHashesToBlacklist(listId, codehashesBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedCodeHashes(listId).length, 3);
+        assertTrue(validator.isCodeHashBlacklisted(listId, codehash1));
+        assertTrue(validator.isCodeHashBlacklisted(listId, codehash2));
+        assertTrue(validator.isCodeHashBlacklisted(listId, codehash3));
+
+        vm.startPrank(listOwner);
+        validator.removeCodeHashesFromBlacklist(listId, codehashesBatch1);
+        validator.removeCodeHashesFromBlacklist(listId, codehashesBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getBlacklistedCodeHashes(listId).length, 0);
+        assertFalse(validator.isCodeHashBlacklisted(listId, codehash1));
+        assertFalse(validator.isCodeHashBlacklisted(listId, codehash2));
+        assertFalse(validator.isCodeHashBlacklisted(listId, codehash3));
+    }
+
+    function testV2RevertsWhenNonOwnerRemovesCodeHashFromWhitelist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](1);
+        codehashes[0] = codehash;
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeCodeHashesFromWhitelist(listId, codehashes);
+    }
+
+    function testV2RevertsWhenUnwhitelistingEmptyCodeHashArray(address listOwner) public {
+        _sanitizeAddress(listOwner);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](0);
+
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.prank(listOwner);
+        validator.removeCodeHashesFromWhitelist(listId, codehashes);
+    }
+
+    function testV2NoRevertWhenRemovingCodeHashesFromWhitelistIfTheyDoNotExist(address listOwner, bytes32 codehash) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash != bytes32(0));
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashes = new bytes32[](3);
+        codehashes[0] = codehash;
+        codehashes[1] = codehash;
+        codehashes[2] = codehash;
+
+        vm.startPrank(listOwner);
+        validator.addCodeHashesToWhitelist(listId, codehashes);
+        validator.addCodeHashesToWhitelist(listId, codehashes);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedCodeHashes(listId).length, 1);
+        assertEq(validator.getWhitelistedCodeHashes(listId)[0], codehash);
+        assertTrue(validator.isCodeHashWhitelisted(listId, codehash));
+
+        vm.startPrank(listOwner);
+        validator.removeCodeHashesFromWhitelist(listId, codehashes);
+        validator.removeCodeHashesFromWhitelist(listId, codehashes);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedCodeHashes(listId).length, 0);
+        assertFalse(validator.isCodeHashWhitelisted(listId, codehash));
+    }
+
+    function testV2RemoveCodeHashesFromWhitelist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
+        _sanitizeAddress(listOwner);
+        vm.assume(codehash1 != bytes32(0));
+        vm.assume(codehash2 != bytes32(0));
+        vm.assume(codehash3 != bytes32(0));
+        vm.assume(codehash1 != codehash2);
+        vm.assume(codehash2 != codehash3);
+        vm.assume(codehash1 != codehash3);
+        
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codehashesBatch1 = new bytes32[](2);
+        codehashesBatch1[0] = codehash1;
+        codehashesBatch1[1] = codehash2;
+
+        bytes32[] memory codehashesBatch2 = new bytes32[](1);
+        codehashesBatch2[0] = codehash3;
+
+        vm.startPrank(listOwner);
+        validator.addCodeHashesToWhitelist(listId, codehashesBatch1);
+        validator.addCodeHashesToWhitelist(listId, codehashesBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedCodeHashes(listId).length, 3);
+        assertTrue(validator.isCodeHashWhitelisted(listId, codehash1));
+        assertTrue(validator.isCodeHashWhitelisted(listId, codehash2));
+        assertTrue(validator.isCodeHashWhitelisted(listId, codehash3));
+
+        vm.startPrank(listOwner);
+        validator.removeCodeHashesFromWhitelist(listId, codehashesBatch1);
+        validator.removeCodeHashesFromWhitelist(listId, codehashesBatch2);
+        vm.stopPrank();
+
+        assertEq(validator.getWhitelistedCodeHashes(listId).length, 0);
+        assertFalse(validator.isCodeHashWhitelisted(listId, codehash1));
+        assertFalse(validator.isCodeHashWhitelisted(listId, codehash2));
+        assertFalse(validator.isCodeHashWhitelisted(listId, codehash3));
+    }
+
+    function testV2BlacklistPoliciesWithOTCEnabledAllowTransfersWhenCalledByOwner(
+        address creator,
+        address tokenOwner,
+        uint160 toKey
+    ) public {
+        address to = _verifyEOA(toKey);
+        _testBlacklistPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.One, creator, tokenOwner, to);
+    }
+
+    function testV2BlacklistPoliciesAllowAllTransfersWhenOperatorBlacklistIsEmpty(
+        address creator,
+        address caller,
+        address from,
+        uint160 toKey
+    ) public {
+        address to = _verifyEOA(toKey);
+        _testPolicyAllowsAllTransfersWhenOperatorBlacklistIsEmpty(TransferSecurityLevels.One, creator, caller, from, to);
+    }
+
+    function testV2BlacklistPoliciesWithOTCEnabledBlockTransfersWhenCallerAccountBlacklistedAndNotOwner(
+        address creator,
+        address caller,
+        address from,
+        uint160 toKey
+    ) public {
+        _sanitizeAddress(caller);
+        _sanitizeAddress(from);
+        address to = _verifyEOA(toKey);
+        _testPolicyBlocksTransfersWhenCallerAccountBlacklistedAndNotOwner(TransferSecurityLevels.One, creator, caller, from, to);
+    }
+
+    function _testPolicyAllowsAllTransfersWhenOperatorBlacklistIsEmpty(
+        TransferSecurityLevels level,
+        address creator,
+        address caller,
+        address from,
+        address to
+    ) private {
+        vm.assume(creator != address(0));
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.assume(caller != address(token));
+        vm.assume(caller != address(0));
+        vm.assume(from != address(0));
+        vm.assume(from != caller);
+        vm.assume(from != address(token));
+        vm.assume(to != address(0));
+        vm.assume(to != address(token));
+
+        vm.startPrank(creator);
+
+        uint120 listId = validator.createList("");
+
+        token.setTransferValidator(address(validator));
+        validator.setTransferSecurityLevelOfCollection(address(token), level);
+        validator.applyListToCollection(address(token), listId);
+        vm.stopPrank();
+
+        assertTrue(token.isTransferAllowed(caller, from, to));
+
+        _mintToken(address(token), from, 1);
+
+        vm.prank(from);
+        token.setApprovalForAll(caller, true);
+
+        vm.prank(caller);
+        token.transferFrom(from, to, 1);
+        assertEq(token.ownerOf(1), to);
+    }
+
+    function _testPolicyBlocksTransfersWhenCallerAccountBlacklistedAndNotOwner(
+        TransferSecurityLevels level,
+        address creator,
+        address caller,
+        address from,
+        address to
+    ) private {
+        vm.assume(creator != address(0));
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.assume(caller != address(token));
+        vm.assume(caller != address(0));
+        vm.assume(from != address(0));
+        vm.assume(from != caller);
+        vm.assume(from != address(token));
+        vm.assume(to != address(0));
+        vm.assume(to != address(token));
+
+        address[] memory blacklistedAccounts = new address[](1);
+        blacklistedAccounts[0] = caller;
+
+        vm.startPrank(creator);
+        uint120 listId = validator.createList("");
+        token.setTransferValidator(address(validator));
+        validator.setTransferSecurityLevelOfCollection(address(token), level);
+        validator.applyListToCollection(address(token), listId);
+        validator.addAccountsToBlacklist(listId, blacklistedAccounts);
+        vm.stopPrank();
+
+        assertFalse(token.isTransferAllowed(caller, from, to));
+
+        _mintToken(address(token), from, 1);
+
+        vm.prank(from);
+        token.setApprovalForAll(caller, true);
+
+        vm.prank(caller);
+        vm.expectRevert(
+            CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__OperatorIsBlacklisted.selector
+        );
+        token.transferFrom(from, to, 1);
+    }
+
+    function _testBlacklistPolicyAllowsTransfersWhenCalledByOwner(
+        TransferSecurityLevels level,
+        address creator,
+        address tokenOwner,
+        address to
+    ) private {
+        vm.assume(creator != address(0));
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.assume(tokenOwner != address(token));
+        vm.assume(tokenOwner != address(0));
+        vm.assume(to != address(0));
+        vm.assume(to != address(token));
+
+        address[] memory blacklistedAccounts = new address[](1);
+        blacklistedAccounts[0] = tokenOwner;
+
+        vm.startPrank(creator);
+        uint120 listId = validator.createList("");
+        token.setTransferValidator(address(validator));
+        validator.setTransferSecurityLevelOfCollection(address(token), level);
+        validator.applyListToCollection(address(token), listId);
+        validator.addAccountsToBlacklist(listId, blacklistedAccounts);
+        vm.stopPrank();
+
+        assertTrue(token.isTransferAllowed(tokenOwner, tokenOwner, to));
+
+        _mintToken(address(token), tokenOwner, 1);
+
+        vm.prank(tokenOwner);
+        token.transferFrom(tokenOwner, to, 1);
+
+        assertEq(token.ownerOf(1), to);
     }
 }

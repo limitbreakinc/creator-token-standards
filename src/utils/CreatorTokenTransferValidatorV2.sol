@@ -91,13 +91,14 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     error CreatorTokenTransferValidator__OperatorIsBlacklisted();
     error CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode();
     error CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
+    error CreatorTokenTransferValidator__ZeroAddressNotAllowed();
     error CreatorTokenTransferValidator__ZeroCodeHashNotAllowed();
     
     bytes32 private constant DEFAULT_ACCESS_CONTROL_ADMIN_ROLE = 0x00;
     bytes32 private constant CODEHASH_ZERO = 0x0000000000000000000000000000000000000000000000000000000000000000;
     TransferSecurityLevels public constant DEFAULT_TRANSFER_SECURITY_LEVEL = TransferSecurityLevels.Zero;
 
-    uint120 private lastListId;
+    uint120 public lastListId;
 
     mapping (TransferSecurityLevels => TransferSecurityPolicy) public transferSecurityPolicies;
     mapping (address => CollectionSecurityPolicyV2) private collectionSecurityPolicies;
@@ -278,6 +279,12 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     function createListCopy(string calldata name, uint120 sourceListId) external override returns (uint120) {
         uint120 id = ++lastListId;
 
+        unchecked {
+            if (sourceListId > id - 1) {
+                revert CreatorTokenTransferValidator__ListDoesNotExist();
+            }
+        }
+
         listOwners[id] = _msgSender();
 
         emit CreatedList(id, name);
@@ -405,6 +412,11 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
+
+            if (account == address(0)) {
+                revert CreatorTokenTransferValidator__ZeroAddressNotAllowed();
+            }
+
             if (blacklist.add(account)) {
                 emit AddedAccountToList(ListTypes.Blacklist, id, account);
             }
@@ -438,6 +450,11 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
+
+            if (account == address(0)) {
+                revert CreatorTokenTransferValidator__ZeroAddressNotAllowed();
+            }
+
             if (whitelist.add(account)) {
                 emit AddedAccountToList(ListTypes.Whitelist, id, account);
             }
@@ -826,7 +843,6 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         EnumerableSet.Bytes32Set storage ptrCodehashBlacklist = codehashBlacklists[id];
         
         return 
-        (ptrBlacklist.length() == 0 && ptrCodehashBlacklist.length() == 0) ||
         ptrBlacklist.contains(account) ||
         ptrCodehashBlacklist.contains(account.codehash);
     }
