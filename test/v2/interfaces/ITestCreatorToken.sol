@@ -23,4 +23,9 @@ interface ITestCreatorToken is IERC721, ICreatorTokenV2 {
         TransferSecurityLevels level,
         uint120 listId
     ) external;
+
+    function setToCustomSecurityPolicy(
+        TransferSecurityLevels level,
+        uint120 listId
+    ) external;
 }

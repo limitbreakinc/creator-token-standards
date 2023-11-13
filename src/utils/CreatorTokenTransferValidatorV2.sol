@@ -194,41 +194,50 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @param from   The address of the token owner.
      * @param to     The address of the token receiver.
      */
-    function applyCollectionTransferPolicy(address caller, address from, address to) external view override {
-        address collection = _msgSender();
-        CollectionSecurityPolicyV2 memory collectionSecurityPolicy = collectionSecurityPolicies[collection];
-        TransferSecurityPolicy memory transferSecurityPolicy = 
+     function applyCollectionTransferPolicy(address caller, address from, address to) external view override {
+        CollectionSecurityPolicyV2 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
+
+        uint120 listId = collectionSecurityPolicy.listId;
+
+        TransferSecurityPolicy storage transferSecurityPolicy = 
             transferSecurityPolicies[collectionSecurityPolicy.transferSecurityLevel];
 
-        if (transferSecurityPolicy.receiverConstraints == ReceiverConstraints.NoCode) {
+        ReceiverConstraints receiverConstraints = transferSecurityPolicy.receiverConstraints;
+        CallerConstraints callerConstraints = transferSecurityPolicy.callerConstraints;
+
+        if (receiverConstraints == ReceiverConstraints.NoCode) {
             if (to.code.length > 0) {
-                if (!_isAccountOrCodeHashWhitelisted(collectionSecurityPolicy.listId, to)) {
+                if (!(whitelists[listId].contains(to) || codehashWhitelists[listId].contains(to.codehash))) {
                     revert CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode();
                 }
             }
-        } else if (transferSecurityPolicy.receiverConstraints == ReceiverConstraints.EOA) {
+        } else if (receiverConstraints == ReceiverConstraints.EOA) {
             if (!isVerifiedEOA(to)) {
-                if (!_isAccountOrCodeHashWhitelisted(collectionSecurityPolicy.listId, to)) {
+                if (!(whitelists[listId].contains(to) || codehashWhitelists[listId].contains(to.codehash))) {
                     revert CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
                 }
             }
         }
 
-        if (transferSecurityPolicy.callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC) {
-            if (caller == from) {
+        if (caller == from) {
+            if (callerConstraints != CallerConstraints.OperatorWhitelistDisableOTC) {
                 return;
-            } else if (_isAccountOrCodeHashBlacklisted(collectionSecurityPolicy.listId, caller)) {
+            }
+        }
+
+        if (callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC) {
+            if (blacklists[listId].contains(caller) || codehashBlacklists[listId].contains(caller.codehash)) {
                 revert CreatorTokenTransferValidator__OperatorIsBlacklisted();
             }
-        } else if (transferSecurityPolicy.callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC) {
-            if (caller == from) {
-                return;
-            } else if (!_isAccountOrCodeHashWhitelisted(collectionSecurityPolicy.listId, caller)) {
+        } else if (callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC) {
+            if (!(whitelists[listId].contains(caller) || codehashWhitelists[listId].contains(caller.codehash))) {
                 revert CreatorTokenTransferValidator__CallerMustBeWhitelisted();
             }
-        } else if (transferSecurityPolicy.callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC) {
-            if (!_isAccountOrCodeHashWhitelisted(collectionSecurityPolicy.listId, caller) &&
-                !_isAccountOrCodeHashWhitelisted(collectionSecurityPolicy.listId, from)) {
+        } else if (callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC) {
+            EnumerableSet.AddressSet storage whitelist = whitelists[listId];
+            EnumerableSet.Bytes32Set storage codehashWhitelist = codehashWhitelists[listId];
+
+            if (!(whitelist.contains(caller) || whitelist.contains(from) || codehashWhitelist.contains(caller.codehash) || codehashWhitelist.contains(from.codehash))) {
                 revert CreatorTokenTransferValidator__CallerMustBeWhitelisted();
             }
         }
@@ -848,13 +857,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     }
 
     function _isAccountOrCodeHashWhitelisted(uint120 id, address account) internal view returns (bool) {
-        EnumerableSet.AddressSet storage ptrWhitelist = whitelists[id];
-        EnumerableSet.Bytes32Set storage ptrCodehashWhitelist = codehashWhitelists[id];
-        
-        return 
-        (ptrWhitelist.length() == 0 && ptrCodehashWhitelist.length() == 0) ||
-        ptrWhitelist.contains(account) ||
-        ptrCodehashWhitelist.contains(account.codehash);
+          return whitelists[id].contains(account) || codehashWhitelists[id].contains(account.codehash);
     }
 
     function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
