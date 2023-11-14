@@ -150,14 +150,15 @@ abstract contract CreatorTokenBaseV2 is OwnablePermissions, TransferValidation, 
     /**
      * @notice Returns the transfer validator contract address for this token contract, if V2.
      */
-    function getTransferValidatorV2() public view override returns (ICreatorTokenTransferValidatorV2) {
-        TransferValidatorReference memory cachedTransferValidatorReference = transferValidatorReference;
-        if (cachedTransferValidatorReference.isInitialized) {
-            return cachedTransferValidatorReference.version > 1 ? 
-                   ICreatorTokenTransferValidatorV2(cachedTransferValidatorReference.transferValidator) : 
-                   ICreatorTokenTransferValidatorV2(address(0));
-        } else {
-            return ICreatorTokenTransferValidatorV2(DEFAULT_TRANSFER_VALIDATOR);
+    function getTransferValidatorV2() public view override returns (ICreatorTokenTransferValidatorV2 transferValidator) {
+        transferValidator = ICreatorTokenTransferValidatorV2(transferValidatorReference.transferValidator);
+
+        if (address(transferValidator) == address(0)) {
+            if (!transferValidatorReference.isInitialized) {
+                transferValidator = ICreatorTokenTransferValidatorV2(DEFAULT_TRANSFER_VALIDATOR);
+            }
+        } else if (transferValidatorReference.version < 2) {
+            transferValidator = ICreatorTokenTransferValidatorV2(address(0));
         }
     }
 
@@ -402,12 +403,13 @@ abstract contract CreatorTokenBaseV2 is OwnablePermissions, TransferValidation, 
     /**
      * @notice Returns the transfer validator contract address for this token contract.
      */
-    function getTransferValidator() public view override returns (ICreatorTokenTransferValidator) {
-        TransferValidatorReference memory cachedTransferValidatorReference = transferValidatorReference;
-        if (cachedTransferValidatorReference.isInitialized) {
-            return ICreatorTokenTransferValidator(cachedTransferValidatorReference.transferValidator);
-        } else {
-            return ICreatorTokenTransferValidator(DEFAULT_TRANSFER_VALIDATOR);
+    function getTransferValidator() public view override returns (ICreatorTokenTransferValidator transferValidator) {
+        transferValidator = ICreatorTokenTransferValidator(transferValidatorReference.transferValidator);
+
+        if (address(transferValidator) == address(0)) {
+            if (!transferValidatorReference.isInitialized) {
+                transferValidator = ICreatorTokenTransferValidator(DEFAULT_TRANSFER_VALIDATOR);
+            }
         }
     }
 
