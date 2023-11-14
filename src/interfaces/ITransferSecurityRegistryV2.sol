@@ -12,6 +12,7 @@ interface ITransferSecurityRegistryV2 is ITransferSecurityRegistry {
     event RemovedAccountFromList(ListTypes indexed kind, uint256 indexed id, address indexed account);
     event RemovedCodeHashFromList(ListTypes indexed kind, uint256 indexed id, bytes32 indexed codehash);
 
+    function transferSecurityPolicies(TransferSecurityLevels level) external pure returns (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints);
     function createList(string calldata name) external returns (uint120);
     function createListCopy(string calldata name, uint120 sourceListId) external returns (uint120);
     function reassignOwnershipOfList(uint120 id, address newOwner) external;

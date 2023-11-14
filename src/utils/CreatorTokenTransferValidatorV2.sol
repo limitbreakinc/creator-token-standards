@@ -82,6 +82,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
+    // Custom Errors
     error CreatorTokenTransferValidator__ArrayLengthCannotBeZero();
     error CreatorTokenTransferValidator__ListDoesNotExist();
     error CreatorTokenTransferValidator__ListOwnershipCannotBeTransferredToZeroAddress();
@@ -93,67 +94,35 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     error CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
     error CreatorTokenTransferValidator__ZeroAddressNotAllowed();
     error CreatorTokenTransferValidator__ZeroCodeHashNotAllowed();
+
+    // Structs
+    struct List {
+        EnumerableSet.AddressSet enumerableAccounts;
+        EnumerableSet.Bytes32Set enumerableCodehashes;
+        mapping (address => bool) nonEnumerableAccounts;
+        mapping (bytes32 => bool) nonEnumerableCodehashes;
+    }
     
+    // Constants
     bytes32 private constant DEFAULT_ACCESS_CONTROL_ADMIN_ROLE = 0x00;
     bytes32 private constant CODEHASH_ZERO = 0x0000000000000000000000000000000000000000000000000000000000000000;
-    TransferSecurityLevels public constant DEFAULT_TRANSFER_SECURITY_LEVEL = TransferSecurityLevels.Zero;
 
+    /// @notice Keeps track of the most recently created list id.
     uint120 public lastListId;
 
-    mapping (TransferSecurityLevels => TransferSecurityPolicy) public transferSecurityPolicies;
-    mapping (address => CollectionSecurityPolicyV2) private collectionSecurityPolicies;
+    /// @notice Mapping of list ids to list owners
     mapping (uint120 => address) public listOwners;
-    mapping (uint120 => EnumerableSet.AddressSet) private blacklists;
-    mapping (uint120 => EnumerableSet.Bytes32Set) private codehashBlacklists;
-    mapping (uint120 => EnumerableSet.AddressSet) private whitelists;
-    mapping (uint120 => EnumerableSet.Bytes32Set) private codehashWhitelists;
+
+    /// @dev Mapping of collection addresses to their security policy settings
+    mapping (address => CollectionSecurityPolicyV2) private collectionSecurityPolicies;
+
+    /// @dev Mapping of list ids to blacklist settings
+    mapping (uint120 => List) private blacklists;
+
+    /// @dev Mapping of list ids to whitelist settings
+    mapping (uint120 => List) private whitelists;
 
     constructor(address defaultOwner) EOARegistry() {
-        transferSecurityPolicies[TransferSecurityLevels.Recommended] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.OperatorWhitelistEnableOTC,
-            receiverConstraints: ReceiverConstraints.None
-        });
-
-        transferSecurityPolicies[TransferSecurityLevels.Zero] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.None,
-            receiverConstraints: ReceiverConstraints.None
-        });
-
-        transferSecurityPolicies[TransferSecurityLevels.One] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.OperatorBlacklistEnableOTC,
-            receiverConstraints: ReceiverConstraints.None
-        });
-
-        transferSecurityPolicies[TransferSecurityLevels.Two] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.OperatorWhitelistEnableOTC,
-            receiverConstraints: ReceiverConstraints.None
-        });
-
-        transferSecurityPolicies[TransferSecurityLevels.Three] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.OperatorWhitelistDisableOTC,
-            receiverConstraints: ReceiverConstraints.None
-        });
-
-        transferSecurityPolicies[TransferSecurityLevels.Four] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.OperatorWhitelistEnableOTC,
-            receiverConstraints: ReceiverConstraints.NoCode
-        });
-
-        transferSecurityPolicies[TransferSecurityLevels.Five] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.OperatorWhitelistEnableOTC,
-            receiverConstraints: ReceiverConstraints.EOA
-        });
-
-        transferSecurityPolicies[TransferSecurityLevels.Six] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.OperatorWhitelistDisableOTC,
-            receiverConstraints: ReceiverConstraints.NoCode
-        });
-
-        transferSecurityPolicies[TransferSecurityLevels.Seven] = TransferSecurityPolicy({
-            callerConstraints: CallerConstraints.OperatorWhitelistDisableOTC,
-            receiverConstraints: ReceiverConstraints.EOA
-        });
-
         uint120 id = 0;
 
         listOwners[id] = defaultOwner;
@@ -161,6 +130,10 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         emit CreatedList(id, "DEFAULT LIST");
         emit ReassignedListOwnership(id, defaultOwner);
     }
+
+    /*************************************************************************/
+    /*                               MODIFIERS                               */
+    /*************************************************************************/
 
     modifier onlyListOwner(uint120 id) {
         _requireCallerOwnsList(id);
@@ -173,6 +146,10 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         }
         _;
     }
+
+    /*************************************************************************/
+    /*                          APPLY TRANSFER POLICIES                      */
+    /*************************************************************************/
 
     /**
      * @notice Apply the collection transfer policy to a transfer operation of a creator token.
@@ -194,27 +171,30 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @param from   The address of the token owner.
      * @param to     The address of the token receiver.
      */
-     function applyCollectionTransferPolicy(address caller, address from, address to) external view override {
+    function applyCollectionTransferPolicy(address caller, address from, address to) external view override {
         CollectionSecurityPolicyV2 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
-
         uint120 listId = collectionSecurityPolicy.listId;
+        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) = 
+            transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
 
-        TransferSecurityPolicy storage transferSecurityPolicy = 
-            transferSecurityPolicies[collectionSecurityPolicy.transferSecurityLevel];
-
-        ReceiverConstraints receiverConstraints = transferSecurityPolicy.receiverConstraints;
-        CallerConstraints callerConstraints = transferSecurityPolicy.callerConstraints;
+        List storage whitelist = whitelists[listId];
 
         if (receiverConstraints == ReceiverConstraints.NoCode) {
             if (to.code.length > 0) {
-                if (!(whitelists[listId].contains(to) || codehashWhitelists[listId].contains(to.codehash))) {
-                    revert CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode();
+                if (!whitelist.nonEnumerableAccounts[to]) {
+                    if (!whitelist.nonEnumerableCodehashes[to.codehash]) {
+                        revert CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode();
+                    }
                 }
             }
+
+            
         } else if (receiverConstraints == ReceiverConstraints.EOA) {
             if (!isVerifiedEOA(to)) {
-                if (!(whitelists[listId].contains(to) || codehashWhitelists[listId].contains(to.codehash))) {
-                    revert CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
+                if (!whitelist.nonEnumerableAccounts[to]) {
+                    if (!whitelist.nonEnumerableCodehashes[to.codehash]) {
+                        revert CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
+                    }
                 }
             }
         }
@@ -226,22 +206,86 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         }
 
         if (callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC) {
-            if (blacklists[listId].contains(caller) || codehashBlacklists[listId].contains(caller.codehash)) {
+            List storage blacklist = blacklists[listId];
+            if (blacklist.nonEnumerableAccounts[caller]) {
+                revert CreatorTokenTransferValidator__OperatorIsBlacklisted();
+            }
+
+            if (blacklist.nonEnumerableCodehashes[caller.codehash]) {
                 revert CreatorTokenTransferValidator__OperatorIsBlacklisted();
             }
         } else if (callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC) {
-            if (!(whitelists[listId].contains(caller) || codehashWhitelists[listId].contains(caller.codehash))) {
-                revert CreatorTokenTransferValidator__CallerMustBeWhitelisted();
+            if (whitelist.nonEnumerableAccounts[caller]) {
+                return;
             }
-        } else if (callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC) {
-            EnumerableSet.AddressSet storage whitelist = whitelists[listId];
-            EnumerableSet.Bytes32Set storage codehashWhitelist = codehashWhitelists[listId];
 
-            if (!(whitelist.contains(caller) || whitelist.contains(from) || codehashWhitelist.contains(caller.codehash) || codehashWhitelist.contains(from.codehash))) {
-                revert CreatorTokenTransferValidator__CallerMustBeWhitelisted();
+            if (whitelist.nonEnumerableCodehashes[caller.codehash]) {
+                return;
             }
+
+            revert CreatorTokenTransferValidator__CallerMustBeWhitelisted();
+        } else if (callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC) {
+            mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
+
+            if (accountWhitelist[caller]) {
+                return;
+            }
+
+            if (accountWhitelist[from]) {
+                return;
+            }
+
+            mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
+
+            if (codehashWhitelist[caller.codehash]) {
+                return;
+            }
+
+            if (codehashWhitelist[from.codehash]) {
+                return;
+            }
+
+            revert CreatorTokenTransferValidator__CallerMustBeWhitelisted();
         }
     }
+
+        /**
+     * @notice Returns the caller and receiver constraints for the specified transfer security level.
+     */
+    function transferSecurityPolicies(TransferSecurityLevels level) public pure returns (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) {
+        if (level == TransferSecurityLevels.Recommended) {
+            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
+            receiverConstraints = ReceiverConstraints.None;
+        } else if (level == TransferSecurityLevels.Zero) {
+            callerConstraints = CallerConstraints.None;
+            receiverConstraints = ReceiverConstraints.None;
+        } else if (level == TransferSecurityLevels.One) {
+            callerConstraints = CallerConstraints.OperatorBlacklistEnableOTC;
+            receiverConstraints = ReceiverConstraints.None;
+        } else if (level == TransferSecurityLevels.Two) {
+            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
+            receiverConstraints = ReceiverConstraints.None;
+        } else if (level == TransferSecurityLevels.Three) {
+            callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
+            receiverConstraints = ReceiverConstraints.None;
+        } else if (level == TransferSecurityLevels.Four) {
+            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
+            receiverConstraints = ReceiverConstraints.NoCode;
+        } else if (level == TransferSecurityLevels.Five) {
+            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
+            receiverConstraints = ReceiverConstraints.EOA;
+        } else if (level == TransferSecurityLevels.Six) {
+            callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
+            receiverConstraints = ReceiverConstraints.NoCode;
+        } else {
+            callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
+            receiverConstraints = ReceiverConstraints.EOA;
+        }
+    }
+
+    /*************************************************************************/
+    /*                              LIST MANAGEMENT                          */
+    /*************************************************************************/
 
     /**
      * @notice Creates a new list id.  The list id is a handle to allow editing of blacklisted and whitelisted accounts
@@ -299,10 +343,15 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         emit CreatedList(id, name);
         emit ReassignedListOwnership(id, _msgSender());
 
-        _copyAddressSet(ListTypes.Blacklist, id, blacklists[sourceListId], blacklists[id]);
-        _copyBytes32Set(ListTypes.Blacklist, id, codehashBlacklists[sourceListId], codehashBlacklists[id]);
-        _copyAddressSet(ListTypes.Whitelist, id, whitelists[sourceListId], whitelists[id]);
-        _copyBytes32Set(ListTypes.Whitelist, id, codehashWhitelists[sourceListId], codehashWhitelists[id]);
+        List storage sourceBlacklist = blacklists[sourceListId];
+        List storage sourceWhitelist = whitelists[sourceListId];
+        List storage targetBlacklist = blacklists[id];
+        List storage targetWhitelist = whitelists[id];
+
+        _copyAddressSet(ListTypes.Blacklist, id, sourceBlacklist, targetBlacklist);
+        _copyBytes32Set(ListTypes.Blacklist, id, sourceBlacklist, targetBlacklist);
+        _copyAddressSet(ListTypes.Whitelist, id, sourceWhitelist, targetWhitelist);
+        _copyBytes32Set(ListTypes.Whitelist, id, sourceWhitelist, targetWhitelist);
 
         return id;
     }
@@ -417,7 +466,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     ) external override 
     onlyListOwner(id) 
     notZero(accounts.length) {
-        EnumerableSet.AddressSet storage blacklist = blacklists[id];
+        List storage blacklist = blacklists[id];
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
@@ -426,8 +475,9 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
                 revert CreatorTokenTransferValidator__ZeroAddressNotAllowed();
             }
 
-            if (blacklist.add(account)) {
+            if (blacklist.enumerableAccounts.add(account)) {
                 emit AddedAccountToList(ListTypes.Blacklist, id, account);
+                blacklist.nonEnumerableAccounts[account] = true;
             }
 
             unchecked {
@@ -455,7 +505,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     ) external override 
     onlyListOwner(id) 
     notZero(accounts.length) {
-        EnumerableSet.AddressSet storage whitelist = whitelists[id];
+        List storage whitelist = whitelists[id];
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
@@ -464,8 +514,9 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
                 revert CreatorTokenTransferValidator__ZeroAddressNotAllowed();
             }
 
-            if (whitelist.add(account)) {
+            if (whitelist.enumerableAccounts.add(account)) {
                 emit AddedAccountToList(ListTypes.Whitelist, id, account);
+                whitelist.nonEnumerableAccounts[account] = true;
             }
 
             unchecked {
@@ -494,7 +545,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     ) external override
     onlyListOwner(id) 
     notZero(codehashes.length) {
-        EnumerableSet.Bytes32Set storage blacklist = codehashBlacklists[id];
+        List storage blacklist = blacklists[id];
         bytes32 codehash;
         for (uint256 i = 0; i < codehashes.length;) {
             codehash = codehashes[i];
@@ -503,8 +554,9 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
                 revert CreatorTokenTransferValidator__ZeroCodeHashNotAllowed();
             }
 
-            if (blacklist.add(codehash)) {
+            if (blacklist.enumerableCodehashes.add(codehash)) {
                 emit AddedCodeHashToList(ListTypes.Blacklist, id, codehash);
+                blacklist.nonEnumerableCodehashes[codehash] = true;
             }
 
             unchecked {
@@ -533,7 +585,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     ) external override 
     onlyListOwner(id) 
     notZero(codehashes.length) {
-        EnumerableSet.Bytes32Set storage whitelist = codehashWhitelists[id];
+        List storage whitelist = whitelists[id];
         bytes32 codehash;
         for (uint256 i = 0; i < codehashes.length;) {
             codehash = codehashes[i];
@@ -542,8 +594,9 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
                 revert CreatorTokenTransferValidator__ZeroCodeHashNotAllowed();
             }
 
-            if (whitelist.add(codehash)) {
+            if (whitelist.enumerableCodehashes.add(codehash)) {
                 emit AddedCodeHashToList(ListTypes.Whitelist, id, codehash);
+                whitelist.nonEnumerableCodehashes[codehash] = true;
             }
 
             unchecked {
@@ -571,12 +624,13 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     ) external override 
     onlyListOwner(id) 
     notZero(accounts.length) {
-        EnumerableSet.AddressSet storage blacklist = blacklists[id];
+        List storage blacklist = blacklists[id];
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
-            if (blacklist.remove(account)) {
+            if (blacklist.enumerableAccounts.remove(account)) {
                 emit RemovedAccountFromList(ListTypes.Blacklist, id, account);
+                delete blacklist.nonEnumerableAccounts[account];
             }
 
             unchecked {
@@ -604,12 +658,13 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     ) external override 
     onlyListOwner(id) 
     notZero(accounts.length) {
-        EnumerableSet.AddressSet storage whitelist = whitelists[id];
+        List storage whitelist = whitelists[id];
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
-            if (whitelist.remove(account)) {
+            if (whitelist.enumerableAccounts.remove(account)) {
                 emit RemovedAccountFromList(ListTypes.Whitelist, id, account);
+                delete whitelist.nonEnumerableAccounts[account];
             }
 
             unchecked {
@@ -637,12 +692,13 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     ) external override
     onlyListOwner(id) 
     notZero(codehashes.length) {
-        EnumerableSet.Bytes32Set storage blacklist = codehashBlacklists[id];
+        List storage blacklist = blacklists[id];
         bytes32 codehash;
         for (uint256 i = 0; i < codehashes.length;) {
             codehash = codehashes[i];
-            if (blacklist.remove(codehash)) {
+            if (blacklist.enumerableCodehashes.remove(codehash)) {
                 emit RemovedCodeHashFromList(ListTypes.Blacklist, id, codehash);
+                delete blacklist.nonEnumerableCodehashes[codehash];
             }
 
             unchecked {
@@ -670,12 +726,13 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     ) external override
     onlyListOwner(id) 
     notZero(codehashes.length) {
-        EnumerableSet.Bytes32Set storage whitelist = codehashWhitelists[id];
+        List storage whitelist = whitelists[id];
         bytes32 codehash;
         for (uint256 i = 0; i < codehashes.length;) {
             codehash = codehashes[i];
-            if (whitelist.remove(codehash)) {
+            if (whitelist.enumerableCodehashes.remove(codehash)) {
                 emit RemovedCodeHashFromList(ListTypes.Whitelist, id, codehash);
+                delete whitelist.nonEnumerableCodehashes[codehash];
             }
 
             unchecked {
@@ -690,7 +747,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @return   An array of blacklisted accounts.
      */
     function getBlacklistedAccounts(uint120 id) public view override returns (address[] memory) {
-        return blacklists[id].values();
+        return blacklists[id].enumerableAccounts.values();
     }
 
     /**
@@ -699,7 +756,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @return   An array of whitelisted accounts.
      */
     function getWhitelistedAccounts(uint120 id) public view override returns (address[] memory) {
-        return whitelists[id].values();
+        return whitelists[id].enumerableAccounts.values();
     }
 
     /**
@@ -708,7 +765,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @return   An array of blacklisted codehashes.
      */
     function getBlacklistedCodeHashes(uint120 id) public view override returns (bytes32[] memory) {
-        return codehashBlacklists[id].values();
+        return blacklists[id].enumerableCodehashes.values();
     }
 
     /**
@@ -717,7 +774,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @return   An array of whitelisted codehashes.
      */
     function getWhitelistedCodeHashes(uint120 id) public view override returns (bytes32[] memory) {
-        return codehashWhitelists[id].values();
+        return whitelists[id].enumerableCodehashes.values();
     }
 
     /**
@@ -727,7 +784,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @return         True if the account is blacklisted in the specified list, false otherwise.
      */
     function isAccountBlacklisted(uint120 id, address account) public view override returns (bool) {
-        return blacklists[id].contains(account);
+        return blacklists[id].nonEnumerableAccounts[account];
     }
 
     /**
@@ -737,7 +794,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @return         True if the account is whitelisted in the specified list, false otherwise.
      */
     function isAccountWhitelisted(uint120 id, address account) public view override returns (bool) {
-        return whitelists[id].contains(account);
+        return whitelists[id].nonEnumerableAccounts[account];
     }
 
     /**
@@ -747,7 +804,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @return         True if the codehash is blacklisted in the specified list, false otherwise.
      */
     function isCodeHashBlacklisted(uint120 id, bytes32 codehash) public view override returns (bool) {
-        return codehash == CODEHASH_ZERO ? false : codehashBlacklists[id].contains(codehash);
+        return codehash == CODEHASH_ZERO ? false : blacklists[id].nonEnumerableCodehashes[codehash];
     }
 
     /**
@@ -757,7 +814,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @return         True if the codehash is whitelisted in the specified list, false otherwise.
      */
     function isCodeHashWhitelisted(uint120 id, bytes32 codehash) public view override returns (bool) {
-        return codehash == CODEHASH_ZERO ? false : codehashWhitelists[id].contains(codehash);
+        return codehash == CODEHASH_ZERO ? false : whitelists[id].nonEnumerableCodehashes[codehash];
     }
 
     /**
@@ -847,18 +904,9 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
             super.supportsInterface(interfaceId);
     }
 
-    function _isAccountOrCodeHashBlacklisted(uint120 id, address account) internal view returns (bool) {
-        EnumerableSet.AddressSet storage ptrBlacklist = blacklists[id];
-        EnumerableSet.Bytes32Set storage ptrCodehashBlacklist = codehashBlacklists[id];
-        
-        return 
-        ptrBlacklist.contains(account) ||
-        ptrCodehashBlacklist.contains(account.codehash);
-    }
-
-    function _isAccountOrCodeHashWhitelisted(uint120 id, address account) internal view returns (bool) {
-          return whitelists[id].contains(account) || codehashWhitelists[id].contains(account.codehash);
-    }
+    /*************************************************************************/
+    /*                                HELPERS                                */
+    /*************************************************************************/
 
     function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
         bool callerHasPermissions = false;
@@ -887,15 +935,19 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     function _copyAddressSet(
         ListTypes listType,
         uint120 destinationListId,
-        EnumerableSet.AddressSet storage ptrFromSet, 
-        EnumerableSet.AddressSet storage ptrToSet
+        List storage ptrFromList,
+        List storage ptrToList
     ) private {
+        EnumerableSet.AddressSet storage ptrFromSet = ptrFromList.enumerableAccounts;
+        EnumerableSet.AddressSet storage ptrToSet = ptrToList.enumerableAccounts;
+        mapping (address => bool) storage ptrToNonEnumerableSet = ptrToList.nonEnumerableAccounts;
         uint256 sourceLength = ptrFromSet.length();
         address account;
         for (uint256 i = 0; i < sourceLength;) {
             account = ptrFromSet.at(i); 
             if (ptrToSet.add(account)) {
                 emit AddedAccountToList(listType, destinationListId, account);
+                ptrToNonEnumerableSet[account] = true;
             }
 
             unchecked {
@@ -907,15 +959,19 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     function _copyBytes32Set(
         ListTypes listType,
         uint120 destinationListId,
-        EnumerableSet.Bytes32Set storage ptrFromSet, 
-        EnumerableSet.Bytes32Set storage ptrToSet
+        List storage ptrFromList,
+        List storage ptrToList
     ) private {
+        EnumerableSet.Bytes32Set storage ptrFromSet = ptrFromList.enumerableCodehashes;
+        EnumerableSet.Bytes32Set storage ptrToSet = ptrToList.enumerableCodehashes;
+        mapping (bytes32 => bool) storage ptrToNonEnumerableSet = ptrToList.nonEnumerableCodehashes;
         uint256 sourceLength = ptrFromSet.length();
         bytes32 codehash;
         for (uint256 i = 0; i < sourceLength;) {
             codehash = ptrFromSet.at(i);
             if (ptrToSet.add(codehash)) {
                 emit AddedCodeHashToList(listType, destinationListId, codehash);
+                ptrToNonEnumerableSet[codehash] = true;
             }
 
             unchecked {
@@ -973,8 +1029,10 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @dev    Throws when the caller does not own the specified list.
      */
     function addOperatorToWhitelist(uint120 id, address operator) external override onlyListOwner(id) {
-        if (whitelists[id].add(operator)) {
+        List storage whitelist = whitelists[id];
+        if (whitelist.enumerableAccounts.add(operator)) {
             emit AddedAccountToList(ListTypes.Whitelist, id, operator);
+            whitelist.nonEnumerableAccounts[operator] = true;
         }
     }
 
@@ -983,8 +1041,10 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @dev    Throws when the caller does not own the specified list.
      */
     function removeOperatorFromWhitelist(uint120 id, address operator) external override onlyListOwner(id) {
-        if (whitelists[id].remove(operator)) {
+        List storage whitelist = whitelists[id];
+        if (whitelist.enumerableAccounts.remove(operator)) {
             emit RemovedAccountFromList(ListTypes.Whitelist, id, operator);
+            delete whitelist.nonEnumerableAccounts[operator];
         }
     }
 
