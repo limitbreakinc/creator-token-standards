@@ -12,7 +12,7 @@ import "src/utils/CreatorTokenTransferValidatorV2.sol";
 
 // Overall Gas Efficiency:
 // | Function Name                    | min             | avg   | median | max   |
-// | applyCollectionTransferPolicy    | 3240            | 9465  | 9265   | 17614 |
+// | applyCollectionTransferPolicy    | 3240            | 9460  | 9259   | 17602 |
 
 contract BenchmarkValidatorV2 is Test {
     using EnumerableSet for EnumerableSet.AddressSet;

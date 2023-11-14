@@ -180,9 +180,9 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         List storage whitelist = whitelists[listId];
 
         if (receiverConstraints == ReceiverConstraints.NoCode) {
-            if (to.code.length > 0) {
+            if (_getCodeLengthAsm(to) > 0) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
-                    if (!whitelist.nonEnumerableCodehashes[to.codehash]) {
+                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
                         revert CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode();
                     }
                 }
@@ -192,7 +192,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         } else if (receiverConstraints == ReceiverConstraints.EOA) {
             if (!isVerifiedEOA(to)) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
-                    if (!whitelist.nonEnumerableCodehashes[to.codehash]) {
+                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
                         revert CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
                     }
                 }
@@ -211,7 +211,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
                 revert CreatorTokenTransferValidator__OperatorIsBlacklisted();
             }
 
-            if (blacklist.nonEnumerableCodehashes[caller.codehash]) {
+            if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
                 revert CreatorTokenTransferValidator__OperatorIsBlacklisted();
             }
         } else if (callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC) {
@@ -219,7 +219,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
                 return;
             }
 
-            if (whitelist.nonEnumerableCodehashes[caller.codehash]) {
+            if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
                 return;
             }
 
@@ -237,11 +237,11 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
 
             mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
 
-            if (codehashWhitelist[caller.codehash]) {
+            if (codehashWhitelist[_getCodeHashAsm(caller)]) {
                 return;
             }
 
-            if (codehashWhitelist[from.codehash]) {
+            if (codehashWhitelist[_getCodeHashAsm(from)]) {
                 return;
             }
 
@@ -910,7 +910,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
 
     function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
         bool callerHasPermissions = false;
-        if(tokenAddress.code.length > 0) {
+        if(_getCodeLengthAsm(tokenAddress) > 0) {
             callerHasPermissions = _msgSender() == tokenAddress;
             if(!callerHasPermissions) {
 
@@ -990,6 +990,14 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         if (_msgSender() != listOwners[id]) {
             revert CreatorTokenTransferValidator__CallerDoesNotOwnList();
         }
+    }
+
+    function _getCodeLengthAsm(address account) internal view returns (uint256 length) {
+        assembly { length := extcodesize(account) }
+    }
+
+    function _getCodeHashAsm(address account) internal view returns (bytes32 codehash) {
+        assembly { codehash := extcodehash(account) }
     }
 
     /*************************************************************************/
