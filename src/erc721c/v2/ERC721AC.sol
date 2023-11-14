@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import "src/utils/AutomaticValidatorTransferApproval.sol";
 import "src/utils/CreatorTokenBaseV2.sol";
 import "erc721a/contracts/ERC721A.sol";
 
@@ -11,9 +12,23 @@ import "erc721a/contracts/ERC721A.sol";
  *         allows the contract owner to update the transfer validation logic by managing a security policy in
  *         an external transfer validation security policy registry.  See {CreatorTokenTransferValidator}.
  */
-abstract contract ERC721AC is ERC721A, CreatorTokenBaseV2 {
+abstract contract ERC721AC is ERC721A, CreatorTokenBaseV2, AutomaticValidatorTransferApproval {
 
     constructor(string memory name_, string memory symbol_) CreatorTokenBaseV2() ERC721A(name_, symbol_) {}
+
+    /**
+     * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved
+     *         for all, the contract owner can optionally auto-approve the 721-C transfer validator for transfers.
+     */
+    function isApprovedForAll(address owner, address operator) public view virtual override returns (bool isApproved) {
+        isApproved = super.isApprovedForAll(owner, operator);
+
+        if (!isApproved) {
+            if (autoApproveTransfersFromValidator) {
+                isApproved = operator == address(getTransferValidator());
+            }
+        }
+    }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
