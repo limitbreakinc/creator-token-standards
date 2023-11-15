@@ -13,13 +13,7 @@ forge install dmfxyz/murky
 forge install limitbreakinc/creator-token-standards
 ```
 
-Update your `remappings.txt` file to resolve imports.
-
-```
-@limitbreak/creator-token-standards/=lib/limitbreakinc/creator-token-standards/src/
-```
-
-Here is a sample remappings.txt:
+Add a `remappings.txt` file to the root of your project and add the following contents to resolve imports.
 
 ```
 @limitbreak/creator-token-standards/=lib/creator-token-standards/src/
@@ -130,69 +124,53 @@ Open a browser to http://localhost:3000 to view docs.
 ### How To Build, Deploy, and Setup a Creator Token
 
 1. Choose a standard (ERC721-C, ERC721-AC, AdventureERC721-C, ERC1155-C, or ERC20-C)
-2. Inherit the selected standard, for example:
+2. Inherit the selected standard and desired mix-ins.  The following example is a basic ERC721-C with an open mint and basic royalties.
 
 ```solidity
 pragma solidity ^0.8.4;
 
+import "@limitbreak/creator-token-standards/access/OwnableBasic.sol";
 import "@limitbreak/creator-token-standards/erc721c/v2/ERC721C.sol";
+import "@limitbreak/creator-token-standards/programmable-royalties/BasicRoyalties.sol";
 
-contract MyCollection is ERC721C {
-    
-    constructor() ERC721C("MyCollection", "MC") {}
-    
-    ...
-}
-```
+contract ERC721CWithBasicRoyalties is OwnableBasic, ERC721C, BasicRoyalties {
 
-```solidity
-pragma solidity ^0.8.4;
+    constructor(
+        address royaltyReceiver_,
+        uint96 royaltyFeeNumerator_,
+        string memory name_,
+        string memory symbol_) 
+        ERC721OpenZeppelin(name_, symbol_) 
+        BasicRoyalties(royaltyReceiver_, royaltyFeeNumerator_) {
+    }
 
-import "@limitbreak/creator-token-standards/erc721c/v2/ERC721AC.sol";
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721C, ERC2981) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
 
-contract MyCollection is ERC721AC {
-    
-    constructor() ERC721AC("MyCollection", "MC") {}
-    
-    ...
-}
-```
-
-```solidity
-pragma solidity ^0.8.4;
-
-import "@limitbreak/creator-token-standards/erc721c/v2/AdventureERC721C.sol";
-
-contract MyCollection is AdventureERC721C {
-    
-    constructor() AdventureERC721C(10, "MyCollection", "MC") {}
-    
-    ...
-}
-```
-
-3. Add your token URI logic, minting logic, and other features specific to your collection.  For example:
-
-```solidity
-
-contract MyCollection is ERC721C {
-    
-    ...
-
-    function ownerMint(address to, uint256 tokenId) external onlyOwner {
+    function mint(address to, uint256 tokenId) external {
         _mint(to, tokenId);
     }
 
-    function publicMint() external {
-        ...
+    function safeMint(address to, uint256 tokenId) external {
+        _safeMint(to, tokenId);
     }
 
-    // TODO: Other collection-specific contract features here
-    
-    function _baseURI() internal view virtual override returns (string memory) {
-        return "https://my.nft.com/mycollection/metadata/";
+    function burn(uint256 tokenId) external {
+        _burn(tokenId);
+    }
+
+    function setDefaultRoyalty(address receiver, uint96 feeNumerator) public {
+        _requireCallerIsContractOwner();
+        _setDefaultRoyalty(receiver, feeNumerator);
+    }
+
+    function setTokenRoyalty(uint256 tokenId, address receiver, uint96 feeNumerator) public {
+        _requireCallerIsContractOwner();
+        _setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
 }
+
 ```
 
 4. Deploy and verify contract.  It is assumed developers already know how to do this, but instructions for [Foundry can be found here.](https://book.getfoundry.sh/forge/deploying)
@@ -389,154 +367,6 @@ The following levels only apply to the V1 Transfer Validator.
    - The caller must be whitelisted as an operator, and OTC transfers initiated by the token owner are not allowed. The receiver must be an EOA, which means they cannot be a smart contract and must have performed a one-time signature verification in the `CreatorTokenTransferValidator`.  Specific contract receivers can optionally be designated in a permitted contract receivers allowlist.
 
 These predefined transfer security levels can be applied to collections to implement varying levels of transfer security based on the collection's requirements.
-
-### How To Build, Deploy, and Setup a Wrapper Creator Token (Upgrade a Prior Collection Using Staking)
-
-1. Choose a wrapper standard (ERC721-CW, AdventureERC721-CW, or ERC1155-CW)
-2. Inherit the selected standard, for example:
-
-```solidity
-pragma solidity ^0.8.4;
-
-import "@limitbreak/creator-token-standards/erc721c/v2/extensions/ERC721CW.sol";
-
-contract MyCollection is ERC721CW {
-    
-    constructor(address wrappedCollectionAddress_) ERC721CW(wrappedCollectionAddress_, "MyCollection", "MC") {}
-    
-    ...
-}
-```
-
-```solidity
-pragma solidity ^0.8.4;
-
-import "@limitbreak/creator-token-standards/erc721c/v2/extensions/AdventureERC721CW.sol";
-
-contract MyCollection is AdventureERC721CW {
-    
-    constructor(address wrappedCollectionAddress_) AdventureERC721C(wrappedCollectionAddress_, 10, "MyCollection", "MC") {}
-    
-    ...
-}
-```
-
-3. Add your token URI logic and other features specific to your collection.  For example:
-
-```solidity
-
-contract MyCollection is ERC721CW {
-
-    ...
-
-    // TODO: Other collection-specific contract features here
-    
-    function _baseURI() internal view virtual override returns (string memory) {
-        return "https://my.nft.com/mycollection/metadata/";
-    }
-}
-```
-
-4. Deploy and verify contract.  It is assumed developers already know how to do this, but instructions for [Foundry can be found here.](https://book.getfoundry.sh/forge/deploying)
-
-5. It is strongly encouraged to transfer ownership of your contracts to a multi-sig, such as Gnosis Safe and to require multiple keys to sign off on each transaction.
-
-6. To configure collection security and trading settings, use [developers.freenft.com](https://developers.freenft.com).
-
-7. By default, any address can stake.  But to apply staking constraints to prevent contracts from staking to wrap token, the contract owner can use the `setStakerConstraints(StakerConstraints stakerConstraints_)` function with `StakerConstraints.None`, `StakerConstraints.CallerIsTxOrigin`, or `StakerConstraints.EOA`.
-
-## How To Implement Programmable Royalties Using A Mix-In
-
-It is simple to implement programmable royalties as a mix-in and combine with creator tokens such as ERC721-C.
-
-1. Choose from one of the examples (ImmutableMinterRoyalties, MutableMinterRoyalties, or MinterCreatorSharedRoyalties) or write your own mix-in that implements the IERC2981 interface for royalties.
-
-2. Choose a standard (ERC721-C, ERC721-AC, AdventureERC721-C, ERC721-CW, or AdventureERC721-CW)
-
-2. Write a contract that inherits the selected standard and mix-in.  For example:
-
-```solidity
-import "@limitbreak/creator-token-standards/erc721c/v2/AdventureERC721C.sol";
-import "@limitbreak/creator-token-standards/programmable-royalties/MutableMinterRoyalties.sol";
-
-contract AdventureERC721CWithMutableMinterRoyalties is AdventureERC721C, MutableMinterRoyalties {
-
-    constructor(
-        uint96 defaultRoyaltyFeeNumerator_,
-        uint256 maxSimultaneousQuests_,
-        string memory name_,
-        string memory symbol_) 
-        AdventureERC721C(maxSimultaneousQuests_, name_, symbol_) 
-        MutableMinterRoyalties(defaultRoyaltyFeeNumerator_) {
-    }
-
-    ...
-}
-```
-
-3. Override the supportsInterface function to handle multiple inheritance.
-
-```solidity
-
-contract AdventureERC721CWithMutableMinterRoyalties is AdventureERC721C, MutableMinterRoyalties {
-
-    ...
-
-    function supportsInterface(bytes4 interfaceId) public view virtual override(AdventureERC721C, MutableMinterRoyalties) returns (bool) {
-        return super.supportsInterface(interfaceId);
-    }
-
-    ...
-}
-```
-
-4. Implement public/external mint, safeMint, burn functions as needed for your collection.
-
-```solidity
-
-contract AdventureERC721CWithMutableMinterRoyalties is AdventureERC721C, MutableMinterRoyalties {
-
-    ...
-
-    function mint(address to, uint256 tokenId) external {
-        _mint(to, tokenId);
-    }
-
-    function safeMint(address to, uint256 tokenId) external {
-        _safeMint(to, tokenId);
-    }
-
-    function burn(uint256 tokenId) external {
-        _burn(tokenId);
-    }
-
-    ...
-}
-```
-
-5. Override the _mint and _burn functions.  Call _onMinted or _onBurned respectively and then call the base implementation.  
-
-```solidity
-
-contract AdventureERC721CWithMutableMinterRoyalties is AdventureERC721C, MutableMinterRoyalties {
-
-    ...
-
-    function _mint(address to, uint256 tokenId) internal virtual override {
-        _onMinted(to, tokenId);
-        super._mint(to, tokenId);
-    }
-
-    function _burn(uint256 tokenId) internal virtual override {
-        super._burn(tokenId);
-        _onBurned(tokenId);
-    }
-
-    ...
-}
-```
-
-6.  Complete code for this example [can be found here](./src/examples/v2/adventure-erc721c/AdventureERC721CWithMutableMinterRoyalties.sol).  There are numerous other examples to look at in the [contracts/examples](./src/examples/v2/) folder.
 
 ### Disclaimer
 It is crucial to thoroughly test the integration of this mixin with your specific marketplace implementation to ensure the security and proper functioning of your platform. This mixin provides a general-purpose solution but may require adjustments or customizations depending on your use case.
