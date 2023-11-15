@@ -26,7 +26,7 @@ contract ERC721CV2Test is CreatorTokenTransferValidatorERC721V2Test {
         ERC721CMock(tokenAddress).mint(to, tokenId);
     }
 
-    function testSupportedTokenInterfaces() public {
+    function testV2SupportedTokenInterfaces() public {
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(ICreatorTokenV2).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
@@ -80,7 +80,7 @@ contract ERC721CV2InitializableTest is CreatorTokenTransferValidatorERC721V2Test
         ERC721CInitializableMock(tokenAddress).mint(to, tokenId);
     }
 
-    function testSupportedTokenInterfaces() public {
+    function testV2SupportedTokenInterfaces() public {
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(ICreatorTokenV2).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
@@ -88,7 +88,7 @@ contract ERC721CV2InitializableTest is CreatorTokenTransferValidatorERC721V2Test
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
 
-    function testRevertsWhenInitializingOwnerAgain(address badOwner) public {
+    function testV2RevertsWhenInitializingOwnerAgain(address badOwner) public {
         vm.expectRevert(OwnableInitializable.InitializableOwnable__OwnerAlreadyInitialized.selector);
         tokenMock.initializeOwner(badOwner);
     }
