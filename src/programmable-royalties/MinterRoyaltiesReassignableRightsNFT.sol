@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./helpers/ICloneableRoyaltyRightsERC721.sol";
+import "src/programmable-royalties/helpers/ICloneableRoyaltyRightsERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";

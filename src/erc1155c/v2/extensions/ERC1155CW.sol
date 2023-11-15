@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../ERC1155C.sol";
+import "src/erc1155c/v2/ERC1155C.sol";
 import "src/interfaces/ICreatorTokenWrapperERC1155.sol";
 import "src/interfaces/ICreatorTokenWrapperERC1155V2.sol";
 import "src/utils/WithdrawETH.sol";

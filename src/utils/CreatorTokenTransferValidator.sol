@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./EOARegistry.sol";
-import "../interfaces/IOwnable.sol";
-import "../interfaces/ICreatorTokenTransferValidator.sol";
+import "src/utils/EOARegistry.sol";
+import "src/interfaces/IOwnable.sol";
+import "src/interfaces/ICreatorTokenTransferValidator.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 

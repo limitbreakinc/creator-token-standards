@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../ERC721C.sol";
+import "src/erc721c/v2/ERC721C.sol";
 import "src/interfaces/ICreatorTokenWrapperERC721.sol";
 import "src/interfaces/ICreatorTokenWrapperERC721V2.sol";
 import "src/utils/WithdrawETH.sol";

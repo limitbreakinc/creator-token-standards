@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../ERC20C.sol";
+import "src/erc20c/v2/ERC20C.sol";
 import "src/interfaces/ICreatorTokenWrapperERC20V2.sol";
 import "src/utils/WithdrawETH.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";

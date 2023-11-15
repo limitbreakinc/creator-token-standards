@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../access/OwnablePermissions.sol";
-import "../interfaces/ICreatorToken.sol";
-import "../interfaces/ICreatorTokenTransferValidator.sol";
-import "../utils/TransferValidation.sol";
+import "src/access/OwnablePermissions.sol";
+import "src/interfaces/ICreatorToken.sol";
+import "src/interfaces/ICreatorTokenTransferValidator.sol";
+import "src/utils/TransferValidation.sol";
 import "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 /**

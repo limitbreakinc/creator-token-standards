@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./IAdventurous.sol";
-import "./AdventureWhitelist.sol";
-import "../token/erc721/ERC721OpenZeppelin.sol";
+import "src/adventures/IAdventurous.sol";
+import "src/adventures/AdventureWhitelist.sol";
+import "src/token/erc721/ERC721OpenZeppelin.sol";
 
 /**
  * @title AdventureBase

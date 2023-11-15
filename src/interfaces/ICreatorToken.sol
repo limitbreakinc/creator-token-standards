@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../interfaces/ICreatorTokenTransferValidator.sol";
+import "src/interfaces/ICreatorTokenTransferValidator.sol";
 
 interface ICreatorToken {
     event TransferValidatorUpdated(address oldValidator, address newValidator);

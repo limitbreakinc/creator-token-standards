@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../access/OwnablePermissions.sol";
-import "./MintTokenBase.sol";
-import "./SequentialMintBase.sol";
+import "src/access/OwnablePermissions.sol";
+import "src/minting/MintTokenBase.sol";
+import "src/minting/SequentialMintBase.sol";
 
 /**
  * @title MaxSupplyBase

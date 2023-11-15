@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./ICreatorTokenTransferValidatorV2.sol";
-import "./ICreatorToken.sol";
+import "src/interfaces/ICreatorTokenTransferValidatorV2.sol";
+import "src/interfaces/ICreatorToken.sol";
 
 interface ICreatorTokenV2 is ICreatorToken {
     function getTransferValidatorV2() external view returns (ICreatorTokenTransferValidatorV2);

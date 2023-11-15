@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./ICreatorToken.sol";
+import "src/interfaces/ICreatorToken.sol";
 
 interface ICreatorTokenWrapperERC721 is ICreatorToken {
 

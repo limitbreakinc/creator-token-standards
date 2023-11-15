@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./Quest.sol";
+import "src/adventures/Quest.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**

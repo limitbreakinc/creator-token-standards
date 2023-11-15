@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.4;
 
-import "../../access/OwnablePermissions.sol";
+import "src/access/OwnablePermissions.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 abstract contract ERC721OpenZeppelinBase is ERC721 {

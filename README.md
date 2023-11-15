@@ -7,6 +7,9 @@
 With an existing foundry project:
 
 ```bash
+forge install OpenZeppelin/openzeppelin-contracts@v4.8.3
+forge install chiru-labs/ERC721A@v4.2.3
+forge install dmfxyz/murky
 forge install limitbreakinc/creator-token-standards
 ```
 
@@ -14,6 +17,17 @@ Update your `remappings.txt` file to resolve imports.
 
 ```
 @limitbreak/creator-token-standards/=lib/limitbreakinc/creator-token-standards/src/
+```
+
+Here is a sample remappings.txt:
+
+```
+@limitbreak/creator-token-standards/=lib/creator-token-standards/src/
+@openzeppelin/=lib/openzeppelin-contracts/
+ds-test/=lib/forge-std/lib/ds-test/src/
+forge-std/=lib/forge-std/src/
+murky/=lib/murky/src
+erc721a/=lib/ERC721A/
 ```
 
 ## Usage
