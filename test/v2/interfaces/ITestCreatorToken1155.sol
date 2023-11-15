@@ -28,4 +28,6 @@ interface ITestCreatorToken1155 is IERC1155, ICreatorTokenV2 {
         TransferSecurityLevels level,
         uint120 listId
     ) external;
+
+    function setAutomaticApprovalOfTransfersFromValidator(bool autoApprove) external;
 }

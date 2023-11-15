@@ -2394,4 +2394,58 @@ contract CreatorTokenTransferValidatorERC721V2Test is Test {
 
         assertEq(token.ownerOf(1), to);
     }
+
+    function testV2IsApprovedForAllDefaultsToFalseForTransferValidator(address creator, address owner) public {
+        _sanitizeAddress(creator);
+        _sanitizeAddress(owner);
+        vm.assume(creator != owner);
+
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.prank(creator);
+        token.setTransferValidator(address(validator));
+
+        assertFalse(token.isApprovedForAll(owner, address(validator)));
+    }
+
+    function testV2IsApprovedForAllReturnsTrueForTransferValidatorIfAutoApproveEnabledByCreator(address creator, address owner) public {
+        _sanitizeAddress(creator);
+        _sanitizeAddress(owner);
+        vm.assume(creator != owner);
+
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.startPrank(creator);
+        token.setTransferValidator(address(validator));
+        token.setAutomaticApprovalOfTransfersFromValidator(true);
+        vm.stopPrank();
+
+        assertTrue(token.isApprovedForAll(owner, address(validator)));
+    }
+
+    function testV2IsApprovedForAllReturnsTrueForDefaultTransferValidatorIfAutoApproveEnabledByCreatorAndValidatorUninitialized(address creator, address owner) public {
+        _sanitizeAddress(creator);
+        _sanitizeAddress(owner);
+        vm.assume(creator != owner);
+
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.startPrank(creator);
+        token.setAutomaticApprovalOfTransfersFromValidator(true);
+        vm.stopPrank();
+
+        assertTrue(token.isApprovedForAll(owner, token.DEFAULT_TRANSFER_VALIDATOR()));
+    }
+
+    function testV2IsApprovedForAllReturnsTrueWhenUserExplicitlyApprovesTransferValidator(address creator, address owner) public {
+        _sanitizeAddress(creator);
+        _sanitizeAddress(owner);
+        vm.assume(creator != owner);
+
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.prank(creator);
+        token.setTransferValidator(address(validator));
+
+        vm.prank(owner);
+        token.setApprovalForAll(address(validator), true);
+
+        assertTrue(token.isApprovedForAll(owner, address(validator)));
+    }
 }

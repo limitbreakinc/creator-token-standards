@@ -28,4 +28,6 @@ interface ITestCreatorToken is IERC721, ICreatorTokenV2 {
         TransferSecurityLevels level,
         uint120 listId
     ) external;
+
+    function setAutomaticApprovalOfTransfersFromValidator(bool autoApprove) external;
 }
