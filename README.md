@@ -7,13 +7,13 @@
 With an existing foundry project:
 
 ```bash
-forge install limit-break-inc/creator-token-standards
+forge install limitbreakinc/creator-token-standards
 ```
 
 Update your `remappings.txt` file to resolve imports.
 
 ```
-@limitbreak/creator-token-standards/=lib/limit-break-inc/creator-token-standards/src/
+@limitbreak/creator-token-standards/=lib/limitbreakinc/creator-token-standards/src/
 ```
 
 ## Usage
@@ -25,7 +25,7 @@ Once installed, you can use the contracts in the library by importing them.
 ## Cloning The Source Code
 
 ```bash
-git clone https://github.com/limit-break-inc/creator-token-standards.git
+git clone https://github.com/limitbreakinc/creator-token-standards.git
 ```
 
 ### Build
