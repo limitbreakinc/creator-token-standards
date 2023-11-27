@@ -27,7 +27,6 @@ contract ERC721ACV2Test is CreatorTokenTransferValidatorERC721V2Test {
 
     function testV2SupportedTokenInterfaces() public {
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
-        assertEq(tokenMock.supportsInterface(type(ICreatorTokenV2).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);

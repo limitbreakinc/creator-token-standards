@@ -286,14 +286,10 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         vm.assume(creator != address(0));
         _sanitizeAddress(creator);
         ITestCreatorToken1155 token = _deployNewToken(creator);
-        CollectionSecurityPolicy memory securityPolicy = token.getSecurityPolicy();
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
         assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
         assertEq(uint256(securityPolicy.operatorWhitelistId), 0);
         assertEq(uint256(securityPolicy.permittedContractReceiversId), 0);
-
-        CollectionSecurityPolicyV2 memory securityPolicyV2 = token.getSecurityPolicyV2();
-        assertEq(uint8(securityPolicyV2.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
-        assertEq(uint256(securityPolicyV2.listId), 0);
     }
 
     function testV2GetSecurityPolicyReturnsEmptyPolicyWhenValidatorIsSetToZeroAddress(address creator) public {
@@ -304,14 +300,10 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         vm.prank(creator);
         token.setTransferValidator(address(0));
 
-        CollectionSecurityPolicy memory securityPolicy = token.getSecurityPolicy();
-        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Zero));
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
         assertEq(uint256(securityPolicy.operatorWhitelistId), 0);
         assertEq(uint256(securityPolicy.permittedContractReceiversId), 0);
-
-        CollectionSecurityPolicyV2 memory securityPolicyV2 = token.getSecurityPolicyV2();
-        assertEq(uint8(securityPolicyV2.transferSecurityLevel), uint8(TransferSecurityLevels.Zero));
-        assertEq(uint256(securityPolicyV2.listId), 0);
     }
 
     function testV2GetSecurityPolicyReturnsExpectedSecurityPolicy(address creator, uint8 levelUint8) public {
@@ -330,12 +322,12 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         validator.applyListToCollection(address(token), listId);
         vm.stopPrank();
 
-        CollectionSecurityPolicy memory securityPolicy = token.getSecurityPolicy();
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
         assertTrue(securityPolicy.transferSecurityLevel == level);
         assertEq(uint256(securityPolicy.operatorWhitelistId), listId);
         assertEq(uint256(securityPolicy.permittedContractReceiversId), listId);
 
-        CollectionSecurityPolicyV2 memory securityPolicyV2 = token.getSecurityPolicyV2();
+        CollectionSecurityPolicyV2 memory securityPolicyV2 = validator.getCollectionSecurityPolicyV2(address(token));
         assertTrue(securityPolicyV2.transferSecurityLevel == level);
         assertEq(uint256(securityPolicyV2.listId), listId);
     }
@@ -356,12 +348,12 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
 
         assertEq(address(token.getTransferValidator()), address(validator));
 
-        CollectionSecurityPolicy memory securityPolicy = token.getSecurityPolicy();
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
         assertTrue(securityPolicy.transferSecurityLevel == level);
         assertEq(uint256(securityPolicy.operatorWhitelistId), operatorWhitelistId);
         assertEq(uint256(securityPolicy.permittedContractReceiversId), operatorWhitelistId);
 
-        CollectionSecurityPolicyV2 memory securityPolicyV2 = token.getSecurityPolicyV2();
+        CollectionSecurityPolicyV2 memory securityPolicyV2 = validator.getCollectionSecurityPolicyV2(address(token));
         assertTrue(securityPolicyV2.transferSecurityLevel == level);
         assertEq(uint256(securityPolicyV2.listId), operatorWhitelistId);
     }
@@ -483,11 +475,11 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         validator.addOperatorToWhitelist(listId, operator3);
         vm.stopPrank();
 
-        assertTrue(token.isOperatorWhitelisted(operator1));
-        assertTrue(token.isOperatorWhitelisted(operator2));
-        assertTrue(token.isOperatorWhitelisted(operator3));
+        assertTrue(validator.isOperatorWhitelisted(validator.getCollectionSecurityPolicyV2(address(token)).listId, operator1));
+        assertTrue(validator.isOperatorWhitelisted(validator.getCollectionSecurityPolicyV2(address(token)).listId, operator2));
+        assertTrue(validator.isOperatorWhitelisted(validator.getCollectionSecurityPolicyV2(address(token)).listId, operator3));
 
-        address[] memory allowedAddresses = token.getWhitelistedOperators();
+        address[] memory allowedAddresses = validator.getWhitelistedOperators(validator.getCollectionSecurityPolicyV2(address(token)).listId);
         assertEq(allowedAddresses.length, 3);
         assertTrue(allowedAddresses[0] == operator1);
         assertTrue(allowedAddresses[1] == operator2);
@@ -499,8 +491,8 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         vm.assume(operator != address(0));
         _sanitizeAddress(creator);
         ITestCreatorToken1155 token = _deployNewToken(creator);
-        assertFalse(token.isOperatorWhitelisted(operator));
-        address[] memory allowedAddresses = token.getWhitelistedOperators();
+        assertFalse(validator.isOperatorWhitelisted(validator.getCollectionSecurityPolicyV2(address(token)).listId, operator));
+        address[] memory allowedAddresses = validator.getWhitelistedOperators(validator.getCollectionSecurityPolicyV2(address(token)).listId);
         assertEq(allowedAddresses.length, 1);
         assertEq(allowedAddresses[0], whitelistedOperator);
     }
@@ -520,6 +512,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         vm.assume(receiver2 != receiver3);
 
         _sanitizeAddress(creator);
+        _sanitizeAddress(receiver1);
+        _sanitizeAddress(receiver2);
+        _sanitizeAddress(receiver3);
         ITestCreatorToken1155 token = _deployNewToken(creator);
 
         address[] memory receivers = new address[](3);
@@ -534,11 +529,13 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         validator.addAccountsToWhitelist(listId, receivers);
         vm.stopPrank();
 
-        assertTrue(token.isContractReceiverPermitted(receiver1));
-        assertTrue(token.isContractReceiverPermitted(receiver2));
-        assertTrue(token.isContractReceiverPermitted(receiver3));
+        assertTrue(validator.isContractReceiverPermitted(validator.getCollectionSecurityPolicyV2(address(token)).listId, receiver1));
+        assertTrue(validator.isContractReceiverPermitted(validator.getCollectionSecurityPolicyV2(address(token)).listId, receiver2));
+        assertTrue(validator.isContractReceiverPermitted(validator.getCollectionSecurityPolicyV2(address(token)).listId, receiver3));
 
-        address[] memory allowedAddresses = token.getPermittedContractReceivers();
+        validator.getCollectionSecurityPolicy(address(token));
+
+        address[] memory allowedAddresses = validator.getPermittedContractReceivers(validator.getCollectionSecurityPolicyV2(address(token)).listId);
         assertEq(allowedAddresses.length, 3);
         assertTrue(allowedAddresses[0] == receiver1);
         assertTrue(allowedAddresses[1] == receiver2);
@@ -553,8 +550,8 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         vm.assume(receiver != whitelistedOperator);
         _sanitizeAddress(creator);
         ITestCreatorToken1155 token = _deployNewToken(creator);
-        assertFalse(token.isContractReceiverPermitted(receiver));
-        address[] memory allowedAddresses = token.getPermittedContractReceivers();
+        assertFalse(validator.isContractReceiverPermitted(validator.getCollectionSecurityPolicyV2(address(token)).listId, receiver));
+        address[] memory allowedAddresses = validator.getPermittedContractReceivers(validator.getCollectionSecurityPolicyV2(address(token)).listId);
         assertEq(allowedAddresses.length, 1);
         assertEq(allowedAddresses[0], whitelistedOperator);
     }
@@ -1420,9 +1417,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertEq(validator.getBlacklistedAccountsByCollection(address(token))[0], account);
         assertTrue(validator.isAccountBlacklistedByCollection(address(token), account));
 
-        assertEq(token.getBlacklistedAccounts().length, 1);
-        assertEq(token.getBlacklistedAccounts()[0], account);
-        assertTrue(token.isAccountBlacklisted(account));
+        //assertEq(token.getBlacklistedAccounts().length, 1);
+        //assertEq(token.getBlacklistedAccounts()[0], account);
+        //assertTrue(token.isAccountBlacklisted(account));
     }
 
     function testV2AddAccountsToBlacklist(address listOwner, address account1, address account2, address account3) public {
@@ -1462,10 +1459,10 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertTrue(validator.isAccountBlacklistedByCollection(address(token), account2));
         assertTrue(validator.isAccountBlacklistedByCollection(address(token), account3));
 
-        assertEq(token.getBlacklistedAccounts().length, 3);
-        assertTrue(token.isAccountBlacklisted(account1));
-        assertTrue(token.isAccountBlacklisted(account2));
-        assertTrue(token.isAccountBlacklisted(account3));
+        //assertEq(token.getBlacklistedAccounts().length, 3);
+        //assertTrue(token.isAccountBlacklisted(account1));
+        //assertTrue(token.isAccountBlacklisted(account2));
+        //assertTrue(token.isAccountBlacklisted(account3));
     }
 
     function testV2RevertsWhenNonOwnerAddsAccountToWhitelist(address listOwner, address unauthorizedUser, address account) public {
@@ -1542,9 +1539,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertEq(validator.getWhitelistedAccountsByCollection(address(token))[0], account);
         assertTrue(validator.isAccountWhitelistedByCollection(address(token), account));
 
-        assertEq(token.getWhitelistedAccounts().length, 1);
-        assertEq(token.getWhitelistedAccounts()[0], account);
-        assertTrue(token.isAccountWhitelisted(account));
+        //assertEq(token.getWhitelistedAccounts().length, 1);
+        //assertEq(token.getWhitelistedAccounts()[0], account);
+        //assertTrue(token.isAccountWhitelisted(account));
     }
 
     function testV2AddAccountsToWhitelist(address listOwner, address account1, address account2, address account3) public {
@@ -1584,10 +1581,10 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertTrue(validator.isAccountWhitelistedByCollection(address(token), account2));
         assertTrue(validator.isAccountWhitelistedByCollection(address(token), account3));
 
-        assertEq(token.getWhitelistedAccounts().length, 3);
-        assertTrue(token.isAccountWhitelisted(account1));
-        assertTrue(token.isAccountWhitelisted(account2));
-        assertTrue(token.isAccountWhitelisted(account3));
+        //assertEq(token.getWhitelistedAccounts().length, 3);
+        //assertTrue(token.isAccountWhitelisted(account1));
+        //assertTrue(token.isAccountWhitelisted(account2));
+        //assertTrue(token.isAccountWhitelisted(account3));
     }
 
     function testV2RevertsWhenNonOwnerAddsCodehashToBlacklist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
@@ -1665,9 +1662,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertEq(validator.getBlacklistedCodeHashesByCollection(address(token))[0], codehash);
         assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash));
 
-        assertEq(token.getBlacklistedCodeHashes().length, 1);
-        assertEq(token.getBlacklistedCodeHashes()[0], codehash);
-        assertTrue(token.isCodeHashBlacklisted(codehash));
+        //assertEq(token.getBlacklistedCodeHashes().length, 1);
+        //assertEq(token.getBlacklistedCodeHashes()[0], codehash);
+        //assertTrue(token.isCodeHashBlacklisted(codehash));
     }
 
     function testV2AddCodeHashesToBlacklist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
@@ -1704,10 +1701,10 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash2));
         assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash3));
 
-        assertEq(token.getBlacklistedCodeHashes().length, 3);
-        assertTrue(token.isCodeHashBlacklisted(codehash1));
-        assertTrue(token.isCodeHashBlacklisted(codehash2));
-        assertTrue(token.isCodeHashBlacklisted(codehash3));
+        //assertEq(token.getBlacklistedCodeHashes().length, 3);
+        //assertTrue(token.isCodeHashBlacklisted(codehash1));
+        //assertTrue(token.isCodeHashBlacklisted(codehash2));
+        //assertTrue(token.isCodeHashBlacklisted(codehash3));
     }
 
     function testV2RevertsWhenNonOwnerAddsCodehashToWhitelist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
@@ -1785,9 +1782,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertEq(validator.getWhitelistedCodeHashesByCollection(address(token))[0], codehash);
         assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash));
 
-        assertEq(token.getWhitelistedCodeHashes().length, 1);
-        assertEq(token.getWhitelistedCodeHashes()[0], codehash);
-        assertTrue(token.isCodeHashWhitelisted(codehash));
+        //assertEq(token.getWhitelistedCodeHashes().length, 1);
+        //assertEq(token.getWhitelistedCodeHashes()[0], codehash);
+        //assertTrue(token.isCodeHashWhitelisted(codehash));
     }
 
     function testV2AddCodeHashesToWhitelist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
@@ -1824,10 +1821,10 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash2));
         assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash3));
 
-        assertEq(token.getWhitelistedCodeHashes().length, 3);
-        assertTrue(token.isCodeHashWhitelisted(codehash1));
-        assertTrue(token.isCodeHashWhitelisted(codehash2));
-        assertTrue(token.isCodeHashWhitelisted(codehash3));
+        //assertEq(token.getWhitelistedCodeHashes().length, 3);
+        //assertTrue(token.isCodeHashWhitelisted(codehash1));
+        //assertTrue(token.isCodeHashWhitelisted(codehash2));
+        //assertTrue(token.isCodeHashWhitelisted(codehash3));
     }
 
     //
@@ -2281,6 +2278,8 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         vm.assume(creator != address(0));
 
         _sanitizeAddress(creator);
+        _sanitizeAddress(to);
+        _sanitizeAddress(from);
         ITestCreatorToken1155 token = _deployNewToken(creator);
 
         vm.assume(caller != address(token));
@@ -2374,6 +2373,8 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         vm.assume(creator != address(0));
 
         _sanitizeAddress(creator);
+        _sanitizeAddress(tokenOwner);
+        _sanitizeAddress(to);
         ITestCreatorToken1155 token = _deployNewToken(creator);
 
         vm.assume(tokenOwner != address(token));

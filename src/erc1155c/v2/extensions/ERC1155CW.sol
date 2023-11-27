@@ -3,7 +3,6 @@ pragma solidity ^0.8.4;
 
 import "src/erc1155c/v2/ERC1155C.sol";
 import "src/interfaces/ICreatorTokenWrapperERC1155.sol";
-import "src/interfaces/ICreatorTokenWrapperERC1155V2.sol";
 import "src/utils/WithdrawETH.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -20,7 +19,7 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
  * @notice Creators also have discretion to set optional staker constraints should they wish to restrict staking to 
  *         EOA accounts only.
  */
-abstract contract ERC1155WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTokenWrapperERC1155V2 {
+abstract contract ERC1155WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTokenWrapperERC1155 {
     error ERC1155WrapperBase__AmountMustBeGreaterThanZero();
     error ERC1155WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
     error ERC1155WrapperBase__InsufficientBalanceOfWrappedToken();
@@ -191,7 +190,6 @@ abstract contract ERC1155CW is ERC1155Holder, ERC1155WrapperBase, ERC1155C {
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155C, ERC1155Receiver) returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC1155).interfaceId || 
-        interfaceId == type(ICreatorTokenWrapperERC1155V2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -247,7 +245,6 @@ abstract contract ERC1155CWInitializable is ERC1155Holder, ERC1155WrapperBase, E
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155CInitializable, ERC1155Receiver) returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC1155).interfaceId || 
-        interfaceId == type(ICreatorTokenWrapperERC1155V2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 

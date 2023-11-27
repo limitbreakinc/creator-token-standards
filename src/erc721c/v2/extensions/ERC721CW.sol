@@ -3,7 +3,6 @@ pragma solidity ^0.8.4;
 
 import "src/erc721c/v2/ERC721C.sol";
 import "src/interfaces/ICreatorTokenWrapperERC721.sol";
-import "src/interfaces/ICreatorTokenWrapperERC721V2.sol";
 import "src/utils/WithdrawETH.sol";
 
 /**
@@ -18,7 +17,7 @@ import "src/utils/WithdrawETH.sol";
  * @notice Creators also have discretion to set optional staker constraints should they wish to restrict staking to 
  *         EOA accounts only.
  */
-abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721V2 {
+abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
     error ERC721WrapperBase__CallerNotOwnerOfWrappingToken();
     error ERC721WrapperBase__CallerNotOwnerOfWrappedToken();
     error ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
@@ -186,7 +185,6 @@ abstract contract ERC721CW is ERC721WrapperBase, ERC721C {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || 
-        interfaceId == type(ICreatorTokenWrapperERC721V2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -251,7 +249,6 @@ abstract contract ERC721CWInitializable is ERC721WrapperBase, ERC721CInitializab
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || 
-        interfaceId == type(ICreatorTokenWrapperERC721V2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 

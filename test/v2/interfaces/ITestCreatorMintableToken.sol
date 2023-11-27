@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/interfaces/ICreatorTokenV2.sol";
+import "src/interfaces/ICreatorToken.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-interface ITestCreatorMintableToken is IERC721, ICreatorTokenV2 {
+interface ITestCreatorMintableToken is IERC721, ICreatorToken {
     function mint(address, uint256) external;
     function remainingOwnerMints() external view returns (uint256);
     function ownerMint(address, uint256) external;

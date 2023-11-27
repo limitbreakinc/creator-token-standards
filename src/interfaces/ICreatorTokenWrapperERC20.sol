@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/interfaces/ICreatorTokenV2.sol";
+import "src/interfaces/ICreatorToken.sol";
 
-interface ICreatorTokenWrapperERC20V2 is ICreatorTokenV2 {
+interface ICreatorTokenWrapperERC20 is ICreatorToken {
 
     event Staked(address indexed account, uint256 amount);
     event Unstaked(address indexed account, uint256 amount);

@@ -33,7 +33,6 @@ abstract contract ERC721AC is ERC721A, CreatorTokenBaseV2, AutomaticValidatorTra
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
-        interfaceId == type(ICreatorTokenV2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
