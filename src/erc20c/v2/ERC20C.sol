@@ -19,7 +19,6 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBaseV2 {
         interfaceId == type(IERC20).interfaceId || 
         interfaceId == type(IERC20Metadata).interfaceId || 
         interfaceId == type(ICreatorToken).interfaceId || 
-        interfaceId == type(ICreatorTokenV2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -52,7 +51,6 @@ abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable,
         interfaceId == type(IERC20).interfaceId || 
         interfaceId == type(IERC20Metadata).interfaceId || 
         interfaceId == type(ICreatorToken).interfaceId || 
-        interfaceId == type(ICreatorTokenV2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 

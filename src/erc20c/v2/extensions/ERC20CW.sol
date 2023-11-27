@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "src/erc20c/v2/ERC20C.sol";
-import "src/interfaces/ICreatorTokenWrapperERC20V2.sol";
+import "src/interfaces/ICreatorTokenWrapperERC20.sol";
 import "src/utils/WithdrawETH.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -19,7 +19,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  * @notice Creators also have discretion to set optional staker constraints should they wish to restrict staking to 
  *         EOA accounts only.
  */
-abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTokenWrapperERC20V2 {
+abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTokenWrapperERC20 {
     error ERC20WrapperBase__AmountMustBeGreaterThanZero();
     error ERC20WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
     error ERC20WrapperBase__InsufficientBalanceOfWrappedToken();
@@ -185,7 +185,7 @@ abstract contract ERC20CW is ERC20WrapperBase, ERC20C {
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
-        interfaceId == type(ICreatorTokenWrapperERC20V2).interfaceId || 
+        interfaceId == type(ICreatorTokenWrapperERC20).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -240,7 +240,7 @@ abstract contract ERC20CWInitializable is ERC20WrapperBase, ERC20CInitializable 
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
-        interfaceId == type(ICreatorTokenWrapperERC20V2).interfaceId || 
+        interfaceId == type(ICreatorTokenWrapperERC20).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 

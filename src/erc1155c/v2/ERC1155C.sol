@@ -31,7 +31,6 @@ abstract contract ERC1155C is ERC1155OpenZeppelin, CreatorTokenBaseV2, Automatic
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
-        interfaceId == type(ICreatorTokenV2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -98,7 +97,6 @@ abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, Cre
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
-        interfaceId == type(ICreatorTokenV2).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
