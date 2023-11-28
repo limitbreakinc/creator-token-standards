@@ -63,6 +63,13 @@ forge doc -s
 
 Open a browser to http://localhost:3000 to view docs.
 
+### Deploying The Registry
+
+```bash
+./script/common/0-create2-transfer-validator-v2.sh
+./script/common/1-deploy-transfer-validator-v2.sh --gas-price <gas-price> --priority-gas-price <priority-gas-price> --chain-id <chain-id>
+```
+
 ## Overview
 
 * **Extended NFT Standards**
