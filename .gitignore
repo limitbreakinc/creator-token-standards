@@ -78,6 +78,7 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+.env.*
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -135,3 +136,5 @@ cache/
 
 lcov-report/
 lcov*
+
+broadcast/
