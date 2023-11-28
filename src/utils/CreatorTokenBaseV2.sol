@@ -40,7 +40,7 @@ abstract contract CreatorTokenBaseV2 is OwnablePermissions, TransferValidation, 
     error CreatorTokenBase__InvalidTransferValidatorContract();
     error CreatorTokenBase__SetTransferValidatorFirst();
 
-    address public constant DEFAULT_TRANSFER_VALIDATOR = address(0xF2E246BB76DF876Cef8b38ae84130F4F55De395b);
+    address public constant DEFAULT_TRANSFER_VALIDATOR = address(0x00721c0383e4bDe16786e8Dc8c56FB7B0ec354F9);
     TransferSecurityLevels public constant DEFAULT_TRANSFER_SECURITY_LEVEL = TransferSecurityLevels.Recommended;
     uint120 public constant DEFAULT_LIST_ID = uint120(0);
 
