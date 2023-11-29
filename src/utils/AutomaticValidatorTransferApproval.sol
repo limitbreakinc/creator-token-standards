@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/utils/CreatorTokenBase.sol";
-import "src/token/erc721/ERC721OpenZeppelin.sol";
+import "../access/OwnablePermissions.sol";
 
 /**
  * @title AutomaticValidatorTransferApproval

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/minting/ClaimPeriodBase.sol";
-import "src/minting/MaxSupply.sol";
+import "./ClaimPeriodBase.sol";
+import "./MaxSupply.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**

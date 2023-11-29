@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/interfaces/IEOARegistry.sol";
+import "../interfaces/IEOARegistry.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
