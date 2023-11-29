@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/erc721c/v2/extensions/ERC721CW.sol";
+import "../extensions/ERC721CW.sol";
 
 /**
  * @title ERC721CWPermanent

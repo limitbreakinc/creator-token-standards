@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/utils/AutomaticValidatorTransferApproval.sol";
-import "src/utils/CreatorTokenBaseV2.sol";
-import "src/adventures/AdventureERC721.sol";
+import "../../utils/AutomaticValidatorTransferApproval.sol";
+import "../../utils/CreatorTokenBaseV2.sol";
+import "../../adventures/AdventureERC721.sol";
 
 /**
  * @title AdventureERC721C

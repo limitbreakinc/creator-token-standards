@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/programmable-royalties/helpers/IPaymentSplitterInitializable.sol";
-import "src/access/OwnablePermissions.sol";
+import "./helpers/IPaymentSplitterInitializable.sol";
+import "../access/OwnablePermissions.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";

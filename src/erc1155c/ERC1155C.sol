@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/utils/CreatorTokenBase.sol";
-import "src/token/erc1155/ERC1155OpenZeppelin.sol";
+import "../utils/CreatorTokenBase.sol";
+import "../token/erc1155/ERC1155OpenZeppelin.sol";
 
 /**
  * @title ERC1155C

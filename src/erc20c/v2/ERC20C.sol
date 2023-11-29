@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/utils/CreatorTokenBaseV2.sol";
-import "src/token/erc20/ERC20OpenZeppelin.sol";
+import "../../utils/CreatorTokenBaseV2.sol";
+import "../../token/erc20/ERC20OpenZeppelin.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 /**

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/access/OwnablePermissions.sol";
+import "../access/OwnablePermissions.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**

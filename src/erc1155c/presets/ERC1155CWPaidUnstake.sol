@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/erc1155c/extensions/ERC1155CW.sol";
+import "../extensions/ERC1155CW.sol";
 
 /**
  * @title ERC1155CWPaidUnstake

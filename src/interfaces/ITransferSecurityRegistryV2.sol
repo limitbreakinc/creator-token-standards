@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "src/interfaces/ITransferSecurityRegistry.sol";
+import "./ITransferSecurityRegistry.sol";
 
 interface ITransferSecurityRegistryV2 is ITransferSecurityRegistry {
     event CreatedList(uint256 indexed id, string name);
