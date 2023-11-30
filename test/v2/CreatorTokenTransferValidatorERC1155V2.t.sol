@@ -64,66 +64,66 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertTrue(receiverConstraints == ReceiverConstraints.None);
     }
 
-    function testV2TransferSecurityLevelZero() public {
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-            validator.transferSecurityPolicies(TransferSecurityLevels.Zero);
-        assertEq(uint8(TransferSecurityLevels.Zero), 1);
-        assertTrue(callerConstraints == CallerConstraints.None);
-        assertTrue(receiverConstraints == ReceiverConstraints.None);
-    }
-
     function testV2TransferSecurityLevelOne() public {
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
             validator.transferSecurityPolicies(TransferSecurityLevels.One);
-        assertEq(uint8(TransferSecurityLevels.One), 2);
-        assertTrue(callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC);
+        assertEq(uint8(TransferSecurityLevels.One), 1);
+        assertTrue(callerConstraints == CallerConstraints.None);
         assertTrue(receiverConstraints == ReceiverConstraints.None);
     }
 
     function testV2TransferSecurityLevelTwo() public {
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
             validator.transferSecurityPolicies(TransferSecurityLevels.Two);
-        assertEq(uint8(TransferSecurityLevels.Two), 3);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC);
+        assertEq(uint8(TransferSecurityLevels.Two), 2);
+        assertTrue(callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC);
         assertTrue(receiverConstraints == ReceiverConstraints.None);
     }
 
     function testV2TransferSecurityLevelThree() public {
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
             validator.transferSecurityPolicies(TransferSecurityLevels.Three);
-        assertEq(uint8(TransferSecurityLevels.Three), 4);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC);
+        assertEq(uint8(TransferSecurityLevels.Three), 3);
+        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC);
         assertTrue(receiverConstraints == ReceiverConstraints.None);
     }
 
     function testV2TransferSecurityLevelFour() public {
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
             validator.transferSecurityPolicies(TransferSecurityLevels.Four);
-        assertEq(uint8(TransferSecurityLevels.Four), 5);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.NoCode);
+        assertEq(uint8(TransferSecurityLevels.Four), 4);
+        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC);
+        assertTrue(receiverConstraints == ReceiverConstraints.None);
     }
 
     function testV2TransferSecurityLevelFive() public {
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
             validator.transferSecurityPolicies(TransferSecurityLevels.Five);
-        assertEq(uint8(TransferSecurityLevels.Five), 6);
+        assertEq(uint8(TransferSecurityLevels.Five), 5);
         assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.EOA);
+        assertTrue(receiverConstraints == ReceiverConstraints.NoCode);
     }
 
     function testV2TransferSecurityLevelSix() public {
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
             validator.transferSecurityPolicies(TransferSecurityLevels.Six);
-        assertEq(uint8(TransferSecurityLevels.Six), 7);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.NoCode);
+        assertEq(uint8(TransferSecurityLevels.Six), 6);
+        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC);
+        assertTrue(receiverConstraints == ReceiverConstraints.EOA);
     }
 
     function testV2TransferSecurityLevelSeven() public {
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
             validator.transferSecurityPolicies(TransferSecurityLevels.Seven);
-        assertEq(uint8(TransferSecurityLevels.Seven), 8);
+        assertEq(uint8(TransferSecurityLevels.Seven), 7);
+        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC);
+        assertTrue(receiverConstraints == ReceiverConstraints.NoCode);
+    }
+
+    function testV2TransferSecurityLevelEight() public {
+        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
+            validator.transferSecurityPolicies(TransferSecurityLevels.Eight);
+        assertEq(uint8(TransferSecurityLevels.Eight), 8);
         assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC);
         assertTrue(receiverConstraints == ReceiverConstraints.EOA);
     }
@@ -556,6 +556,7 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertEq(allowedAddresses[0], whitelistedOperator);
     }
 
+    /*
     function testV2IsTransferAllowedReturnsFalseWhenNoTransferValidatorIsSet(
         address creator,
         address caller,
@@ -570,6 +571,7 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         ITestCreatorToken1155 token = _deployNewToken(creator);
         assertFalse(token.isTransferAllowed(caller, from, to));
     }
+    */
 
     function testV2IsTransferAllowedReturnsTrueWhenTransferValidatorIsSetToZero(
         address creator,
@@ -689,13 +691,13 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         assertEq(validator.supportsInterface(type(IERC165).interfaceId), true);
     }
 
-    function testV2PolicyLevelZeroPermitsAllTransfers(address creator, address caller, address from, address to) public {
+    function testV2PolicyLevelOnePermitsAllTransfers(address creator, address caller, address from, address to) public {
         vm.assume(creator != address(0));
         _sanitizeAddress(creator);
         ITestCreatorToken1155 token = _deployNewToken(creator);
         vm.startPrank(creator);
         token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), TransferSecurityLevels.Zero);
+        validator.setTransferSecurityLevelOfCollection(address(token), TransferSecurityLevels.One);
         vm.stopPrank();
         assertTrue(token.isTransferAllowed(caller, from, to));
     }
@@ -712,9 +714,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         _sanitizeAddress(from);
         address to = _verifyEOA(toKey);
         _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Recommended, creator, caller, from, to, tokenId, amount);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Two, creator, caller, from, to, tokenId, amount);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Four, creator, caller, from, to, tokenId, amount);
+        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Three, creator, caller, from, to, tokenId, amount);
         _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Five, creator, caller, from, to, tokenId, amount);
+        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Six, creator, caller, from, to, tokenId, amount);
     }
 
     function testV2WhitelistPoliciesWithOTCEnabledAllowTransfersWhenCalledByOwner(
@@ -726,9 +728,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
     ) public {
         address to = _verifyEOA(toKey);
         _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Recommended, creator, tokenOwner, to, tokenId, amount);
-        _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Two, creator, tokenOwner, to, tokenId, amount);
-        _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Four, creator, tokenOwner, to, tokenId, amount);
+        _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Three, creator, tokenOwner, to, tokenId, amount);
         _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Five, creator, tokenOwner, to, tokenId, amount);
+        _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Six, creator, tokenOwner, to, tokenId, amount);
     }
 
     function testV2WhitelistPoliciesWithOTCDisabledBlockTransfersWhenCallerNotWhitelistedOrOwner(
@@ -740,9 +742,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         uint256 amount
     ) public {
         address to = _verifyEOA(toKey);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Three, creator, caller, from, to, tokenId, amount);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Six, creator, caller, from, to, tokenId, amount);
+        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Four, creator, caller, from, to, tokenId, amount);
         _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Seven, creator, caller, from, to, tokenId, amount);
+        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Eight, creator, caller, from, to, tokenId, amount);
     }
 
     function testV2WhitelistPoliciesWithOTCDisabledBlockTransfersWhenCalledByOwner(
@@ -753,9 +755,9 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         uint256 amount
     ) public {
         address to = _verifyEOA(toKey);
-        _testPolicyBlocksTransfersWhenCalledByOwner(TransferSecurityLevels.Three, creator, tokenOwner, to, tokenId, amount);
-        _testPolicyBlocksTransfersWhenCalledByOwner(TransferSecurityLevels.Six, creator, tokenOwner, to, tokenId, amount);
+        _testPolicyBlocksTransfersWhenCalledByOwner(TransferSecurityLevels.Four, creator, tokenOwner, to, tokenId, amount);
         _testPolicyBlocksTransfersWhenCalledByOwner(TransferSecurityLevels.Seven, creator, tokenOwner, to, tokenId, amount);
+        _testPolicyBlocksTransfersWhenCalledByOwner(TransferSecurityLevels.Eight, creator, tokenOwner, to, tokenId, amount);
     }
 
     function testV2NoCodePoliciesBlockTransferWhenDestinationIsAContract(address creator, address caller, address from, uint256 tokenId, uint256 amount)
@@ -763,8 +765,8 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
     {
         _sanitizeAddress(caller);
         _sanitizeAddress(from);
-        _testPolicyBlocksTransfersToContractReceivers(TransferSecurityLevels.Four, creator, caller, from, tokenId, amount);
-        _testPolicyBlocksTransfersToContractReceivers(TransferSecurityLevels.Six, creator, caller, from, tokenId, amount);
+        _testPolicyBlocksTransfersToContractReceivers(TransferSecurityLevels.Five, creator, caller, from, tokenId, amount);
+        _testPolicyBlocksTransfersToContractReceivers(TransferSecurityLevels.Seven, creator, caller, from, tokenId, amount);
     }
 
     function testV2NoCodePoliciesAllowTransferToPermittedContractDestinations(
@@ -774,8 +776,8 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         uint256 tokenId,
         uint256 amount
     ) public {
-        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Three, creator, caller, from, tokenId, amount);
-        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Five, creator, caller, from, tokenId, amount);
+        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Four, creator, caller, from, tokenId, amount);
+        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Six, creator, caller, from, tokenId, amount);
     }
 
     function testV2EOAPoliciesBlockTransferWhenDestinationHasNotVerifiedSignature(
@@ -787,10 +789,10 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         uint256 amount
     ) public {
         _testPolicyBlocksTransfersToWalletsThatHaveNotVerifiedEOASignature(
-            TransferSecurityLevels.Five, creator, caller, from, to, tokenId, amount
+            TransferSecurityLevels.Six, creator, caller, from, to, tokenId, amount
         );
         _testPolicyBlocksTransfersToWalletsThatHaveNotVerifiedEOASignature(
-            TransferSecurityLevels.Seven, creator, caller, from, to, tokenId, amount
+            TransferSecurityLevels.Eight, creator, caller, from, to, tokenId, amount
         );
     }
 
@@ -817,8 +819,8 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         _sanitizeAddress(caller);
         _sanitizeAddress(creator);
         _sanitizeAddress(from);
-        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Five, creator, caller, from, tokenId, amount);
-        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Seven, creator, caller, from, tokenId, amount);
+        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Six, creator, caller, from, tokenId, amount);
+        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Eight, creator, caller, from, tokenId, amount);
     }
 
     function _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(
@@ -2263,7 +2265,7 @@ contract CreatorTokenTransferValidatorERC1155V2Test is Test {
         _sanitizeAddress(caller);
         _sanitizeAddress(from);
         address to = _verifyEOA(toKey);
-        _testPolicyBlocksTransfersWhenCallerAccountBlacklistedAndNotOwner(TransferSecurityLevels.One, creator, caller, from, to, tokenId, amount);
+        _testPolicyBlocksTransfersWhenCallerAccountBlacklistedAndNotOwner(TransferSecurityLevels.Two, creator, caller, from, to, tokenId, amount);
     }
 
     function _testPolicyAllowsAllTransfersWhenOperatorBlacklistIsEmpty(

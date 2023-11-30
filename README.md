@@ -277,49 +277,49 @@ The `CreatorTokenTransferValidator` contract defines 7 transfer security levels,
    - Receiver Constraints: None
    - In this level, the caller must be whitelisted as an operator or the owner of the token. There are no constraints on the receiver. (Default Equivalent To Level Two)
 
-1. **TransferSecurityLevels.Zero:**
+1. **TransferSecurityLevels.One:**
 
    - Caller Constraints: None
    - Receiver Constraints: None
    - This is the most relaxed level of security, allowing any caller to initiate a token transfer to any receiver without any restrictions.
 
-2. **TransferSecurityLevels.One:**
+2. **TransferSecurityLevels.Two:**
 
    - Caller Constraints: OperatorBlacklistEnableOTC (Over-the-counter)
    - Receiver Constraints: None
    - In this level, the caller must not be a blacklisted account or have a blacklisted code hash. There are no constraints on the receiver.
 
-3. **TransferSecurityLevels.Two:**
+3. **TransferSecurityLevels.Three:**
 
    - Caller Constraints: OperatorWhitelistEnableOTC (Over-the-counter)
    - Receiver Constraints: None
    - In this level, the caller must be whitelisted, or the owner of the token. There are no constraints on the receiver.
 
-4. **TransferSecurityLevels.Three:**
+4. **TransferSecurityLevels.Four:**
 
    - Caller Constraints: OperatorWhitelistDisableOTC
    - Receiver Constraints: None
    - The caller or owner must be whitelisted, and OTC transfers initiated by the token owner are not allowed, unless the token owner is a whitelisted account or has a whitelisted code hash. There are no constraints on the receiver.
 
-5. **TransferSecurityLevels.Four:**
+5. **TransferSecurityLevels.Five:**
 
    - Caller Constraints: OperatorWhitelistEnableOTC
    - Receiver Constraints: NoCode
    - The caller must be whitelisted, or the owner of the token. The receiver must not have deployed code, which means they cannot be a smart contract.  If the receiver does have code, the receiver may receive the token only if the account or code hash is whitelisted.
 
-6. **TransferSecurityLevels.Five:**
+6. **TransferSecurityLevels.Six:**
 
    - Caller Constraints: OperatorWhitelistEnableOTC
    - Receiver Constraints: EOA (Externally Owned Account)
    - The caller must be whitelisted, or the owner of the token. The receiver must be an EOA, which means they cannot be a smart contract and must have performed a one-time signature verification in the `CreatorTokenTransferValidator`.  If the receiver is not a proven EOA, the receiver may receive the token only if the account or code hash is whitelisted.
 
-7. **TransferSecurityLevels.Six:**
+7. **TransferSecurityLevels.Seven:**
 
    - Caller Constraints: OperatorWhitelistDisableOTC
    - Receiver Constraints: NoCode
    - The caller must be whitelisted, and OTC transfers initiated by the token owner are not allowed, unless the token owner is a whitelisted account or has a whitelisted code hash. The receiver must not have deployed code, which means they cannot be a smart contract.  If the receiver does have code, the receiver may receive the token only if the account or code hash is whitelisted.
 
-8. **TransferSecurityLevels.Seven:**
+8. **TransferSecurityLevels.Eight:**
 
    - Caller Constraints: OperatorWhitelistDisableOTC
    - Receiver Constraints: EOA

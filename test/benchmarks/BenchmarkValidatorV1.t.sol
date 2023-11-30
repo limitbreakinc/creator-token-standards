@@ -56,7 +56,7 @@ contract BenchmarkValidatorV1 is Test {
         listIdWhitelist = validator.createOperatorWhitelist("whitelist");
         listIdPermittedContractReceiver = validator.createPermittedContractReceiverAllowlist("permitted");
 
-        tokenLevelZero.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Zero, 0, 0);
+        tokenLevelZero.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Recommended, 0, 0);
         tokenLevelOne.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, listIdWhitelist, listIdPermittedContractReceiver);
         tokenLevelTwo.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, listIdWhitelist, listIdPermittedContractReceiver);
         tokenLevelThree.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Three, listIdWhitelist, listIdPermittedContractReceiver);
