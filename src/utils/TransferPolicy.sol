@@ -32,14 +32,14 @@ enum StakerConstraints {
 
 enum TransferSecurityLevels {
     Recommended,
-    Zero,
     One,
     Two,
     Three,
     Four,
     Five,
     Six,
-    Seven
+    Seven,
+    Eight
 }
 
 struct TransferSecurityPolicy {

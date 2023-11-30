@@ -82,7 +82,7 @@ contract CreatorTokenTransferValidator is EOARegistry, ICreatorTokenTransferVali
     error CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
     
     bytes32 private constant DEFAULT_ACCESS_CONTROL_ADMIN_ROLE = 0x00;
-    TransferSecurityLevels public constant DEFAULT_TRANSFER_SECURITY_LEVEL = TransferSecurityLevels.Zero;
+    TransferSecurityLevels public constant DEFAULT_TRANSFER_SECURITY_LEVEL = TransferSecurityLevels.Recommended;
 
     uint120 private lastOperatorWhitelistId;
     uint120 private lastPermittedContractReceiverAllowlistId;
@@ -95,7 +95,7 @@ contract CreatorTokenTransferValidator is EOARegistry, ICreatorTokenTransferVali
     mapping (uint120 => EnumerableSet.AddressSet) private permittedContractReceiverAllowlists;
 
     constructor(address defaultOwner) EOARegistry() {
-        transferSecurityPolicies[TransferSecurityLevels.Zero] = TransferSecurityPolicy({
+        transferSecurityPolicies[TransferSecurityLevels.Recommended] = TransferSecurityPolicy({
             callerConstraints: CallerConstraints.None,
             receiverConstraints: ReceiverConstraints.None
         });

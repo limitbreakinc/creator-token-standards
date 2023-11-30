@@ -147,7 +147,7 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
         }
 
         return CollectionSecurityPolicy({
-            transferSecurityLevel: TransferSecurityLevels.Zero,
+            transferSecurityLevel: TransferSecurityLevels.Recommended,
             operatorWhitelistId: 0,
             permittedContractReceiversId: 0
         });

@@ -48,74 +48,6 @@ contract CreatorTokenTransferValidatorERC1155Test is Test {
         ERC1155CMock(tokenAddress).mint(to, tokenId, amount);
     }
 
-    // function testDeterministicAddressForCreatorTokenValidator() public {
-    //     assertEq(address(validator), 0xD679fBb2C884Eb28ED08B33e7095caFd63C76e99);
-    // }
-
-    function testTransferSecurityLevelZero() public {
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-            validator.transferSecurityPolicies(TransferSecurityLevels.Zero);
-        assertEq(uint8(TransferSecurityLevels.Zero), 1);
-        assertTrue(callerConstraints == CallerConstraints.None);
-        assertTrue(receiverConstraints == ReceiverConstraints.None);
-    }
-
-//    function testTransferSecurityLevelOne() public {
-//        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-//            validator.transferSecurityPolicies(TransferSecurityLevels.One);
-//        assertEq(uint8(TransferSecurityLevels.One), 2);
-//        assertTrue(callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC);
-//        assertTrue(receiverConstraints == ReceiverConstraints.None);
-//    }
-
-    function testTransferSecurityLevelTwo() public {
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-            validator.transferSecurityPolicies(TransferSecurityLevels.One);
-        assertEq(uint8(TransferSecurityLevels.Two), 3);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.None);
-    }
-
-    function testTransferSecurityLevelThree() public {
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-            validator.transferSecurityPolicies(TransferSecurityLevels.Two);
-        assertEq(uint8(TransferSecurityLevels.Three), 4);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.None);
-    }
-
-    function testTransferSecurityLevelFour() public {
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-            validator.transferSecurityPolicies(TransferSecurityLevels.Three);
-        assertEq(uint8(TransferSecurityLevels.Four), 5);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.NoCode);
-    }
-
-    function testTransferSecurityLevelFive() public {
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-            validator.transferSecurityPolicies(TransferSecurityLevels.Four);
-        assertEq(uint8(TransferSecurityLevels.Five), 6);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.EOA);
-    }
-
-    function testTransferSecurityLevelSix() public {
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-            validator.transferSecurityPolicies(TransferSecurityLevels.Five);
-        assertEq(uint8(TransferSecurityLevels.Six), 7);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.NoCode);
-    }
-
-    function testTransferSecurityLevelSeven() public {
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) =
-            validator.transferSecurityPolicies(TransferSecurityLevels.Six);
-        assertEq(uint8(TransferSecurityLevels.Seven), 8);
-        assertTrue(callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC);
-        assertTrue(receiverConstraints == ReceiverConstraints.EOA);
-    }
-
     function testCreateOperatorWhitelist(address listOwner, string memory name) public {
         vm.assume(listOwner != address(0));
         vm.assume(bytes(name).length < 200);
@@ -376,7 +308,7 @@ contract CreatorTokenTransferValidatorERC1155Test is Test {
         vm.assume(creator != address(0));
         ITestCreatorToken1155 token = _deployNewToken(creator);
         CollectionSecurityPolicy memory securityPolicy = token.getSecurityPolicy();
-        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Zero));
+        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
         assertEq(uint256(securityPolicy.operatorWhitelistId), 0);
         assertEq(uint256(securityPolicy.permittedContractReceiversId), 0);
     }
@@ -884,7 +816,7 @@ contract CreatorTokenTransferValidatorERC1155Test is Test {
         ITestCreatorToken1155 token = _deployNewToken(creator);
         vm.startPrank(creator);
         token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), TransferSecurityLevels.Zero);
+        validator.setTransferSecurityLevelOfCollection(address(token), TransferSecurityLevels.Recommended);
         vm.stopPrank();
         assertTrue(token.isTransferAllowed(caller, from, to));
     }

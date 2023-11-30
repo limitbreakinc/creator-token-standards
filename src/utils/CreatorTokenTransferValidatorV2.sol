@@ -256,25 +256,25 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         if (level == TransferSecurityLevels.Recommended) {
             callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
             receiverConstraints = ReceiverConstraints.None;
-        } else if (level == TransferSecurityLevels.Zero) {
+        } else if (level == TransferSecurityLevels.One) {
             callerConstraints = CallerConstraints.None;
             receiverConstraints = ReceiverConstraints.None;
-        } else if (level == TransferSecurityLevels.One) {
+        } else if (level == TransferSecurityLevels.Two) {
             callerConstraints = CallerConstraints.OperatorBlacklistEnableOTC;
             receiverConstraints = ReceiverConstraints.None;
-        } else if (level == TransferSecurityLevels.Two) {
-            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
-            receiverConstraints = ReceiverConstraints.None;
         } else if (level == TransferSecurityLevels.Three) {
-            callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
+            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
             receiverConstraints = ReceiverConstraints.None;
         } else if (level == TransferSecurityLevels.Four) {
-            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
-            receiverConstraints = ReceiverConstraints.NoCode;
+            callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
+            receiverConstraints = ReceiverConstraints.None;
         } else if (level == TransferSecurityLevels.Five) {
             callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
-            receiverConstraints = ReceiverConstraints.EOA;
+            receiverConstraints = ReceiverConstraints.NoCode;
         } else if (level == TransferSecurityLevels.Six) {
+            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
+            receiverConstraints = ReceiverConstraints.EOA;
+        } else if (level == TransferSecurityLevels.Seven) {
             callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
             receiverConstraints = ReceiverConstraints.NoCode;
         } else {
