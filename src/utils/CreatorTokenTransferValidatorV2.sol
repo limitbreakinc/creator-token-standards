@@ -49,31 +49,31 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
  *
  *          <h4>Transfer Security Levels</h4>
  *          - Recommended: Recommended defaults are same as Level 2 (Whitelisting with OTC Enabled).
- *          - Level 0: No transfer restrictions.
+ *          - Level 1: No transfer restrictions.
  *            - Caller Constraints: None
  *            - Receiver Constraints: None
- *          - Level 1: Only non-blacklisted operators can initiate transfers, over-the-counter (OTC) trading enabled.
+ *          - Level 2: Only non-blacklisted operators can initiate transfers, over-the-counter (OTC) trading enabled.
  *            - Caller Constraints: OperatorBlacklistEnableOTC
  *            - Receiver Constraints: None
- *          - Level 2: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading enabled.
+ *          - Level 3: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading enabled.
  *            - Caller Constraints: OperatorWhitelistEnableOTC
  *            - Receiver Constraints: None
- *          - Level 3: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading disabled.
+ *          - Level 4: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading disabled.
  *            - Caller Constraints: OperatorWhitelistDisableOTC
  *            - Receiver Constraints: None
- *          - Level 4: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading enabled. 
+ *          - Level 5: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading enabled. 
  *                     Transfers to contracts with code are not allowed, unless present on the whitelist.
  *            - Caller Constraints: OperatorWhitelistEnableOTC
  *            - Receiver Constraints: NoCode
- *          - Level 5: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading enabled. 
+ *          - Level 6: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading enabled. 
  *                     Transfers are allowed only to Externally Owned Accounts (EOAs), unless present on the whitelist.
  *            - Caller Constraints: OperatorWhitelistEnableOTC
  *            - Receiver Constraints: EOA
- *          - Level 6: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading disabled. 
+ *          - Level 7: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading disabled. 
  *                     Transfers to contracts with code are not allowed, unless present on the whitelist.
  *            - Caller Constraints: OperatorWhitelistDisableOTC
  *            - Receiver Constraints: NoCode
- *          - Level 7: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading disabled. 
+ *          - Level 8: Only whitelisted accounts can initiate transfers, over-the-counter (OTC) trading disabled. 
  *                     Transfers are allowed only to Externally Owned Accounts (EOAs), unless present on the whitelist.
  *            - Caller Constraints: OperatorWhitelistDisableOTC
  *            - Receiver Constraints: EOA
