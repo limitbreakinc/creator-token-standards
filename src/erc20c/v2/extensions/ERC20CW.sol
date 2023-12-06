@@ -75,7 +75,7 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
                 revert ERC20WrapperBase__SmartContractsNotPermittedToStake();
             }
         } else if (stakerConstraints_ == StakerConstraints.EOA) {
-            _requireCallerIsVerifiedEOA();
+            _requireAccountIsVerifiedEOA(_msgSender());
         }
 
         if (amount == 0) {
@@ -92,6 +92,52 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
         _onStake(amount, msg.value);
         emit Staked(_msgSender(), amount);
         _doTokenMint(_msgSender(), amount);
+        SafeERC20.safeTransferFrom(wrappedCollection_, _msgSender(), address(this), amount);
+    }
+
+    /// @notice Allows holders of the wrapped ERC20 token to stake into this enhanced ERC20 token.
+    /// The out of the box enhancement is ERC20-C standard, but developers can extend the functionality of this 
+    /// contract with additional powered up features.  This function allows a contract to stake on behalf of a user.
+    ///
+    /// Throws when staker constraints is `CallerIsTxOrigin` and the `to` address is not the tx.origin.
+    /// Throws when staker constraints is `EOA` and the `to` address has not verified their signature in the transfer
+    /// validator contract.
+    /// Throws when amount is zero.
+    /// Throws when caller does not have a balance greater than or equal to `amount` of the wrapped collection.
+    /// Throws when inheriting contract reverts in the _onStake function (for example, in a pay to stake scenario).
+    /// Throws when _mint function reverts (for example, when additional mint validation logic reverts).
+    /// Throws when safeTransferFrom function reverts (e.g. if this contract does not have approval to transfer token).
+    /// 
+    /// Postconditions:
+    /// ---------------
+    /// The specified amount of the staker's token are now owned by this contract.
+    /// The `to` address has received the equivalent amount of wrapper token on this contract with the same id.
+    /// A `Staked` event has been emitted.
+    function stakeTo(uint256 amount, address to) public virtual payable override nonReentrant {
+        StakerConstraints stakerConstraints_ = stakerConstraints;
+
+        if (stakerConstraints_ == StakerConstraints.CallerIsTxOrigin) {
+            if(to != tx.origin) {
+                revert ERC20WrapperBase__SmartContractsNotPermittedToStake();
+            }
+        } else if (stakerConstraints_ == StakerConstraints.EOA) {
+            _requireAccountIsVerifiedEOA(to);
+        }
+
+        if (amount == 0) {
+            revert ERC20WrapperBase__AmountMustBeGreaterThanZero();
+        }
+
+        IERC20 wrappedCollection_ = IERC20(getWrappedCollectionAddress());
+
+        uint256 tokenBalance = wrappedCollection_.balanceOf(_msgSender());
+        if (tokenBalance < amount) {
+            revert ERC20WrapperBase__InsufficientBalanceOfWrappedToken();
+        }
+        
+        _onStake(amount, msg.value);
+        emit Staked(to, amount);
+        _doTokenMint(to, amount);
         SafeERC20.safeTransferFrom(wrappedCollection_, _msgSender(), address(this), amount);
     }
 
@@ -160,7 +206,7 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
         wrappedCollection = IERC20(wrappedCollectionAddress_);
     }
 
-    function _requireCallerIsVerifiedEOA() internal view virtual;
+    function _requireAccountIsVerifiedEOA(address account) internal view virtual;
 
     function _doTokenMint(address to, uint256 amount) internal virtual;
 
@@ -193,10 +239,10 @@ abstract contract ERC20CW is ERC20WrapperBase, ERC20C {
         return address(wrappedCollectionImmutable);
     }
 
-    function _requireCallerIsVerifiedEOA() internal view virtual override {
+    function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
         ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
         if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(_msgSender())) {
+            if (!transferValidator_.isVerifiedEOA(account)) {
                 revert ERC20WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
@@ -244,10 +290,10 @@ abstract contract ERC20CWInitializable is ERC20WrapperBase, ERC20CInitializable 
         super.supportsInterface(interfaceId);
     }
 
-    function _requireCallerIsVerifiedEOA() internal view virtual override {
+    function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
         ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
         if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(_msgSender())) {
+            if (!transferValidator_.isVerifiedEOA(account)) {
                 revert ERC20WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }

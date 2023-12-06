@@ -10,6 +10,7 @@ interface ICreatorTokenWrapperERC1155 is ICreatorToken {
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
 
     function stake(uint256 tokenId, uint256 amount) external payable;
+    function stakeTo(uint256 tokenId, uint256 amount, address to) external payable;
     function unstake(uint256 tokenId, uint256 amount) external payable;
     function canUnstake(uint256 tokenId, uint256 amount) external view returns (bool);
     function getStakerConstraints() external view returns (StakerConstraints);

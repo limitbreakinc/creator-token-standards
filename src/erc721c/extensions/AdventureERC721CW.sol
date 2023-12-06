@@ -40,10 +40,10 @@ abstract contract AdventureERC721CW is ERC721WrapperBase, AdventureERC721C {
         return address(wrappedCollectionImmutable);
     }
 
-    function _requireCallerIsVerifiedEOA() internal view virtual override {
+    function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
         ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
         if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(_msgSender())) {
+            if (!transferValidator_.isVerifiedEOA(account)) {
                 revert ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
@@ -98,10 +98,10 @@ abstract contract AdventureERC721CWInitializable is ERC721WrapperBase, Adventure
         return interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    function _requireCallerIsVerifiedEOA() internal view virtual override {
+    function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
         ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
         if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(_msgSender())) {
+            if (!transferValidator_.isVerifiedEOA(account)) {
                 revert ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
