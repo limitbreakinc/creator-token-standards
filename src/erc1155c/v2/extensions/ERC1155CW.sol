@@ -203,7 +203,7 @@ abstract contract ERC1155WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTo
     }
 
     function _setWrappedCollectionAddress(address wrappedCollectionAddress_) internal {
-        if(!IERC165(wrappedCollectionAddress_).supportsInterface(type(IERC1155).interfaceId)) {
+        if(wrappedCollectionAddress_ == address(0) || wrappedCollectionAddress_.code.length == 0) {
             revert ERC1155WrapperBase__InvalidERC1155Collection();
         }
 

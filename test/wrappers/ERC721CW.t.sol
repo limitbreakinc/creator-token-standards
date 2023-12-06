@@ -50,11 +50,9 @@ contract ERC721CWTest is CreatorTokenTransferValidatorERC721Test {
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
 
-    function testRevertsWhenWrappingERC1155() public {
-        ERC1155Mock badToken = new ERC1155Mock();
-
-        vm.expectRevert(ERC721WrapperBase.ERC721WrapperBase__InvalidERC721Collection.selector);
-        new ERC721CWMock(address(badToken));
+    function testRevertsWhenWrappingZeroAddress() public {
+        vm.expectRevert();
+        new ERC721CWMock(address(0));
     }
 
     function testRevertsWhenWrappingNoCode(address noCodeToken) public {

@@ -185,7 +185,7 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
     }
 
     function _setWrappedCollectionAddress(address wrappedCollectionAddress_) internal {
-        if(!IERC165(wrappedCollectionAddress_).supportsInterface(type(IERC721).interfaceId)) {
+        if(wrappedCollectionAddress_ == address(0) || wrappedCollectionAddress_.code.length == 0) {
             revert ERC721WrapperBase__InvalidERC721Collection();
         }
 
