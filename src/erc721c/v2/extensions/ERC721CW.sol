@@ -71,7 +71,7 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
                 revert ERC721WrapperBase__SmartContractsNotPermittedToStake();
             }
         } else if (stakerConstraints_ == StakerConstraints.EOA) {
-            _requireCallerIsVerifiedEOA();
+            _requireAccountIsVerifiedEOA(_msgSender());
         }
 
         IERC721 wrappedCollection_ = IERC721(getWrappedCollectionAddress());
@@ -84,6 +84,47 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
         _onStake(tokenId, msg.value);
         emit Staked(tokenId, tokenOwner);
         _doTokenMint(tokenOwner, tokenId);
+        wrappedCollection_.transferFrom(tokenOwner, address(this), tokenId);
+    }
+
+    /// @notice Allows holders of the wrapped ERC721 token to stake into this enhanced ERC721 token.
+    /// The out of the box enhancement is ERC721-C standard, but developers can extend the functionality of this 
+    /// contract with additional powered up features.
+    ///
+    /// Throws when staker constraints is `CallerIsTxOrigin` and the `to` address is not the tx.origin.
+    /// Throws when staker constraints is `EOA` and the `to` address has not verified their signature in the transfer
+    /// validator contract.
+    /// Throws when caller does not own the token id on the wrapped collection.
+    /// Throws when inheriting contract reverts in the _onStake function (for example, in a pay to stake scenario).
+    /// Throws when _mint function reverts (for example, when additional mint validation logic reverts).
+    /// Throws when transferFrom function reverts (e.g. if this contract does not have approval to transfer token).
+    /// 
+    /// Postconditions:
+    /// ---------------
+    /// The staker's token is now owned by this contract.
+    /// The `to` address has received a wrapper token on this contract with the same token id.
+    /// A `Staked` event has been emitted.
+    function stakeTo(uint256 tokenId, address to) public virtual payable override {
+        StakerConstraints stakerConstraints_ = stakerConstraints;
+
+        if (stakerConstraints_ == StakerConstraints.CallerIsTxOrigin) {
+            if(to != tx.origin) {
+                revert ERC721WrapperBase__SmartContractsNotPermittedToStake();
+            }
+        } else if (stakerConstraints_ == StakerConstraints.EOA) {
+            _requireAccountIsVerifiedEOA(to);
+        }
+
+        IERC721 wrappedCollection_ = IERC721(getWrappedCollectionAddress());
+
+        address tokenOwner = wrappedCollection_.ownerOf(tokenId);
+        if(tokenOwner != _msgSender()) {
+            revert ERC721WrapperBase__CallerNotOwnerOfWrappedToken();
+        }
+        
+        _onStake(tokenId, msg.value);
+        emit Staked(tokenId, to);
+        _doTokenMint(to, tokenId);
         wrappedCollection_.transferFrom(tokenOwner, address(this), tokenId);
     }
 
@@ -144,14 +185,14 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
     }
 
     function _setWrappedCollectionAddress(address wrappedCollectionAddress_) internal {
-        if(!IERC165(wrappedCollectionAddress_).supportsInterface(type(IERC721).interfaceId)) {
+        if(wrappedCollectionAddress_ == address(0) || wrappedCollectionAddress_.code.length == 0) {
             revert ERC721WrapperBase__InvalidERC721Collection();
         }
 
         wrappedCollection = IERC721(wrappedCollectionAddress_);
     }
 
-    function _requireCallerIsVerifiedEOA() internal view virtual;
+    function _requireAccountIsVerifiedEOA(address account) internal view virtual;
 
     function _doTokenMint(address to, uint256 tokenId) internal virtual;
 
@@ -192,10 +233,10 @@ abstract contract ERC721CW is ERC721WrapperBase, ERC721C {
         return address(wrappedCollectionImmutable);
     }
 
-    function _requireCallerIsVerifiedEOA() internal view virtual override {
+    function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
         ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
         if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(_msgSender())) {
+            if (!transferValidator_.isVerifiedEOA(account)) {
                 revert ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
@@ -252,10 +293,10 @@ abstract contract ERC721CWInitializable is ERC721WrapperBase, ERC721CInitializab
         super.supportsInterface(interfaceId);
     }
 
-    function _requireCallerIsVerifiedEOA() internal view virtual override {
+    function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
         ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
         if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(_msgSender())) {
+            if (!transferValidator_.isVerifiedEOA(account)) {
                 revert ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
