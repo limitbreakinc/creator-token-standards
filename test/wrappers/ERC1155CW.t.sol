@@ -541,6 +541,430 @@ contract ERC1155CWTest is CreatorTokenTransferValidatorERC1155Test {
         tokenMock.stake(tokenId, amount);
     }
 
+    function testStakeToWrappedCollectionHoldersCanStakeTokensGiveSufficientWrappedTokenBalance(
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToStake, 
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(amount > 0);
+        vm.assume(amountToStake > 0 && amountToStake <= amount);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        tokenMock.stakeTo(tokenId, amountToStake, stakeReceiver);
+        vm.stopPrank();
+
+        assertEq(tokenMock.balanceOf(stakeReceiver, tokenId), amountToStake);
+        assertEq(wrappedTokenMock.balanceOf(to, tokenId), amount - amountToStake);
+        assertEq(wrappedTokenMock.balanceOf(address(tokenMock), tokenId), amountToStake);
+    }
+
+    function testStakeToRevertsWhenUnauthorizedUserAttemptsToStake(
+        address to,
+        address unauthorizedUser,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToStake,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(to != unauthorizedUser);
+        vm.assume(unauthorizedUser != address(0));
+        vm.assume(amount > 0);
+        vm.assume(amountToStake > 0 && amountToStake <= amount);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        vm.stopPrank();
+
+        vm.startPrank(unauthorizedUser);
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InsufficientBalanceOfWrappedToken.selector);
+        tokenMock.stakeTo(tokenId, amountToStake, stakeReceiver);
+        vm.stopPrank();
+    }
+
+    function testStakeToRevertsWhenApprovedOperatorAttemptsToStake(
+        address to,
+        address approvedOperator,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToStake,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(to != approvedOperator);
+        vm.assume(approvedOperator != address(0));
+        vm.assume(amount > 0);
+        vm.assume(amountToStake > 0 && amountToStake <= amount);
+        _sanitizeAddress(stakeReceiver);
+        vm.assume(stakeReceiver != approvedOperator);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        wrappedTokenMock.setApprovalForAll(approvedOperator, true);
+        vm.stopPrank();
+
+        vm.startPrank(approvedOperator);
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InsufficientBalanceOfWrappedToken.selector);
+        tokenMock.stakeTo(tokenId, amountToStake, stakeReceiver);
+        vm.stopPrank();
+    }
+
+    function testStakeToRevertsWhenStakeCalledWithZeroAmount(address to, uint256 tokenId, uint256 amount, address stakeReceiver) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(amount > 0);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__AmountMustBeGreaterThanZero.selector);
+        tokenMock.stakeTo(tokenId, 0, stakeReceiver);
+        vm.stopPrank();
+    }
+
+    function testStakeToRevertsWhenUnauthorizedUserAttemptsToUnstake(
+        address to,
+        address unauthorizedUser,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToStake,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(to != unauthorizedUser);
+        vm.assume(unauthorizedUser != address(0));
+        vm.assume(amount > 0);
+        vm.assume(amountToStake > 0 && amountToStake <= amount);
+        _sanitizeAddress(stakeReceiver);
+        vm.assume(stakeReceiver != unauthorizedUser);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        tokenMock.stakeTo(tokenId, amountToStake, stakeReceiver);
+        vm.stopPrank();
+
+        vm.startPrank(unauthorizedUser);
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InsufficientBalanceOfWrappingToken.selector);
+        tokenMock.unstake(tokenId, amountToStake);
+        vm.stopPrank();
+    }
+
+    function testStakeToRevertsWhenApprovedOperatorAttemptsToUnstake(
+        address to,
+        address approvedOperator,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToStake,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(to != approvedOperator);
+        vm.assume(approvedOperator != address(0));
+        vm.assume(amount > 0);
+        vm.assume(amountToStake > 0 && amountToStake <= amount);
+        _sanitizeAddress(stakeReceiver);
+        vm.assume(stakeReceiver != approvedOperator);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        wrappedTokenMock.setApprovalForAll(approvedOperator, true);
+        tokenMock.setApprovalForAll(approvedOperator, true);
+        tokenMock.stakeTo(tokenId, amountToStake, stakeReceiver);
+        vm.stopPrank();
+
+        vm.startPrank(approvedOperator);
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InsufficientBalanceOfWrappingToken.selector);
+        tokenMock.unstake(tokenId, amountToStake);
+        vm.stopPrank();
+    }
+
+    function testStakeToRevertsWhenUserAttemptsToUnstakeATokenAmountThatHasNotBeenStaked(
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToUnstake,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(amount > 1);
+        vm.assume(amountToUnstake > amount);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+        vm.stopPrank();
+
+        vm.startPrank(stakeReceiver);
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InsufficientBalanceOfWrappingToken.selector);
+        tokenMock.unstake(tokenId, amountToUnstake);
+        vm.stopPrank();
+    }
+
+    function testStakeToWrappingCollectionHoldersCanUnstakeTokensGiveSufficientBalance(
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToUnstake,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(amount > 1);
+        vm.assume(amountToUnstake > 0 && amountToUnstake <= amount);
+        _sanitizeAddress(stakeReceiver);
+        vm.assume(stakeReceiver != to);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+        vm.stopPrank();
+
+        vm.startPrank(stakeReceiver);
+        tokenMock.unstake(tokenId, amountToUnstake);
+        vm.stopPrank();
+
+        assertEq(tokenMock.balanceOf(stakeReceiver, tokenId), amount - amountToUnstake);
+        assertEq(wrappedTokenMock.balanceOf(stakeReceiver, tokenId), amountToUnstake);
+        assertEq(wrappedTokenMock.balanceOf(address(tokenMock), tokenId), amount - amountToUnstake);
+    }
+
+    function testStakeToRevertsWhenNativeFundsIncludedInUnstakeCall(
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToUnstake,
+        uint256 value,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(amount > 1);
+        vm.assume(amountToUnstake > 0 && amountToUnstake <= amount);
+        vm.assume(value > 0);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.deal(stakeReceiver, value);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+        vm.stopPrank();
+
+        vm.startPrank(stakeReceiver);
+        vm.expectRevert(
+            ERC1155WrapperBase.ERC1155WrapperBase__DefaultImplementationOfUnstakeDoesNotAcceptPayment.selector
+        );
+        tokenMock.unstake{value: value}(tokenId, amountToUnstake);
+        vm.stopPrank();
+    }
+
+    function testStakeToRevertsWhenUnstakingZeroAmount(address to, uint256 tokenId, uint256 amount, address stakeReceiver) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(amount > 0);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+        vm.stopPrank();
+
+        vm.startPrank(stakeReceiver);
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__AmountMustBeGreaterThanZero.selector);
+        tokenMock.unstake(tokenId, 0);
+        vm.stopPrank();
+    }
+
+    function testStakeToSecondaryWrappingCollectionHoldersCanUnstakeTokens(
+        address to,
+        address secondaryHolder,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 amountToTransfer,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        _sanitizeAddress(secondaryHolder);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        vm.assume(secondaryHolder != address(0));
+        vm.assume(secondaryHolder.code.length == 0);
+        vm.assume(to != secondaryHolder);
+        vm.assume(amount > 1);
+        vm.assume(amountToTransfer > 0 && amountToTransfer < amount);
+        _sanitizeAddress(stakeReceiver);
+        vm.assume(stakeReceiver != to);
+        vm.assume(stakeReceiver != secondaryHolder);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+        vm.stopPrank();
+
+        vm.startPrank(stakeReceiver);
+        tokenMock.safeTransferFrom(stakeReceiver, secondaryHolder, tokenId, amountToTransfer, "");
+        vm.stopPrank();
+
+        vm.startPrank(secondaryHolder);
+        tokenMock.unstake(tokenId, amountToTransfer);
+        vm.stopPrank();
+
+        vm.startPrank(stakeReceiver);
+        tokenMock.unstake(tokenId, amount - amountToTransfer);
+        vm.stopPrank();
+
+        assertEq(tokenMock.balanceOf(stakeReceiver, tokenId), 0);
+        assertEq(tokenMock.balanceOf(secondaryHolder, tokenId), 0);
+        assertEq(wrappedTokenMock.balanceOf(stakeReceiver, tokenId), amount - amountToTransfer);
+        assertEq(wrappedTokenMock.balanceOf(secondaryHolder, tokenId), amountToTransfer);
+        assertEq(wrappedTokenMock.balanceOf(address(tokenMock), tokenId), 0);
+    }
+
+    function testStakeToEOACanStakeTokensWhenStakerConstraintsAreInEffect(address to, uint256 tokenId, uint256 amount, address stakeReceiver)
+        public
+    {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to != address(tokenMock));
+        vm.assume(to.code.length == 0);
+        vm.assume(amount > 0);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        vm.stopPrank();
+
+        tokenMock.setStakerConstraints(StakerConstraints.CallerIsTxOrigin);
+
+        vm.startPrank(to, stakeReceiver);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+        vm.stopPrank();
+
+        assertEq(tokenMock.balanceOf(stakeReceiver, tokenId), amount);
+        assertEq(wrappedTokenMock.balanceOf(stakeReceiver, tokenId), 0);
+        assertEq(wrappedTokenMock.balanceOf(address(tokenMock), tokenId), amount);
+    }
+
+    function testStakeToEOACanStakeTokensWhenEOAStakerConstraintsAreInEffectButValidatorIsUnset(
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to != address(tokenMock));
+        vm.assume(to.code.length == 0);
+        vm.assume(amount > 0);
+        _sanitizeAddress(stakeReceiver);
+
+        tokenMock.setTransferValidator(address(0));
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        vm.stopPrank();
+
+        tokenMock.setStakerConstraints(StakerConstraints.EOA);
+
+        vm.startPrank(to, stakeReceiver);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+        vm.stopPrank();
+
+        assertEq(tokenMock.balanceOf(stakeReceiver, tokenId), amount);
+        assertEq(wrappedTokenMock.balanceOf(stakeReceiver, tokenId), 0);
+        assertEq(wrappedTokenMock.balanceOf(address(tokenMock), tokenId), amount);
+    }
+
+    function testStakeToVerifiedEOACanStakeTokensWhenEOAStakerConstraintsAreInEffect(
+        uint160 toKey,
+        uint256 tokenId,
+        uint256 amount,
+        uint160 stakeReceiverKey
+    ) public {
+        vm.assume(toKey != stakeReceiverKey);
+        address to = _verifyEOA(toKey);
+        address stakeReceiver = _verifyEOA(stakeReceiverKey);
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(amount > 0);
+        vm.assume(to.code.length == 0);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        vm.stopPrank();
+
+        tokenMock.setStakerConstraints(StakerConstraints.EOA);
+
+        vm.startPrank(to);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+        vm.stopPrank();
+
+        assertEq(tokenMock.balanceOf(stakeReceiver, tokenId), amount);
+        assertEq(wrappedTokenMock.balanceOf(stakeReceiver, tokenId), 0);
+        assertEq(wrappedTokenMock.balanceOf(address(tokenMock), tokenId), amount);
+    }
+
+    function testStakeToRevertsWhenCallerIsEOAConstraintIsInEffectIfCallerHasNotVerifiedSignature(
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        address stakeReceiver
+    ) public {
+        _sanitizeAddress(to);
+        vm.assume(to != address(0));
+        vm.assume(to.code.length == 0);
+        _sanitizeAddress(stakeReceiver);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, tokenId, amount);
+        wrappedTokenMock.setApprovalForAll(address(tokenMock), true);
+        vm.stopPrank();
+
+        tokenMock.setStakerConstraints(StakerConstraints.EOA);
+
+        vm.prank(to);
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__CallerSignatureNotVerifiedInEOARegistry.selector);
+        tokenMock.stakeTo(tokenId, amount, stakeReceiver);
+    }
+
     function _sanitizeAddress(address addr) internal view virtual override {
         super._sanitizeAddress(addr);
         vm.assume(addr != address(tokenMock));
