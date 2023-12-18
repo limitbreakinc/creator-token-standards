@@ -290,7 +290,7 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * 
      * @param level The transfer security level to return the caller and receiver constraints for.
      * 
-     * @return callerConstaints    The `CallerConstraints` enum value for the level.
+     * @return callerConstraints    The `CallerConstraints` enum value for the level.
      * @return receiverConstraints The `ReceiverConstraints` enum value for the level.
      */
     function transferSecurityPolicies(TransferSecurityLevels level) public pure returns (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) {
