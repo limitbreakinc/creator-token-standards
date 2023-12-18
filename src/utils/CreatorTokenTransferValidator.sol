@@ -46,7 +46,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
  *                         wrap/upgrade a pre-existing ERC-1155 collection.
  *
  *          <h4>Transfer Security Levels</h4>
- *          - Level 0 (Zero): No transfer restrictions.
+ *          - Level 0 (Recommended): No transfer restrictions.
  *            - Caller Constraints: None
  *            - Receiver Constraints: None
  *          - Level 1 (One): Only whitelisted operators can initiate transfers, with over-the-counter (OTC) trading enabled.
@@ -67,6 +67,12 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
  *          - Level 6 (Six): Only whitelisted operators can initiate transfers, with over-the-counter (OTC) trading disabled. Transfers are allowed only to Externally Owned Accounts (EOAs).
  *            - Caller Constraints: OperatorWhitelistDisableOTC
  *            - Receiver Constraints: EOA
+ *          - Level 7 (Seven): No transfer restrictions.
+ *            - Caller Constraints: None
+ *            - Receiver Constraints: None
+ *          - Level 8 (Eight): No transfer restrictions.
+ *            - Caller Constraints: None
+ *            - Receiver Constraints: None
  */
 contract CreatorTokenTransferValidator is EOARegistry, ICreatorTokenTransferValidator {
     using EnumerableSet for EnumerableSet.AddressSet;

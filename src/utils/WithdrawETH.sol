@@ -11,11 +11,19 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 abstract contract WithdrawETH is OwnablePermissions {
 
+    /// @dev Thrown when amount is a zero value.
     error WithdrawETH__AmountMustBeGreaterThanZero();
+
+    /// @dev Thrown when the withdrawal recipient is the zero address.
     error WithdrawETH__RecipientMustBeNonZeroAddress();
+
+    /// @dev Thrown when the amount being withdrawn is greater than the contract balance.
     error WithdrawETH__InsufficientBalance();
+
+    /// @dev Thrown when the withdrawal does not successfully send to the recipient.
     error WithdrawETH__WithdrawalUnsuccessful();
 
+    /// @dev Emitted when a withdrawal is successful.
     event Withdrawal(address indexed recipient, uint256 amount); 
 
     /// @notice Allows contract owner to withdraw ETH that has been paid into the contract.
@@ -30,7 +38,8 @@ abstract contract WithdrawETH is OwnablePermissions {
     ///
     /// Postconditions:
     /// ---------------
-    /// The specified amount of ETH has been sent to the specified recipient.
+    /// 1. The specified amount of ETH has been sent to the specified recipient.
+    /// 2. A `Withdrawal` event is emitted.
     function withdrawETH(address payable recipient, uint256 amount) external {
         _requireCallerIsContractOwner();
 

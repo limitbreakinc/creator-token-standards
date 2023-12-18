@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/utils/Context.sol";
  */
 abstract contract TransferValidation is Context {
     
+    /// @dev Thrown when the from and to address are both the zero address.
     error ShouldNotMintToBurnAddress();
 
     /// @dev Inheriting contracts should call this function in the _beforeTokenTransfer function to get more granular hooks.

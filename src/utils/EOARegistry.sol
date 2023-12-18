@@ -7,8 +7,10 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-
+/// @dev Thrown when the caller does not match the recovered address for the signature.
 error CallerDidNotSignTheMessage();
+
+/// @dev Thrown when the caller has already been verified.
 error SignatureAlreadyVerified();
 
 /**

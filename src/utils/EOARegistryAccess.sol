@@ -15,6 +15,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 abstract contract EOARegistryAccess is Ownable {
     
+    /// @dev Thrown when the EOA Registry address being set does not implement the `IEOARegistry` interface.
     error InvalidEOARegistryContract();
     
     /// @dev Points to an external contract that implements the `IEOARegistry` interface.

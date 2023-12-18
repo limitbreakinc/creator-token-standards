@@ -48,7 +48,9 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
  *                         wrap/upgrade a pre-existing ERC-1155 collection.
  *
  *          <h4>Transfer Security Levels</h4>
- *          - Recommended: Recommended defaults are same as Level 2 (Whitelisting with OTC Enabled).
+ *          - Recommended: Recommended defaults are same as Level 3 (Whitelisting with OTC Enabled).
+ *            - Caller Constraints: OperatorWhitelistEnableOTC
+ *            - Receiver Constraints: None
  *          - Level 1: No transfer restrictions.
  *            - Caller Constraints: None
  *            - Receiver Constraints: None
@@ -83,19 +85,43 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
     // Custom Errors
+    /// @dev Thrown when an array that cannot be zero length is supplied with zero length.
     error CreatorTokenTransferValidator__ArrayLengthCannotBeZero();
+
+    /// @dev Thrown when attempting to set a list id that does not exist.
     error CreatorTokenTransferValidator__ListDoesNotExist();
+
+    /// @dev Thrown when attempting to transfer the ownership of a list to the zero address.
     error CreatorTokenTransferValidator__ListOwnershipCannotBeTransferredToZeroAddress();
+
+    /// @dev Thrown when attempting to call a function that requires the caller to be the list owner.
     error CreatorTokenTransferValidator__CallerDoesNotOwnList();
+
+    /// @dev Thrown when validating a transfer for a collection using whitelists and the operator is not on the whitelist.
     error CreatorTokenTransferValidator__CallerMustBeWhitelisted();
+
+    /// @dev Thrown when attempting to call a function that requires owner or default admin role for a collection that the caller does not have.
     error CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
+
+    /// @dev Thrown when validating a transfer for a collection using blacklists and the operator is on the blacklist.
     error CreatorTokenTransferValidator__OperatorIsBlacklisted();
+
+    /// @dev Thrown when validating a transfer for a collection that does not allow receiver to have code and the receiver has code.
     error CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode();
+
+    /// @dev Thrown when validating a transfer for a collection that requires receivers be verified EOAs and the receiver is not verified.
     error CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
+
+    /// @dev Thrown when attempting to add the zero address to a whitelist or blacklist.
     error CreatorTokenTransferValidator__ZeroAddressNotAllowed();
+
+    /// @dev Thrown when attempting to add the zero code hash to a whitelist or blacklist.
     error CreatorTokenTransferValidator__ZeroCodeHashNotAllowed();
 
     // Structs
+    /**
+     * @dev This struct is internally for the storage of account and codehash lists.
+     */
     struct List {
         EnumerableSet.AddressSet enumerableAccounts;
         EnumerableSet.Bytes32Set enumerableCodehashes;
@@ -104,7 +130,9 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     }
     
     // Constants
+    /// @dev The default admin role value for contracts that implement access control.
     bytes32 private constant DEFAULT_ACCESS_CONTROL_ADMIN_ROLE = 0x00;
+    /// @dev Value representing a zero value code hash.
     bytes32 private constant CODEHASH_ZERO = 0x0000000000000000000000000000000000000000000000000000000000000000;
 
     /// @notice Keeps track of the most recently created list id.
@@ -135,11 +163,19 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     /*                               MODIFIERS                               */
     /*************************************************************************/
 
+    /**
+     * @dev This modifier restricts a function call to the owner of the list `id`.
+     * @dev Throws when the caller is not the list owner.
+     */
     modifier onlyListOwner(uint120 id) {
         _requireCallerOwnsList(id);
         _;
     }
 
+    /**
+     * @dev This modifier reverts a transaction if the supplied array has a zero length.
+     * @dev Throws when the array parameter has a zero length.
+     */
     modifier notZero(uint256 value) {
         if (value == 0) {
             revert CreatorTokenTransferValidator__ArrayLengthCannotBeZero();
@@ -249,8 +285,13 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         }
     }
 
-        /**
+    /**
      * @notice Returns the caller and receiver constraints for the specified transfer security level.
+     * 
+     * @param level The transfer security level to return the caller and receiver constraints for.
+     * 
+     * @return callerConstaints    The `CallerConstraints` enum value for the level.
+     * @return receiverConstraints The `ReceiverConstraints` enum value for the level.
      */
     function transferSecurityPolicies(TransferSecurityLevels level) public pure returns (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) {
         if (level == TransferSecurityLevels.Recommended) {
@@ -743,8 +784,8 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
 
     /**
      * @notice Get blacklisted accounts by list id.
-     * @param id The id of the list.
-     * @return   An array of blacklisted accounts.
+     * @param  id The id of the list.
+     * @return An array of blacklisted accounts.
      */
     function getBlacklistedAccounts(uint120 id) public view override returns (address[] memory) {
         return blacklists[id].enumerableAccounts.values();
@@ -752,8 +793,8 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
 
     /**
      * @notice Get whitelisted accounts by list id.
-     * @param id The id of the list.
-     * @return   An array of whitelisted accounts.
+     * @param  id The id of the list.
+     * @return An array of whitelisted accounts.
      */
     function getWhitelistedAccounts(uint120 id) public view override returns (address[] memory) {
         return whitelists[id].enumerableAccounts.values();
@@ -908,6 +949,14 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     /*                                HELPERS                                */
     /*************************************************************************/
 
+    /**
+     * @notice Reverts the transaction if the caller is not the owner or assigned the default
+     * @notice admin role of the contract at `tokenAddress`.
+     *
+     * @dev    Throws when the caller is neither owner nor assigned the default admin role.
+     * 
+     * @param tokenAddress The contract address of the token to check permissions for.
+     */
     function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
         bool callerHasPermissions = false;
         if(_getCodeLengthAsm(tokenAddress) > 0) {
@@ -932,6 +981,23 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         }
     }
 
+    /**
+     * @notice Copies all addresses in `ptrFromList` to `ptrToList`.
+     * 
+     * @dev    This function will copy all addresses from one list to another list.
+     * @dev    Note: If used to copy adddresses to an existing list the current list contents will not be
+     * @dev    deleted before copying. New addresses will be appeneded to the end of the list and the
+     * @dev    non-enumerable mapping key value will be set to true.
+     * 
+     * @dev <h4>Postconditions:</h4>
+     *      1. Addresses in from list that are not already present in to list are added to the to list.
+     *      2. Emits an `AddedAccountToList` event for each address copied to the list.
+     * 
+     * @param  listType          The type of list addresses are being copied from and to.
+     * @param  destinationListId The id of the list being copied to.
+     * @param  ptrFromList       The storage pointer for the list being copied from.
+     * @param  ptrToList         The storage pointer for the list being copied to.
+     */
     function _copyAddressSet(
         ListTypes listType,
         uint120 destinationListId,
@@ -956,6 +1022,23 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         }
     }
 
+    /**
+     * @notice Copies all codehashes in `ptrFromList` to `ptrToList`.
+     * 
+     * @dev    This function will copy all codehashes from one list to another list.
+     * @dev    Note: If used to copy codehashes to an existing list the current list contents will not be
+     * @dev    deleted before copying. New codehashes will be appeneded to the end of the list and the
+     * @dev    non-enumerable mapping key value will be set to true.
+     * 
+     * @dev <h4>Postconditions:</h4>
+     *      1. Codehashes in from list that are not already present in to list are added to the to list.
+     *      2. Emits an `AddedCodeHashToList` event for each codehash copied to the list.
+     * 
+     * @param  listType          The type of list codehashes are being copied from and to.
+     * @param  destinationListId The id of the list being copied to.
+     * @param  ptrFromList       The storage pointer for the list being copied from.
+     * @param  ptrToList         The storage pointer for the list being copied to.
+     */
     function _copyBytes32Set(
         ListTypes listType,
         uint120 destinationListId,
@@ -980,22 +1063,50 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
         }
     }
 
+    /**
+     * @notice Sets the owner of list `id` to `newOwner`.
+     * 
+     * @dev    Throws when the caller is not the owner of the list.
+     * 
+     * @dev    <h4>Postconditions:</h4>
+     *         1. The owner of list `id` is set to `newOwner`.
+     *         2. Emits a `ReassignedListOwnership` event.
+     */
     function _reassignOwnershipOfList(uint120 id, address newOwner) private {
         _requireCallerOwnsList(id);
         listOwners[id] = newOwner;
         emit ReassignedListOwnership(id, newOwner);
     }
 
+    /**
+     * @notice Requires the caller to be the owner of list `id`.
+     * 
+     * @dev    Throws when the caller is not the owner of the list.
+     */
     function _requireCallerOwnsList(uint120 id) private view {
         if (_msgSender() != listOwners[id]) {
             revert CreatorTokenTransferValidator__CallerDoesNotOwnList();
         }
     }
 
+    /**
+     * @dev Internal function used to efficiently retrieve the code length of `account`.
+     * 
+     * @param account The address to get the deployed code length for.
+     * 
+     * @return length The length of deployed code at the address.
+     */
     function _getCodeLengthAsm(address account) internal view returns (uint256 length) {
         assembly { length := extcodesize(account) }
     }
 
+    /**
+     * @dev Internal function used to efficiently retrieve the codehash of `account`.
+     * 
+     * @param account The address to get the deployed codehash for.
+     * 
+     * @return codehash The codehash of the deployed code at the address.
+     */
     function _getCodeHashAsm(address account) internal view returns (bytes32 codehash) {
         assembly { codehash := extcodehash(account) }
     }
