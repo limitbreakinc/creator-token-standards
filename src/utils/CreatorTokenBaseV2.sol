@@ -49,6 +49,8 @@ abstract contract CreatorTokenBaseV2 is OwnablePermissions, TransferValidation, 
     /**
      * @notice Allows the contract owner to set the transfer validator to the official validator contract
      *         and set the security policy to the recommended default settings.
+     * 
+     * @dev    Throws when the caller is not the contract owner.
      * @dev    May be overridden to change the default behavior of an individual collection.
      */
     function setToDefaultSecurityPolicy() public virtual {
@@ -65,6 +67,12 @@ abstract contract CreatorTokenBaseV2 is OwnablePermissions, TransferValidation, 
     /**
      * @notice Allows the contract owner to set the transfer validator to a custom validator contract
      *         and set the security policy to their own custom settings.
+     * 
+     * @dev    Throws when the caller is not the contract owner.
+     * 
+     * @param validator The address of the transfer validator to set for the collection.
+     * @param level     The transfer security level to set for the collection.
+     * @param listId    The id of the list to set for the collection.
      */
     function setToCustomValidatorAndSecurityPolicy(
         address validator, 
@@ -83,7 +91,12 @@ abstract contract CreatorTokenBaseV2 is OwnablePermissions, TransferValidation, 
 
     /**
      * @notice Allows the contract owner to set the security policy to their own custom settings.
-     * @dev    Reverts if the transfer validator has not been set.
+     * 
+     * @dev    Throws when the caller is not the contract owner.
+     * @dev    Throws when the transfer validator has not been set.
+     * 
+     * @param level  The transfer security level to set for the collection.
+     * @param listId The id of the list to set for the collection.
      */
     function setToCustomSecurityPolicy(
         TransferSecurityLevels level, 
@@ -218,7 +231,15 @@ abstract contract CreatorTokenBaseV2 is OwnablePermissions, TransferValidation, 
 
     /**
      * @notice Allows the contract owner to set the security policy to their own custom settings.
-     * @dev    Reverts if the transfer validator has not been set.
+     * 
+     * @dev    Throws when the caller is not the contract owner.
+     * @dev    Throws when the transfer validator has not been set.
+     * 
+     * @param level                                 The transfer security level to set for the collection.
+     * @param operatorWhitelistId                   The id of the allowed operators list to use
+                                                    for the collection.
+     * @param permittedContractReceiversAllowlistId The id of the permitted contract receivers 
+                                                    list to use for the collection.
      */
     function setToCustomSecurityPolicy(
         TransferSecurityLevels level, 
@@ -239,6 +260,15 @@ abstract contract CreatorTokenBaseV2 is OwnablePermissions, TransferValidation, 
     /**
      * @notice Allows the contract owner to set the transfer validator to a custom validator contract
      *         and set the security policy to their own custom settings.
+     *
+     * @dev    Throws when the caller is not the contract owner.
+     *
+     * @param validator                             The transfer validator to set for the collection.
+     * @param level                                 The transfer security level to set for the collection.
+     * @param operatorWhitelistId                   The id of the allowed operators list to use
+                                                    for the collection.
+     * @param permittedContractReceiversAllowlistId The id of the permitted contract receivers 
+                                                    list to use for the collection.
      */
     function setToCustomValidatorAndSecurityPolicy(
         address validator, 
