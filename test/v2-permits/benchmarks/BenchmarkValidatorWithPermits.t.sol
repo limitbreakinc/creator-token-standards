@@ -3,10 +3,10 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../mocks/OperatorMock.sol";
-import "../mocks/ContractMock.sol";
-import "../mocks/ERC721CMock.sol";
-import "../interfaces/ITestCreatorToken.sol";
+import "../../v2/mocks/OperatorMock.sol";
+import "../../v2/mocks/ContractMock.sol";
+import "../../v2/mocks/ERC721CMock.sol";
+import "../../v2/interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
 import "src/utils/CreatorTokenTransferValidatorWithPermits.sol";
 
