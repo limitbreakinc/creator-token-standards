@@ -11,9 +11,10 @@ import "src/utils/TransferPolicy.sol";
 import "src/utils/CreatorTokenTransferValidatorWithPermits.sol";
 
 // Overall Gas Efficiency:
-//              | Function Name                    | min             | avg   | median | max   |
-// V2           | applyCollectionTransferPolicy    | 3240            | 9460  | 9259   | 17602 |
-// V2 w/Permits | applyCollectionTransferPolicy    | 3341            | 9580  | 9372   | 17739 |
+//                      | Function Name                    | min             | avg   | median | max   |
+// V2                   | applyCollectionTransferPolicy    | 3240            | 9460  | 9259   | 17602 |
+// V2 w/Permits         | applyCollectionTransferPolicy    | 3341            | 9580  | 9372   | 17739 |
+// V2 w/Permits Updated | applyCollectionTransferPolicy    | 3448            | 9686  | 9470   | 17846 |
 
 contract BenchmarkValidatorV2 is Test {
     using EnumerableSet for EnumerableSet.AddressSet;

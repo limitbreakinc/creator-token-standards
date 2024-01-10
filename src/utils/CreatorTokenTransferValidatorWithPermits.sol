@@ -136,13 +136,11 @@ contract CreatorTokenTransferValidatorWithPermits is EOARegistry, PermitC, ICrea
     bytes32 private constant DEFAULT_ACCESS_CONTROL_ADMIN_ROLE = 0x00;
     /// @dev Value representing a zero value code hash.
     bytes32 private constant CODEHASH_ZERO = 0x0000000000000000000000000000000000000000000000000000000000000000;
-    /// @dev Guard value for operator address used in permitting system
-    address private constant OPERATOR_GUARD = address(0x01);
+    /// @dev NO ERROR bytes4 selector flag
+    bytes4 private constant SELECTOR_NO_ERROR = bytes4(0x00000000);
 
     /// @notice Keeps track of the most recently created list id.
     uint120 public lastListId;
-
-    address private _permitOperator;
 
     /// @notice Mapping of list ids to list owners
     mapping (uint120 => address) public listOwners;
@@ -215,87 +213,12 @@ contract CreatorTokenTransferValidatorWithPermits is EOARegistry, PermitC, ICrea
      * @param from   The address of the token owner.
      * @param to     The address of the token receiver.
      */
-    function applyCollectionTransferPolicy(address caller, address from, address to) external view override {
-        if (caller == address(this)) { 
-            caller = _permitOperator; 
+     function applyCollectionTransferPolicy(address caller, address from, address to) external view override {
+        bytes4 errorSelector = _applyCollectionTransferPolicy(caller, from, to);
+        if (errorSelector != SELECTOR_NO_ERROR) {
+            _revertCustomErrorSelectorAsm(errorSelector);
         }
-
-        CollectionSecurityPolicyV2 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
-        uint120 listId = collectionSecurityPolicy.listId;
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) = 
-            transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
-
-        List storage whitelist = whitelists[listId];
-
-        if (receiverConstraints == ReceiverConstraints.NoCode) {
-            if (_getCodeLengthAsm(to) > 0) {
-                if (!whitelist.nonEnumerableAccounts[to]) {
-                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                        revert CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode();
-                    }
-                }
-            }
-
-            
-        } else if (receiverConstraints == ReceiverConstraints.EOA) {
-            if (!isVerifiedEOA(to)) {
-                if (!whitelist.nonEnumerableAccounts[to]) {
-                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                        revert CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
-                    }
-                }
-            }
-        }
-
-        if (caller == from) {
-            if (callerConstraints != CallerConstraints.OperatorWhitelistDisableOTC) {
-                return;
-            }
-        }
-
-        if (callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC) {
-            List storage blacklist = blacklists[listId];
-            if (blacklist.nonEnumerableAccounts[caller]) {
-                revert CreatorTokenTransferValidator__OperatorIsBlacklisted();
-            }
-
-            if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                revert CreatorTokenTransferValidator__OperatorIsBlacklisted();
-            }
-        } else if (callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC) {
-            if (whitelist.nonEnumerableAccounts[caller]) {
-                return;
-            }
-
-            if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                return;
-            }
-
-            revert CreatorTokenTransferValidator__CallerMustBeWhitelisted();
-        } else if (callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC) {
-            mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
-
-            if (accountWhitelist[caller]) {
-                return;
-            }
-
-            if (accountWhitelist[from]) {
-                return;
-            }
-
-            mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
-
-            if (codehashWhitelist[_getCodeHashAsm(caller)]) {
-                return;
-            }
-
-            if (codehashWhitelist[_getCodeHashAsm(from)]) {
-                return;
-            }
-
-            revert CreatorTokenTransferValidator__CallerMustBeWhitelisted();
-        }
-    }
+     }
 
     /**
      * @notice Returns the caller and receiver constraints for the specified transfer security level.
@@ -961,12 +884,95 @@ contract CreatorTokenTransferValidatorWithPermits is EOARegistry, PermitC, ICrea
     /*                                HELPERS                                */
     /*************************************************************************/
 
-    function _beforeTransferFrom(address token, address from, address to, uint256 id, uint256 amount) internal override {
-        _permitOperator = msg.sender;
+    function _beforeTransferFrom(address token, address from, address to, uint256 id, uint256 amount) internal override returns (bool isError) {
+        isError = _applyCollectionTransferPolicy(msg.sender, from, to) != SELECTOR_NO_ERROR;
     }
 
-    function _afterTransferFrom(address token, address from, address to, uint256 id, uint256 amount) internal override {
-        _permitOperator = OPERATOR_GUARD;
+    function _applyCollectionTransferPolicy(address caller, address from, address to) internal view returns (bytes4) {
+        if (caller == address(this)) { 
+            // If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
+            // _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
+            // that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
+            return SELECTOR_NO_ERROR;
+        }
+
+        CollectionSecurityPolicyV2 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
+        uint120 listId = collectionSecurityPolicy.listId;
+        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) = 
+            transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
+
+        List storage whitelist = whitelists[listId];
+
+        if (receiverConstraints == ReceiverConstraints.NoCode) {
+            if (_getCodeLengthAsm(to) > 0) {
+                if (!whitelist.nonEnumerableAccounts[to]) {
+                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
+                        return CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector;
+                    }
+                }
+            }
+
+            
+        } else if (receiverConstraints == ReceiverConstraints.EOA) {
+            if (!isVerifiedEOA(to)) {
+                if (!whitelist.nonEnumerableAccounts[to]) {
+                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
+                        return CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector;
+                    }
+                }
+            }
+        }
+
+        if (caller == from) {
+            if (callerConstraints != CallerConstraints.OperatorWhitelistDisableOTC) {
+                return SELECTOR_NO_ERROR;
+            }
+        }
+
+        if (callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC) {
+            List storage blacklist = blacklists[listId];
+            if (blacklist.nonEnumerableAccounts[caller]) {
+                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
+            }
+
+            if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
+                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
+            }
+        } else if (callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC) {
+            if (whitelist.nonEnumerableAccounts[caller]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
+        } else if (callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC) {
+            mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
+
+            if (accountWhitelist[caller]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            if (accountWhitelist[from]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
+
+            if (codehashWhitelist[_getCodeHashAsm(caller)]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            if (codehashWhitelist[_getCodeHashAsm(from)]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
+        }
+
+        return SELECTOR_NO_ERROR;
     }
 
     /**
@@ -1129,6 +1135,18 @@ contract CreatorTokenTransferValidatorWithPermits is EOARegistry, PermitC, ICrea
      */
     function _getCodeHashAsm(address account) internal view returns (bytes32 codehash) {
         assembly { codehash := extcodehash(account) }
+    }
+
+    /**
+     * @dev Internal function used to efficiently revert with a custom error selector.
+     *
+     * @param errorSelector The error selector to revert with.
+     */
+    function _revertCustomErrorSelectorAsm(bytes4 errorSelector) internal pure {
+        assembly {
+            mstore(0x00, errorSelector)
+            revert(0x00, 0x04)
+        }
     }
 
     /*************************************************************************/
