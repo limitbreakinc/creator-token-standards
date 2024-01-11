@@ -176,7 +176,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         assertEq(validator.listOwners(listId), originalListOwner);
 
         vm.expectRevert(
-            CreatorTokenTransferValidatorWithPermits
+            CreatorTokenTransferValidatorV2
                 .CreatorTokenTransferValidator__ListOwnershipCannotBeTransferredToZeroAddress
                 .selector
         );
@@ -195,7 +195,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         uint120 listId = validator.createOperatorWhitelist("test");
         assertEq(validator.listOwners(listId), originalListOwner);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.reassignOwnershipOfOperatorWhitelist(listId, unauthorizedUser);
     }
@@ -227,7 +227,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         uint120 listId = validator.createOperatorWhitelist("test");
         assertEq(validator.listOwners(listId), originalListOwner);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.renounceOwnershipOfOperatorWhitelist(listId);
     }
@@ -416,7 +416,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         _sanitizeAddress(creator);
         ITestCreatorToken token = _deployNewToken(creator);
         vm.prank(creator);
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ListDoesNotExist.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ListDoesNotExist.selector);
         validator.setOperatorWhitelistOfCollection(address(token), listId);
     }
 
@@ -436,7 +436,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         uint120 listId = validator.createOperatorWhitelist("naughty list");
 
         vm.expectRevert(
-            CreatorTokenTransferValidatorWithPermits
+            CreatorTokenTransferValidatorV2
                 .CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT
                 .selector
         );
@@ -574,7 +574,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         uint120 listId = validator.createOperatorWhitelist("test");
         assertEq(validator.listOwners(listId), originalListOwner);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.addOperatorToWhitelist(listId, operator);
     }
@@ -872,7 +872,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         vm.prank(caller);
         vm.expectRevert(
-            CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+            CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
         );
         token.transferFrom(from, to, 1);
     }
@@ -939,7 +939,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         vm.prank(tokenOwner);
         vm.expectRevert(
-            CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+            CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
         );
         token.transferFrom(tokenOwner, to, 1);
     }
@@ -984,7 +984,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         vm.prank(caller);
         vm.expectRevert(
-            CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector
+            CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector
         );
         token.transferFrom(from, to, 1);
     }
@@ -1031,7 +1031,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         vm.prank(caller);
         vm.expectRevert(
-            CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector
+            CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector
         );
         token.transferFrom(from, to, 1);
     }
@@ -1256,7 +1256,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
     function testV2ListCopyRevertsWhenCopyingANonExistentList(uint120 sourceListId) public {
         vm.assume(sourceListId > validator.lastListId());
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ListDoesNotExist.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ListDoesNotExist.selector);
         validator.createListCopy("", sourceListId);
     }
 
@@ -1284,7 +1284,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         uint120 listId = validator.createList("test");
         assertEq(validator.listOwners(listId), originalListOwner);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ListOwnershipCannotBeTransferredToZeroAddress.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ListOwnershipCannotBeTransferredToZeroAddress.selector);
         validator.reassignOwnershipOfList(listId, address(0));
     }
 
@@ -1315,7 +1315,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         uint120 listId = validator.createList("test");
         assertEq(validator.listOwners(listId), originalListOwner);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.renounceOwnershipOfList(listId);
     }
@@ -1332,7 +1332,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         address[] memory accounts = new address[](1);
         accounts[0] = account;
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.addAccountsToBlacklist(listId, accounts);
     }
@@ -1345,7 +1345,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         address[] memory accounts = new address[](0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
         vm.prank(listOwner);
         validator.addAccountsToBlacklist(listId, accounts);
     }
@@ -1361,7 +1361,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         accounts[0] = account;
         accounts[1] = address(0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ZeroAddressNotAllowed.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ZeroAddressNotAllowed.selector);
         vm.prank(listOwner);
         validator.addAccountsToBlacklist(listId, accounts);
     }
@@ -1454,7 +1454,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         address[] memory accounts = new address[](1);
         accounts[0] = account;
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.addAccountsToWhitelist(listId, accounts);
     }
@@ -1467,7 +1467,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         address[] memory accounts = new address[](0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
         vm.prank(listOwner);
         validator.addAccountsToWhitelist(listId, accounts);
     }
@@ -1483,7 +1483,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         accounts[0] = account;
         accounts[1] = address(0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ZeroAddressNotAllowed.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ZeroAddressNotAllowed.selector);
         vm.prank(listOwner);
         validator.addAccountsToWhitelist(listId, accounts);
     }
@@ -1577,7 +1577,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         bytes32[] memory codehashes = new bytes32[](1);
         codehashes[0] = codehash;
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.addCodeHashesToBlacklist(listId, codehashes);
     }
@@ -1590,7 +1590,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         bytes32[] memory codehashes = new bytes32[](0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
         vm.prank(listOwner);
         validator.addCodeHashesToBlacklist(listId, codehashes);
     }
@@ -1606,7 +1606,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         codehashes[0] = codehash;
         codehashes[1] = bytes32(0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ZeroCodeHashNotAllowed.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ZeroCodeHashNotAllowed.selector);
         vm.prank(listOwner);
         validator.addCodeHashesToBlacklist(listId, codehashes);
     }
@@ -1697,7 +1697,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         bytes32[] memory codehashes = new bytes32[](1);
         codehashes[0] = codehash;
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.addCodeHashesToWhitelist(listId, codehashes);
     }
@@ -1710,7 +1710,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         bytes32[] memory codehashes = new bytes32[](0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
         vm.prank(listOwner);
         validator.addCodeHashesToWhitelist(listId, codehashes);
     }
@@ -1726,7 +1726,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         codehashes[0] = codehash;
         codehashes[1] = bytes32(0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ZeroCodeHashNotAllowed.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ZeroCodeHashNotAllowed.selector);
         vm.prank(listOwner);
         validator.addCodeHashesToWhitelist(listId, codehashes);
     }
@@ -1818,7 +1818,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         address[] memory accounts = new address[](1);
         accounts[0] = account;
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.removeAccountsFromBlacklist(listId, accounts);
     }
@@ -1831,7 +1831,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         address[] memory accounts = new address[](0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
         vm.prank(listOwner);
         validator.removeAccountsFromBlacklist(listId, accounts);
     }
@@ -1918,7 +1918,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         address[] memory accounts = new address[](1);
         accounts[0] = account;
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.removeAccountsFromWhitelist(listId, accounts);
     }
@@ -1931,7 +1931,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         address[] memory accounts = new address[](0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
         vm.prank(listOwner);
         validator.removeAccountsFromWhitelist(listId, accounts);
     }
@@ -2019,7 +2019,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         bytes32[] memory codehashes = new bytes32[](1);
         codehashes[0] = codehash;
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.removeCodeHashesFromBlacklist(listId, codehashes);
     }
@@ -2032,7 +2032,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         bytes32[] memory codehashes = new bytes32[](0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
         vm.prank(listOwner);
         validator.removeCodeHashesFromBlacklist(listId, codehashes);
     }
@@ -2118,7 +2118,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
         bytes32[] memory codehashes = new bytes32[](1);
         codehashes[0] = codehash;
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
         validator.removeCodeHashesFromWhitelist(listId, codehashes);
     }
@@ -2131,7 +2131,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         bytes32[] memory codehashes = new bytes32[](0);
 
-        vm.expectRevert(CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
+        vm.expectRevert(CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
         vm.prank(listOwner);
         validator.removeCodeHashesFromWhitelist(listId, codehashes);
     }
@@ -2318,7 +2318,7 @@ contract CreatorTokenTransferValidatorERC721V2WithPermitsTest is Test {
 
         vm.prank(caller);
         vm.expectRevert(
-            CreatorTokenTransferValidatorWithPermits.CreatorTokenTransferValidator__OperatorIsBlacklisted.selector
+            CreatorTokenTransferValidatorV2.CreatorTokenTransferValidator__OperatorIsBlacklisted.selector
         );
         token.transferFrom(from, to, 1);
     }

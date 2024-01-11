@@ -142,13 +142,13 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
     mapping (uint120 => address) public listOwners;
 
     /// @dev Mapping of collection addresses to their security policy settings
-    mapping (address => CollectionSecurityPolicyV2) private collectionSecurityPolicies;
+    mapping (address => CollectionSecurityPolicyV2) internal collectionSecurityPolicies;
 
     /// @dev Mapping of list ids to blacklist settings
-    mapping (uint120 => List) private blacklists;
+    mapping (uint120 => List) internal blacklists;
 
     /// @dev Mapping of list ids to whitelist settings
-    mapping (uint120 => List) private whitelists;
+    mapping (uint120 => List) internal whitelists;
 
     constructor(address defaultOwner) EOARegistry() {
         uint120 id = 0;
@@ -207,7 +207,11 @@ contract CreatorTokenTransferValidatorV2 is EOARegistry, ICreatorTokenTransferVa
      * @param from   The address of the token owner.
      * @param to     The address of the token receiver.
      */
-    function applyCollectionTransferPolicy(address caller, address from, address to) external view override {
+    function applyCollectionTransferPolicy(
+        address caller, 
+        address from, 
+        address to
+    ) external view virtual override {
         CollectionSecurityPolicyV2 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
         uint120 listId = collectionSecurityPolicy.listId;
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) = 
