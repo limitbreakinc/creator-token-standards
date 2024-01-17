@@ -8,7 +8,7 @@ cache_path  = 'forge-cache'
 solc_version = "0.8.19"
 
 optimizer = true
-optimizer_runs = 19000
+optimizer_runs = 19500
 
 [fuzz]
 runs = 256
