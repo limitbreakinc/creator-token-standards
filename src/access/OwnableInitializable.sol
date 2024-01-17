@@ -22,6 +22,7 @@ abstract contract OwnableInitializable is OwnablePermissions, Ownable {
       }
 
       _transferOwnership(owner_);
+      _ownerInitialized = true;
     }
 
     function _requireCallerIsContractOwner() internal view virtual override {
