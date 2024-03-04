@@ -16,13 +16,23 @@ forge install limitbreakinc/creator-token-standards
 Add a `remappings.txt` file to the root of your project and add the following contents to resolve imports.
 
 ```
-@limitbreak/creator-token-standards/=lib/creator-token-standards/src/
+@limitbreak/creator-token-standards/=lib/creator-token-standards/
 @openzeppelin/=lib/openzeppelin-contracts/
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 murky/=lib/murky/src
 erc721a/=lib/ERC721A/
 ```
+
+## Installation with Hardhat
+
+With an existing hardhat project:
+
+```bash
+npm install --save @limitbreak/creator-token-standards
+```
+
+***Note: Should be used in conjunection with openzeppelin v4.8.3***
 
 ## Usage
 
@@ -136,9 +146,9 @@ Open a browser to http://localhost:3000 to view docs.
 ```solidity
 pragma solidity ^0.8.4;
 
-import "@limitbreak/creator-token-standards/access/OwnableBasic.sol";
-import "@limitbreak/creator-token-standards/erc721c/v2/ERC721C.sol";
-import "@limitbreak/creator-token-standards/programmable-royalties/BasicRoyalties.sol";
+import "@limitbreak/creator-token-standards/src/access/OwnableBasic.sol";
+import "@limitbreak/creator-token-standards/src/erc721c/v2/ERC721C.sol";
+import "@limitbreak/creator-token-standards/src/programmable-royalties/BasicRoyalties.sol";
 
 contract ERC721CWithBasicRoyalties is OwnableBasic, ERC721C, BasicRoyalties {
 
