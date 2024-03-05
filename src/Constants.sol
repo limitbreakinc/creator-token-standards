@@ -14,3 +14,5 @@ uint8 constant TRANSFER_SECURITY_LEVEL_EIGHT = 8;
 uint8 constant LIST_TYPE_BLACKLIST = 0;
 uint8 constant LIST_TYPE_WHITELIST = 1;
 uint8 constant LIST_TYPE_GRAYLIST = 2;
+
+bytes4 constant SELECTOR_NO_ERROR = bytes4(0x00000000);
