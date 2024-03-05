@@ -110,6 +110,9 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
     /// @dev Thrown when attempting to call a function that requires owner or default admin role for a collection that the caller does not have.
     error CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
 
+    /// @dev Thrown when setting the transfer security level to an invalid value.
+    error CreatorTokenTransferValidator__InvalidTransferSecurityLevel();
+
     /// @dev Thrown when validating a transfer for a collection using blacklists and the operator is on the blacklist.
     error CreatorTokenTransferValidator__OperatorIsBlacklisted();
 
@@ -411,7 +414,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         bool disableGraylisting) external override {
 
         if (level > TRANSFER_SECURITY_LEVEL_EIGHT) {
-            revert(); // TODO: Custom error
+            revert CreatorTokenTransferValidator__InvalidTransferSecurityLevel();
         }
 
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
