@@ -104,6 +104,9 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
     /// @dev Thrown when validating a transfer for a collection using whitelists and the operator is not on the whitelist.
     error CreatorTokenTransferValidator__CallerMustBeWhitelisted();
 
+    /// @dev Thrown when graylisting a transfer for a collection using graylists and the msg.sender is not in the graylist.
+    error CreatorTokenTransferValidator__CallerMustBeGraylisted();
+
     /// @dev Thrown when attempting to call a function that requires owner or default admin role for a collection that the caller does not have.
     error CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
 
@@ -121,6 +124,9 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
 
     /// @dev Thrown when attempting to add the zero code hash to a whitelist or blacklist.
     error CreatorTokenTransferValidator__ZeroCodeHashNotAllowed();
+
+    /// @dev Thrown when attempting to set a graylist operator when graylisting is disabled.
+    error CreatorTokenTransferValidator__GraylistingDisabledForCollection();
 
     // Structs
     /**
@@ -263,6 +269,62 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         } else {
             callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
             receiverConstraints = ReceiverConstraints.EOA;
+        }
+    }
+
+    function beforeGraylistedTransfer(address operator, address[] calldata tokenAddresses) external {
+        address collection;
+        for (uint256 i = 0; i < tokenAddresses.length;) {
+            collection = tokenAddresses[i];
+
+            CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
+            uint120 listId = collectionSecurityPolicy.listId;
+            bool disableGraylisting = collectionSecurityPolicy.disableGraylisting;
+
+            if (disableGraylisting) {
+                revert CreatorTokenTransferValidator__GraylistingDisabledForCollection();
+            }
+
+            if (!graylists[listId].enumerableAccounts.contains(msg.sender)) {
+                revert CreatorTokenTransferValidator__CallerMustBeGraylisted();
+            }
+
+            _safeTransientStore(
+                _getSlotTransientOperatorForCollection(collection), 
+                _packAddressAsBytes32(operator)
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function afterGraylistedTransfer(address[] calldata tokenAddresses) external {
+        address collection;
+        for (uint256 i = 0; i < tokenAddresses.length;) {
+            collection = tokenAddresses[i];
+
+            CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
+            uint120 listId = collectionSecurityPolicy.listId;
+            bool disableGraylisting = collectionSecurityPolicy.disableGraylisting;
+
+            if (disableGraylisting) {
+                revert CreatorTokenTransferValidator__GraylistingDisabledForCollection();
+            }
+
+            if (!graylists[listId].enumerableAccounts.contains(msg.sender)) {
+                revert CreatorTokenTransferValidator__CallerMustBeGraylisted();
+            }
+
+            _safeTransientStore(
+                _getSlotTransientOperatorForCollection(collection), 
+                _packAddressAsBytes32(address(0))
+            );
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -1180,8 +1242,13 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             return SELECTOR_NO_ERROR;
         }
 
+        if (caller == _unpackAddressFromBytes32(_safeTransientLoad(_getSlotTransientOperatorForCollection(_msgSender())))) {
+            return SELECTOR_NO_ERROR;
+        }
+
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
         uint120 listId = collectionSecurityPolicy.listId;
+        bool disableGraylisting = collectionSecurityPolicy.disableGraylisting;
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) = 
             transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
 
@@ -1269,5 +1336,44 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             mstore(0x00, errorSelector)
             revert(0x00, 0x04)
         }
+    }
+
+    /**
+     * @dev Internal function used to compute the transient storage slot for the graylisted operator of a collection.
+     */
+    function _getSlotTransientOperatorForCollection(address collection) internal pure returns (bytes32) {
+        return keccak256(abi.encode(TRANSIENT_STORAGE_GRAYLISTED_OPERATORS, collection));
+    }
+
+    /**
+     * @dev Internal function used to store a value in the specified transient storage slot.
+     */
+    function _safeTransientStore(bytes32 slot, bytes32 value) internal {
+        assembly {
+            tstore(slot, value)
+        }
+    }
+
+    /**
+     * @dev Internal function used to load a value from the specified transient storage slot.
+     */
+    function _safeTransientLoad(bytes32 slot) internal view returns (bytes32 value) {
+        assembly {
+            value := tload(slot)
+        }
+    }
+
+    /**
+     * @dev Internal function used convert an address to a bytes32 for transient storage.
+     */
+    function _packAddressAsBytes32(address addr) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(addr)));
+    }
+
+    /**
+     * @dev Internal function used convert a bytes32 to an address when loaded from transient storage.
+     */
+    function _unpackAddressFromBytes32(bytes32 addr) internal pure returns (address) {
+        return address(uint160(uint256(addr)));
     }
 }

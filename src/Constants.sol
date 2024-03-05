@@ -16,3 +16,5 @@ uint8 constant LIST_TYPE_WHITELIST = 1;
 uint8 constant LIST_TYPE_GRAYLIST = 2;
 
 bytes4 constant SELECTOR_NO_ERROR = bytes4(0x00000000);
+
+bytes32 constant TRANSIENT_STORAGE_GRAYLISTED_OPERATORS = keccak256("transient.storage.graylisted.operators");
