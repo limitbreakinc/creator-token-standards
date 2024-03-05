@@ -127,6 +127,19 @@ struct CollectionSecurityPolicyV2 {
     uint120 listId;
 }
 
+/**
+ * @dev Defines the security policy for a token collection in Creator Token Standards V2.
+ * 
+ * @dev **transferSecurityLevel**: The transfer security level set for the collection.
+ * @dev **listId**: The list id that contains the blacklist and whitelist to apply to the collection.
+ * @dev **disableGraylisting**: If true, graylisting will be disabled for the collection.
+ */
+struct CollectionSecurityPolicyV3 {
+    uint8 transferSecurityLevel;
+    uint120 listId;
+    bool disableGraylisting;
+}
+
 /** 
  * @dev Used internally in the Creator Token Base V2 contract to pack transfer validator configuration.
  * 
