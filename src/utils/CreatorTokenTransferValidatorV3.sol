@@ -1172,6 +1172,10 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
      *      _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
      *      that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
      *
+     * @dev The order of checking whitelisted accounts, graylisted operator check and whitelisted codehashes
+     *      is very deliberate.  The order of operations is determined by the most frequently used settings that are
+     *      expected in the wild.
+     *
      * @dev Throws when the receiver has deployed code and isn't whitelisted, if ReceiverConstraints.NoCode is set.
      * @dev Throws when the receiver has never verified a signature to prove they are an EOA and the receiver
      *      isn't whitelisted, if the ReceiverConstraints.EOA is set.
@@ -1213,11 +1217,11 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         if (receiverConstraints == RECEIVER_CONSTRAINTS_NO_CODE) {
             if (_getCodeLengthAsm(to) > 0) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
-                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                        if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
-                            return SELECTOR_NO_ERROR;
-                        }
+                    if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+                        return SELECTOR_NO_ERROR;
+                    }
 
+                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
                         return CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector;
                     }
                 }
@@ -1225,11 +1229,11 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         } else if (receiverConstraints == RECEIVER_CONSTRAINTS_EOA) {
             if (!isVerifiedEOA(to)) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
-                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                        if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
-                            return SELECTOR_NO_ERROR;
-                        }
+                    if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+                        return SELECTOR_NO_ERROR;
+                    }
 
+                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
                         return CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector;
                     }
                 }
@@ -1243,20 +1247,16 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         }
 
         if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC) {
+            if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+                return SELECTOR_NO_ERROR;
+            }
+
             List storage blacklist = blacklists[listId];
             if (blacklist.nonEnumerableAccounts[caller]) {
-                if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
-                    return SELECTOR_NO_ERROR;
-                }
-
                 return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
             }
 
             if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
-                    return SELECTOR_NO_ERROR;
-                }
-
                 return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
             }
         } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC) {
@@ -1264,11 +1264,11 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
                 return SELECTOR_NO_ERROR;
             }
 
-            if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
+            if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
                 return SELECTOR_NO_ERROR;
             }
 
-            if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+            if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
                 return SELECTOR_NO_ERROR;
             }
 
@@ -1284,6 +1284,10 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
                 return SELECTOR_NO_ERROR;
             }
 
+            if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+                return SELECTOR_NO_ERROR;
+            }
+
             mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
 
             if (codehashWhitelist[_getCodeHashAsm(caller)]) {
@@ -1291,10 +1295,6 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             }
 
             if (codehashWhitelist[_getCodeHashAsm(from)]) {
-                return SELECTOR_NO_ERROR;
-            }
-
-            if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
                 return SELECTOR_NO_ERROR;
             }
 
