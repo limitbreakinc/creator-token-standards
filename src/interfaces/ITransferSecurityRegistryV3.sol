@@ -13,7 +13,7 @@ interface ITransferSecurityRegistryV3 {
     event RemovedCodeHashFromList(uint8 indexed kind, uint256 indexed id, bytes32 indexed codehash);
     event SetTransferSecurityLevel(address indexed collection, uint8 level);
 
-    function transferSecurityPolicies(uint8 level) external pure returns (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints);
+    function transferSecurityPolicies(uint256 level) external view returns (uint256 callerConstraints, uint256 receiverConstraints);
     function createList(string calldata name) external returns (uint120);
     function createListCopy(string calldata name, uint120 sourceListId) external returns (uint120);
     function reassignOwnershipOfList(uint120 id, address newOwner) external;

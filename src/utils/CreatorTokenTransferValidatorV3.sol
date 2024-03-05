@@ -141,6 +141,10 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         mapping (address => bool) nonEnumerableAccounts;
         mapping (bytes32 => bool) nonEnumerableCodehashes;
     }
+
+    // Immutable lookup tables
+    uint256 private immutable _callerConstraintsLookup;
+    uint256 private immutable _receiverConstraintsLookup;
     
     // Constants
     /// @dev The default admin role value for contracts that implement access control.
@@ -179,6 +183,28 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
 
         emit CreatedList(id, "DEFAULT LIST");
         emit ReassignedListOwnership(id, defaultOwner);
+
+        _callerConstraintsLookup =
+            (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_RECOMMENDED << 3))
+            | (CALLER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_ONE << 3))
+            | (CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_TWO << 3))
+            | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_THREE << 3))
+            | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC << (TRANSFER_SECURITY_LEVEL_FOUR << 3))
+            | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_FIVE << 3))
+            | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_SIX << 3))
+            | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC << (TRANSFER_SECURITY_LEVEL_SEVEN << 3))
+            | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC << (TRANSFER_SECURITY_LEVEL_EIGHT << 3));
+
+        _receiverConstraintsLookup = 
+            (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_RECOMMENDED << 3))
+            | (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_ONE << 3))
+            | (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_TWO << 3))
+            | (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_THREE << 3))
+            | (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_FOUR << 3))
+            | (RECEIVER_CONSTRAINTS_NO_CODE << (TRANSFER_SECURITY_LEVEL_FIVE << 3))
+            | (RECEIVER_CONSTRAINTS_EOA << (TRANSFER_SECURITY_LEVEL_SIX << 3))
+            | (RECEIVER_CONSTRAINTS_NO_CODE << (TRANSFER_SECURITY_LEVEL_SEVEN << 3))
+            | (RECEIVER_CONSTRAINTS_EOA << (TRANSFER_SECURITY_LEVEL_EIGHT << 3));
     }
 
     /*************************************************************************/
@@ -239,40 +265,14 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
      * 
      * @param level The transfer security level to return the caller and receiver constraints for.
      * 
-     * @return callerConstraints    The `CallerConstraints` enum value for the level.
-     * @return receiverConstraints The `ReceiverConstraints` enum value for the level.
+     * @return callerConstraints    The `CallerConstraints` value for the level.
+     * @return receiverConstraints The `ReceiverConstraints` value for the level.
      */
     function transferSecurityPolicies(
-        uint8 level
-    ) public pure returns (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) {
-        if (level == TRANSFER_SECURITY_LEVEL_RECOMMENDED) {
-            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
-            receiverConstraints = ReceiverConstraints.None;
-        } else if (level == TRANSFER_SECURITY_LEVEL_ONE) {
-            callerConstraints = CallerConstraints.None;
-            receiverConstraints = ReceiverConstraints.None;
-        } else if (level == TRANSFER_SECURITY_LEVEL_TWO) {
-            callerConstraints = CallerConstraints.OperatorBlacklistEnableOTC;
-            receiverConstraints = ReceiverConstraints.None;
-        } else if (level == TRANSFER_SECURITY_LEVEL_THREE) {
-            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
-            receiverConstraints = ReceiverConstraints.None;
-        } else if (level == TRANSFER_SECURITY_LEVEL_FOUR) {
-            callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
-            receiverConstraints = ReceiverConstraints.None;
-        } else if (level == TRANSFER_SECURITY_LEVEL_FIVE) {
-            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
-            receiverConstraints = ReceiverConstraints.NoCode;
-        } else if (level == TRANSFER_SECURITY_LEVEL_SIX) {
-            callerConstraints = CallerConstraints.OperatorWhitelistEnableOTC;
-            receiverConstraints = ReceiverConstraints.EOA;
-        } else if (level == TRANSFER_SECURITY_LEVEL_SEVEN) {
-            callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
-            receiverConstraints = ReceiverConstraints.NoCode;
-        } else {
-            callerConstraints = CallerConstraints.OperatorWhitelistDisableOTC;
-            receiverConstraints = ReceiverConstraints.EOA;
-        }
+        uint256 level
+    ) public view returns (uint256 callerConstraints, uint256 receiverConstraints) {
+        callerConstraints = uint8((_callerConstraintsLookup >> (level << 3)));
+        receiverConstraints = uint8((_receiverConstraintsLookup >> (level << 3)));
     }
 
     function beforeGraylistedTransfer(address operator, address[] calldata tokenAddresses) external {
@@ -1212,12 +1212,12 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             }
         }
 
-        (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) = 
+        (uint256 callerConstraints, uint256 receiverConstraints) = 
             transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
 
         List storage whitelist = whitelists[listId];
 
-        if (receiverConstraints == ReceiverConstraints.NoCode) {
+        if (receiverConstraints == RECEIVER_CONSTRAINTS_NO_CODE) {
             if (_getCodeLengthAsm(to) > 0) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
                     if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
@@ -1227,7 +1227,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             }
 
             
-        } else if (receiverConstraints == ReceiverConstraints.EOA) {
+        } else if (receiverConstraints == RECEIVER_CONSTRAINTS_EOA) {
             if (!isVerifiedEOA(to)) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
                     if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
@@ -1238,12 +1238,12 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         }
 
         if (caller == from) {
-            if (callerConstraints != CallerConstraints.OperatorWhitelistDisableOTC) {
+            if (callerConstraints != CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
                 return SELECTOR_NO_ERROR;
             }
         }
 
-        if (callerConstraints == CallerConstraints.OperatorBlacklistEnableOTC) {
+        if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC) {
             List storage blacklist = blacklists[listId];
             if (blacklist.nonEnumerableAccounts[caller]) {
                 return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
@@ -1252,7 +1252,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
                 return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
             }
-        } else if (callerConstraints == CallerConstraints.OperatorWhitelistEnableOTC) {
+        } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC) {
             if (whitelist.nonEnumerableAccounts[caller]) {
                 return SELECTOR_NO_ERROR;
             }
@@ -1262,7 +1262,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             }
 
             return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
-        } else if (callerConstraints == CallerConstraints.OperatorWhitelistDisableOTC) {
+        } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
             mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
 
             if (accountWhitelist[caller]) {
