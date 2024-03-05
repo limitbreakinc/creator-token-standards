@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import "src/access/OwnableInitializable.sol";
 import "src/erc721c/ERC721C.sol";

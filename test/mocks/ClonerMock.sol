@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import "test/interfaces/IOwnableInitializable.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
