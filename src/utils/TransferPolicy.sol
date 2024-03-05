@@ -132,12 +132,12 @@ struct CollectionSecurityPolicyV2 {
  * 
  * @dev **transferSecurityLevel**: The transfer security level set for the collection.
  * @dev **listId**: The list id that contains the blacklist and whitelist to apply to the collection.
- * @dev **disableGraylisting**: If true, graylisting will be disabled for the collection.
+ * @dev **enableGraylisting**: If true, graylisting will be enabled for the collection.
  */
 struct CollectionSecurityPolicyV3 {
     uint8 transferSecurityLevel;
     uint120 listId;
-    bool disableGraylisting;
+    bool enableGraylisting;
 }
 
 /** 

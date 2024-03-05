@@ -411,7 +411,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
     function setTransferSecurityLevelOfCollection(
         address collection, 
         uint8 level,
-        bool disableGraylisting) external override {
+        bool enableGraylisting) external override {
 
         if (level > TRANSFER_SECURITY_LEVEL_EIGHT) {
             revert CreatorTokenTransferValidator__InvalidTransferSecurityLevel();
@@ -419,7 +419,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
 
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
         collectionSecurityPolicies[collection].transferSecurityLevel = level;
-        collectionSecurityPolicies[collection].disableGraylisting = disableGraylisting;
+        collectionSecurityPolicies[collection].enableGraylisting = enableGraylisting;
         emit SetTransferSecurityLevel(collection, level);
     }
 
@@ -1205,13 +1205,6 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
         uint120 listId = collectionSecurityPolicy.listId;
 
-        if (!collectionSecurityPolicy.disableGraylisting) {
-            if (_unpackAddressFromBytes32(_tload(_getSlotTransientOperatorForCollection(collection))) ==
-                caller) {
-                return SELECTOR_NO_ERROR;
-            }
-        }
-
         (uint256 callerConstraints, uint256 receiverConstraints) = 
             transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
 
@@ -1221,16 +1214,22 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             if (_getCodeLengthAsm(to) > 0) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
                     if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
+                        if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+                            return SELECTOR_NO_ERROR;
+                        }
+
                         return CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector;
                     }
                 }
             }
-
-            
         } else if (receiverConstraints == RECEIVER_CONSTRAINTS_EOA) {
             if (!isVerifiedEOA(to)) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
                     if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
+                        if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+                            return SELECTOR_NO_ERROR;
+                        }
+
                         return CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector;
                     }
                 }
@@ -1246,10 +1245,18 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC) {
             List storage blacklist = blacklists[listId];
             if (blacklist.nonEnumerableAccounts[caller]) {
+                if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+                    return SELECTOR_NO_ERROR;
+                }
+
                 return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
             }
 
             if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
+                if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
+                    return SELECTOR_NO_ERROR;
+                }
+
                 return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
             }
         } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC) {
@@ -1258,6 +1265,10 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             }
 
             if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
                 return SELECTOR_NO_ERROR;
             }
 
@@ -1280,6 +1291,10 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             }
 
             if (codehashWhitelist[_getCodeHashAsm(from)]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            if(_callerAllowedByGraylist(collectionSecurityPolicy.enableGraylisting, caller, collection)) {
                 return SELECTOR_NO_ERROR;
             }
 
@@ -1316,7 +1331,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
                 revert CreatorTokenTransferValidator__CallerMustBeGraylisted();
             }
 
-            if (collectionSecurityPolicy.disableGraylisting) {
+            if (!collectionSecurityPolicy.enableGraylisting) {
                 revert CreatorTokenTransferValidator__GraylistingDisabledForCollection();
             }
 
@@ -1329,6 +1344,19 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
                 ++i;
             }
         }
+    }
+
+    /**
+     * @dev Internal function used to check if the caller is allowed by the graylist for a collection.
+     */
+    function _callerAllowedByGraylist(
+        bool enableGraylisting, 
+        address caller, 
+        address collection
+    ) internal view returns (bool) {
+        return
+            enableGraylisting && 
+            _unpackAddressFromBytes32(_tload(_getSlotTransientOperatorForCollection(collection))) == caller;
     }
 
     /**
