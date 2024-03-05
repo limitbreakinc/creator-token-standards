@@ -273,59 +273,11 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
     }
 
     function beforeGraylistedTransfer(address operator, address[] calldata tokenAddresses) external {
-        address collection;
-        for (uint256 i = 0; i < tokenAddresses.length;) {
-            collection = tokenAddresses[i];
-
-            CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
-            uint120 listId = collectionSecurityPolicy.listId;
-            bool disableGraylisting = collectionSecurityPolicy.disableGraylisting;
-
-            if (disableGraylisting) {
-                revert CreatorTokenTransferValidator__GraylistingDisabledForCollection();
-            }
-
-            if (!graylists[listId].enumerableAccounts.contains(msg.sender)) {
-                revert CreatorTokenTransferValidator__CallerMustBeGraylisted();
-            }
-
-            _safeTransientStore(
-                _getSlotTransientOperatorForCollection(collection), 
-                _packAddressAsBytes32(operator)
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
+        _setOperatorInTransientStorage(operator, tokenAddresses);
     }
 
     function afterGraylistedTransfer(address[] calldata tokenAddresses) external {
-        address collection;
-        for (uint256 i = 0; i < tokenAddresses.length;) {
-            collection = tokenAddresses[i];
-
-            CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
-            uint120 listId = collectionSecurityPolicy.listId;
-            bool disableGraylisting = collectionSecurityPolicy.disableGraylisting;
-
-            if (disableGraylisting) {
-                revert CreatorTokenTransferValidator__GraylistingDisabledForCollection();
-            }
-
-            if (!graylists[listId].enumerableAccounts.contains(msg.sender)) {
-                revert CreatorTokenTransferValidator__CallerMustBeGraylisted();
-            }
-
-            _safeTransientStore(
-                _getSlotTransientOperatorForCollection(collection), 
-                _packAddressAsBytes32(address(0))
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
+        _setOperatorInTransientStorage(address(0), tokenAddresses);
     }
 
     /*************************************************************************/
@@ -1242,13 +1194,16 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             return SELECTOR_NO_ERROR;
         }
 
-        if (caller == _unpackAddressFromBytes32(_safeTransientLoad(_getSlotTransientOperatorForCollection(_msgSender())))) {
-            return SELECTOR_NO_ERROR;
-        }
-
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
         uint120 listId = collectionSecurityPolicy.listId;
-        bool disableGraylisting = collectionSecurityPolicy.disableGraylisting;
+
+        if (!collectionSecurityPolicy.disableGraylisting) {
+            if (_unpackAddressFromBytes32(_safeTransientLoad(_getSlotTransientOperatorForCollection(_msgSender()))) ==
+                caller) {
+                return SELECTOR_NO_ERROR;
+            }
+        }
+
         (CallerConstraints callerConstraints, ReceiverConstraints receiverConstraints) = 
             transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
 
@@ -1335,6 +1290,36 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         assembly {
             mstore(0x00, errorSelector)
             revert(0x00, 0x04)
+        }
+    }
+
+    /**
+     * @dev Internal function used to set the operator in transient storage for a collection when called by graylisted
+     *      account.
+     */
+    function _setOperatorInTransientStorage(address operator, address[] calldata tokenAddresses) internal {
+        address collection;
+        for (uint256 i = 0; i < tokenAddresses.length;) {
+            collection = tokenAddresses[i];
+
+            CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
+
+            if (!graylists[collectionSecurityPolicy.listId].enumerableAccounts.contains(_msgSender())) {
+                revert CreatorTokenTransferValidator__CallerMustBeGraylisted();
+            }
+
+            if (collectionSecurityPolicy.disableGraylisting) {
+                revert CreatorTokenTransferValidator__GraylistingDisabledForCollection();
+            }
+
+            _safeTransientStore(
+                _getSlotTransientOperatorForCollection(collection), 
+                _packAddressAsBytes32(operator)
+            );
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
