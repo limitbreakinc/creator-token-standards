@@ -225,7 +225,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
      * @param to     The address of the token receiver.
      */
     function applyCollectionTransferPolicy(address caller, address from, address to) external view override {
-        bytes4 errorSelector = _applyCollectionTransferPolicy(caller, from, to);
+        bytes4 errorSelector = _applyCollectionTransferPolicy(caller, _msgSender(), from, to);
         if (errorSelector != SELECTOR_NO_ERROR) {
             _revertCustomErrorSelectorAsm(errorSelector);
         }
@@ -1159,7 +1159,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         uint256 id, 
         uint256 amount
     ) internal override returns (bool isError) {
-        isError = _applyCollectionTransferPolicy(msg.sender, from, to) != SELECTOR_NO_ERROR;
+        isError = _applyCollectionTransferPolicy(_msgSender(), token, from, to) != SELECTOR_NO_ERROR;
     }
 
     /**
@@ -1186,7 +1186,12 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
      * @param from   The address of the token owner.
      * @param to     The address of the token receiver.
      */
-    function _applyCollectionTransferPolicy(address caller, address from, address to) internal view returns (bytes4) {
+    function _applyCollectionTransferPolicy(
+        address caller, 
+        address collection, 
+        address from, 
+        address to
+    ) internal view returns (bytes4) {
         if (caller == address(this)) { 
             // If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
             // _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
@@ -1194,11 +1199,11 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
             return SELECTOR_NO_ERROR;
         }
 
-        CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[_msgSender()];
+        CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
         uint120 listId = collectionSecurityPolicy.listId;
 
         if (!collectionSecurityPolicy.disableGraylisting) {
-            if (_unpackAddressFromBytes32(_safeTransientLoad(_getSlotTransientOperatorForCollection(_msgSender()))) ==
+            if (_unpackAddressFromBytes32(_safeTransientLoad(_getSlotTransientOperatorForCollection(collection))) ==
                 caller) {
                 return SELECTOR_NO_ERROR;
             }
