@@ -1203,7 +1203,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
         uint120 listId = collectionSecurityPolicy.listId;
 
         if (!collectionSecurityPolicy.disableGraylisting) {
-            if (_unpackAddressFromBytes32(_safeTransientLoad(_getSlotTransientOperatorForCollection(collection))) ==
+            if (_unpackAddressFromBytes32(_tload(_getSlotTransientOperatorForCollection(collection))) ==
                 caller) {
                 return SELECTOR_NO_ERROR;
             }
@@ -1317,7 +1317,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
                 revert CreatorTokenTransferValidator__GraylistingDisabledForCollection();
             }
 
-            _safeTransientStore(
+            _tstore(
                 _getSlotTransientOperatorForCollection(collection), 
                 _packAddressAsBytes32(operator)
             );
@@ -1332,13 +1332,13 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
      * @dev Internal function used to compute the transient storage slot for the graylisted operator of a collection.
      */
     function _getSlotTransientOperatorForCollection(address collection) internal pure returns (bytes32) {
-        return keccak256(abi.encode(TRANSIENT_STORAGE_GRAYLISTED_OPERATORS, collection));
+        return _packAddressAsBytes32(collection);
     }
 
     /**
      * @dev Internal function used to store a value in the specified transient storage slot.
      */
-    function _safeTransientStore(bytes32 slot, bytes32 value) internal {
+    function _tstore(bytes32 slot, bytes32 value) internal {
         assembly {
             tstore(slot, value)
         }
@@ -1347,7 +1347,7 @@ contract CreatorTokenTransferValidatorV3 is EOARegistry, PermitC, ICreatorTokenT
     /**
      * @dev Internal function used to load a value from the specified transient storage slot.
      */
-    function _safeTransientLoad(bytes32 slot) internal view returns (bytes32 value) {
+    function _tload(bytes32 slot) internal view returns (bytes32 value) {
         assembly {
             value := tload(slot)
         }
