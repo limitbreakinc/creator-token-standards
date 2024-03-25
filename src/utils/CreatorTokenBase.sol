@@ -57,33 +57,8 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
     function setTransferValidator(address transferValidator_) public {
         _requireCallerIsContractOwner();
 
-        /*
-        bool isValidTransferValidator = false;
+        bool isValidTransferValidator = transferValidator_.code.length > 0;
         uint16 version = 0;
-
-        if(transferValidator_.code.length > 0) {
-            try IERC165(transferValidator_).supportsInterface(type(ICreatorTokenTransferValidatorV3).interfaceId) 
-                returns (bool supportsInterface) {
-                isValidTransferValidator = supportsInterface;
-                version = 3;
-            } catch {}
-
-            if (!isValidTransferValidator) {
-                try IERC165(transferValidator_).supportsInterface(type(ICreatorTokenTransferValidatorV2).interfaceId) 
-                    returns (bool supportsInterface) {
-                    isValidTransferValidator = supportsInterface;
-                    version = 2;
-                } catch {}
-            }
-
-            if (!isValidTransferValidator) {
-                try IERC165(transferValidator_).supportsInterface(type(ICreatorTokenTransferValidator).interfaceId) 
-                    returns (bool supportsInterface) {
-                    isValidTransferValidator = supportsInterface;
-                    version = 1;
-                } catch {}
-            }
-        }
 
         if(transferValidator_ != address(0) && !isValidTransferValidator) {
             revert CreatorTokenBase__InvalidTransferValidatorContract();
@@ -96,7 +71,6 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
             version: version,
             transferValidator: transferValidator_
         });
-        */
     }
 
     /**

@@ -1250,10 +1250,127 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         }
 
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
-        uint120 listId = collectionSecurityPolicy.listId;
 
+        if (collectionSecurityPolicy.enableAuthorizationMode) {
+            return _validateTransferWithAuthorizers(
+                collection, 
+                caller, 
+                from, 
+                to, 
+                tokenId, 
+                collectionSecurityPolicy.listId, 
+                collectionSecurityPolicy.transferSecurityLevel);
+        } else {
+            return _validateTransferWithoutAuthorizers(
+                collection, 
+                caller, 
+                from, 
+                to, 
+                tokenId, 
+                collectionSecurityPolicy.listId, 
+                collectionSecurityPolicy.transferSecurityLevel);
+        }
+    }
+
+    function _validateTransferWithoutAuthorizers(
+        address collection, 
+        address caller, 
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint120 listId,
+        uint8 transferSecurityLevel
+    ) internal view returns (bytes4) {
         (uint256 callerConstraints, uint256 receiverConstraints) = 
-            transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
+            transferSecurityPolicies(transferSecurityLevel);
+
+        if (callerConstraints == CALLER_CONSTRAINTS_SBT) {
+            return CreatorTokenTransferValidator__TokenIsSoulbound.selector;
+        }
+
+        List storage whitelist = whitelists[listId];
+
+        if (receiverConstraints == RECEIVER_CONSTRAINTS_NO_CODE) {
+            if (_getCodeLengthAsm(to) > 0) {
+                if (!whitelist.nonEnumerableAccounts[to]) {
+                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
+                        return CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector;
+                    }
+                }
+            }
+        } else if (receiverConstraints == RECEIVER_CONSTRAINTS_EOA) {
+            if (!isVerifiedEOA(to)) {
+                if (!whitelist.nonEnumerableAccounts[to]) {
+                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
+                        return CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector;
+                    }
+                }
+            }
+        }
+
+        if (caller == from) {
+            if (callerConstraints != CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
+                return SELECTOR_NO_ERROR;
+            }
+        }
+
+        if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC) {
+            List storage blacklist = blacklists[listId];
+            if (blacklist.nonEnumerableAccounts[caller]) {
+                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
+            }
+
+            if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
+                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
+            }
+        } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC) {
+            if (whitelist.nonEnumerableAccounts[caller]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
+        } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
+            mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
+
+            if (accountWhitelist[caller]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            if (accountWhitelist[from]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
+
+            if (codehashWhitelist[_getCodeHashAsm(caller)]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            if (codehashWhitelist[_getCodeHashAsm(from)]) {
+                return SELECTOR_NO_ERROR;
+            }
+
+            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
+        }
+
+        return SELECTOR_NO_ERROR;
+    }
+
+    function _validateTransferWithAuthorizers(
+        address collection, 
+        address caller, 
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint120 listId,
+        uint8 transferSecurityLevel
+    ) internal view returns (bytes4) {
+        (uint256 callerConstraints, uint256 receiverConstraints) = 
+            transferSecurityPolicies(transferSecurityLevel);
 
         if (callerConstraints == CALLER_CONSTRAINTS_SBT) {
             return CreatorTokenTransferValidator__TokenIsSoulbound.selector;

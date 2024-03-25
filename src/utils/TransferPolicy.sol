@@ -135,9 +135,9 @@ struct CollectionSecurityPolicyV2 {
  * @dev **enableGraylisting**: If true, graylisting will be enabled for the collection.
  */
 struct CollectionSecurityPolicyV3 {
+    bool enableAuthorizationMode;
     uint8 transferSecurityLevel;
     uint120 listId;
-    bool enableAuthorizationMode;
 }
 
 /** 
