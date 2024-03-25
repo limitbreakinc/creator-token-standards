@@ -2,9 +2,9 @@
 pragma solidity ^0.8.4;
 
 import "../ERC1155C.sol";
-import "../../../interfaces/ICreatorTokenWrapperERC1155.sol";
-import "../../../interfaces/IEOARegistry.sol";
-import "../../../utils/WithdrawETH.sol";
+import "../../interfaces/ICreatorTokenWrapperERC1155.sol";
+import "../../interfaces/IEOARegistry.sol";
+import "../../utils/WithdrawETH.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 

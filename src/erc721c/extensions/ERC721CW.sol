@@ -2,9 +2,9 @@
 pragma solidity ^0.8.4;
 
 import "../ERC721C.sol";
-import "../../../interfaces/ICreatorTokenWrapperERC721.sol";
-import "../../../interfaces/IEOARegistry.sol";
-import "../../../utils/WithdrawETH.sol";
+import "../../interfaces/ICreatorTokenWrapperERC721.sol";
+import "../../interfaces/IEOARegistry.sol";
+import "../../utils/WithdrawETH.sol";
 
 /**
  * @title ERC721WrapperBase
