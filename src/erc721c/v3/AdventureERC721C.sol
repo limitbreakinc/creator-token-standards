@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "../../utils/AutomaticValidatorTransferApproval.sol";
-import "../../utils/CreatorTokenBaseV2.sol";
+import "../../utils/CreatorTokenBase.sol";
 import "../../adventures/AdventureERC721.sol";
 
 /**
@@ -12,7 +12,7 @@ import "../../adventures/AdventureERC721.sol";
  *         allows the contract owner to update the transfer validation logic by managing a security policy in
  *         an external transfer validation security policy registry.  See {CreatorTokenTransferValidator}.
  */
-abstract contract AdventureERC721C is AdventureERC721, CreatorTokenBaseV2, AutomaticValidatorTransferApproval {
+abstract contract AdventureERC721C is AdventureERC721, CreatorTokenBase, AutomaticValidatorTransferApproval {
 
     /**
      * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved
@@ -79,7 +79,7 @@ abstract contract AdventureERC721C is AdventureERC721, CreatorTokenBaseV2, Autom
  * @author Limit Break, Inc.
  * @notice Initializable implementation of the AdventureERC721C contract to allow for EIP-1167 clones.
  */
-abstract contract AdventureERC721CInitializable is AdventureERC721Initializable, CreatorTokenBaseV2, AutomaticValidatorTransferApproval {
+abstract contract AdventureERC721CInitializable is AdventureERC721Initializable, CreatorTokenBase, AutomaticValidatorTransferApproval {
 
     /**
      * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved

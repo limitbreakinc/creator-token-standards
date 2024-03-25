@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "./ICreatorToken.sol";
+import "../utils/TransferPolicy.sol";
 
 interface ICreatorTokenWrapperERC1155 is ICreatorToken {
 

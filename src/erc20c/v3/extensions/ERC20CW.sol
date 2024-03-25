@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "../ERC20C.sol";
 import "../../../interfaces/ICreatorTokenWrapperERC20.sol";
+import "../../../interfaces/IEOARegistry.sol";
 import "../../../utils/WithdrawETH.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -240,9 +241,10 @@ abstract contract ERC20CW is ERC20WrapperBase, ERC20C {
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC20WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
@@ -291,9 +293,10 @@ abstract contract ERC20CWInitializable is ERC20WrapperBase, ERC20CInitializable 
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC20WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }

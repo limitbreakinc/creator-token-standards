@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../../utils/CreatorTokenBaseV2.sol";
+import "../../utils/CreatorTokenBase.sol";
 import "../../token/erc20/ERC20OpenZeppelin.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  *         allows the contract owner to update the transfer validation logic by managing a security policy in
  *         an external transfer validation security policy registry.  See {CreatorTokenTransferValidator}.
  */
-abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBaseV2 {
+abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase {
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
@@ -44,7 +44,7 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBaseV2 {
  * @author Limit Break, Inc.
  * @notice Initializable implementation of ERC20C to allow for EIP-1167 proxy clones.
  */
-abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable, CreatorTokenBaseV2 {
+abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable, CreatorTokenBase {
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 

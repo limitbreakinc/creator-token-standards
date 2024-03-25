@@ -33,7 +33,9 @@ abstract contract AdventureERC721CW is ERC721WrapperBase, AdventureERC721C {
      * @return true if the contract implements the specified interface, false otherwise
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || super.supportsInterface(interfaceId);
+        return 
+        interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || 
+        super.supportsInterface(interfaceId);
     }
 
     function getWrappedCollectionAddress() public virtual view override returns (address) {
@@ -41,9 +43,10 @@ abstract contract AdventureERC721CW is ERC721WrapperBase, AdventureERC721C {
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
@@ -95,13 +98,16 @@ abstract contract AdventureERC721CWInitializable is ERC721WrapperBase, Adventure
      * @return true if the contract implements the specified interface, false otherwise
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || super.supportsInterface(interfaceId);
+        return 
+        interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || 
+        super.supportsInterface(interfaceId);
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }

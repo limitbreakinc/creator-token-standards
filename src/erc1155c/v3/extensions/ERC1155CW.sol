@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "../ERC1155C.sol";
 import "../../../interfaces/ICreatorTokenWrapperERC1155.sol";
+import "../../../interfaces/IEOARegistry.sol";
 import "../../../utils/WithdrawETH.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -244,9 +245,10 @@ abstract contract ERC1155CW is ERC1155Holder, ERC1155WrapperBase, ERC1155C {
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC1155WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
@@ -295,9 +297,10 @@ abstract contract ERC1155CWInitializable is ERC1155Holder, ERC1155WrapperBase, E
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC1155WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }

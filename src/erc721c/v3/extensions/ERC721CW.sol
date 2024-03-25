@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "../ERC721C.sol";
 import "../../../interfaces/ICreatorTokenWrapperERC721.sol";
+import "../../../interfaces/IEOARegistry.sol";
 import "../../../utils/WithdrawETH.sol";
 
 /**
@@ -234,9 +235,10 @@ abstract contract ERC721CW is ERC721WrapperBase, ERC721C {
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
@@ -294,9 +296,10 @@ abstract contract ERC721CWInitializable is ERC721WrapperBase, ERC721CInitializab
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC721WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
