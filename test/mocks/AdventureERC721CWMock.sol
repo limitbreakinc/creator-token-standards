@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.24;
 
-import "../../src/access/OwnableBasic.sol";
-import "../../src/access/OwnableInitializable.sol";
-import "../../src/erc721c/extensions/AdventureERC721CW.sol";
+import "src/access/OwnableBasic.sol";
+import "src/access/OwnableInitializable.sol";
+import "src/erc721c/extensions/AdventureERC721CW.sol";
 
 contract AdventureERC721CWMock is OwnableBasic, AdventureERC721CW {
     constructor(address wrappedCollectionAddress_)

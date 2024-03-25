@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.24;
 
-import "../../src/access/OwnableBasic.sol";
-import "../../src/access/OwnableInitializable.sol";
-import "../../src/erc721c/AdventureERC721C.sol";
+import "src/access/OwnableBasic.sol";
+import "src/access/OwnableInitializable.sol";
+import "src/erc721c/AdventureERC721C.sol";
 
 contract AdventureERC721CMock is OwnableBasic, AdventureERC721C {
     constructor() AdventureERC721(100) ERC721OpenZeppelin("ERC-721C Mock", "MOCK") {}

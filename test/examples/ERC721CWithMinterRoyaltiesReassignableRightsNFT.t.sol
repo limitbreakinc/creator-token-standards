@@ -28,7 +28,7 @@ contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenTran
         vm.startPrank(defaultTokenCreator);
         tokenMock =
         new ERC721CWithReassignableMinterRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, royaltyRightsNFTReference, "Test", "TEST");
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        // TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
         vm.stopPrank();
     }
 

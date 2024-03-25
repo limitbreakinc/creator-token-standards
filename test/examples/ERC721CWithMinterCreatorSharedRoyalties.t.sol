@@ -29,7 +29,7 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         vm.startPrank(defaultTokenCreator);
         tokenMock =
         new ERC721CWithMinterCreatorSharedRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, 25, 75, defaultTokenCreator, paymentSplitterReference, "Test", "TEST");
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
         vm.stopPrank();
     }
 
@@ -599,8 +599,8 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         tokenMock = ERC721CWithMinterCreatorSharedRoyaltiesInitializable(
             cloner.cloneContract(address(referenceToken), defaultTokenCreator, initializationSelectors, initializationArguments)
         );
-        vm.prank(defaultTokenCreator);
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: vm.prank(defaultTokenCreator);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {

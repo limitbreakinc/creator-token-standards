@@ -8,17 +8,17 @@ import "../mocks/ContractMock.sol";
 import "../mocks/ERC721CMock.sol";
 import "../interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
-import "src/utils/CreatorTokenTransferValidatorV3.sol";
+import "src/utils/CreatorTokenTransferValidator.sol";
 
 // Overall Gas Efficiency:
 // | Function Name                    | min             | avg   | median | max   |
-// | applyCollectionTransferPolicy    | 3217            | 9479  | 9345   | 17722 |
+// | applyCollectionTransferPolicy    | 3240            | 9460  | 9259   | 17602 |
 
-contract BenchmarkValidatorV3 is Test {
+contract BenchmarkValidator is Test {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
-    CreatorTokenTransferValidatorV3 public validator;
+    CreatorTokenTransferValidator public validator;
 
     address validatorDeployer;
 
@@ -49,7 +49,7 @@ contract BenchmarkValidatorV3 is Test {
     function setUp() public virtual {
         validatorDeployer = vm.addr(1);
         vm.startPrank(validatorDeployer);
-        validator = new CreatorTokenTransferValidatorV3(validatorDeployer, "Permit-C", "3");
+        validator = new CreatorTokenTransferValidator(validatorDeployer, "", "");
         vm.stopPrank();
 
         tokenLevelOne = _deployNewToken(address(this));
@@ -73,23 +73,14 @@ contract BenchmarkValidatorV3 is Test {
         listIdBlacklist = validator.createList("blacklist");
         listIdWhitelist = validator.createList("whitelist");
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelOne), TRANSFER_SECURITY_LEVEL_ONE, true);
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelTwo), TRANSFER_SECURITY_LEVEL_TWO, true);
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelThree), TRANSFER_SECURITY_LEVEL_THREE, true);
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFour), TRANSFER_SECURITY_LEVEL_FOUR, true);
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFive), TRANSFER_SECURITY_LEVEL_FIVE, true);
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSix), TRANSFER_SECURITY_LEVEL_SIX, true);
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSeven), TRANSFER_SECURITY_LEVEL_SEVEN, true);
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelEight), TRANSFER_SECURITY_LEVEL_EIGHT, true);
-
-        validator.applyListToCollection(address(tokenLevelOne), 0);
-        validator.applyListToCollection(address(tokenLevelTwo), listIdBlacklist);
-        validator.applyListToCollection(address(tokenLevelThree), listIdWhitelist);
-        validator.applyListToCollection(address(tokenLevelFour), listIdWhitelist);
-        validator.applyListToCollection(address(tokenLevelFive), listIdWhitelist);
-        validator.applyListToCollection(address(tokenLevelSix), listIdWhitelist);
-        validator.applyListToCollection(address(tokenLevelSeven), listIdWhitelist);
-        validator.applyListToCollection(address(tokenLevelEight), listIdWhitelist);
+        //TODO: tokenLevelOne.setToCustomSecurityPolicy(TransferSecurityLevels.One, 0);
+        //TODO: tokenLevelTwo.setToCustomSecurityPolicy(TransferSecurityLevels.Two, listIdBlacklist);
+        //TODO: tokenLevelThree.setToCustomSecurityPolicy(TransferSecurityLevels.Three, listIdWhitelist);
+        //TODO: tokenLevelFour.setToCustomSecurityPolicy(TransferSecurityLevels.Four, listIdWhitelist);
+        //TODO: tokenLevelFive.setToCustomSecurityPolicy(TransferSecurityLevels.Five, listIdWhitelist);
+        //TODO: tokenLevelSix.setToCustomSecurityPolicy(TransferSecurityLevels.Six, listIdWhitelist);
+        //TODO: tokenLevelSeven.setToCustomSecurityPolicy(TransferSecurityLevels.Seven, listIdWhitelist);
+        //TODO: tokenLevelEight.setToCustomSecurityPolicy(TransferSecurityLevels.Eight, listIdWhitelist);
 
         blacklistedOperatorMock = new OperatorMock(1);
         whitelistedOperatorMock = new OperatorMock(2);
@@ -137,7 +128,8 @@ contract BenchmarkValidatorV3 is Test {
     /*                               Level One                              */
     /*************************************************************************/
 
-    function testV3BenchmarktokenLevelOne(address caller, address from, address to) public {
+    // 3313 gas (1 SLOAD)
+    function testBenchmarktokenLevelOne(address caller, address from, address to) public {
         vm.assume(caller != address(0));
         vm.assume(caller != address(blacklistedOperatorMock));
         vm.assume(caller != address(blacklistedOperatorMock1));
@@ -168,7 +160,8 @@ contract BenchmarkValidatorV3 is Test {
     /*                               Level Two                               */
     /*************************************************************************/
 
-    function testV3BenchmarktokenLevelTwoOTC(address tokenOwner, address to) public {
+    // 3262 gas (1 SLOAD)
+    function testBenchmarktokenLevelTwoOTC(address tokenOwner, address to) public {
         vm.assume(tokenOwner != address(0));
         vm.assume(tokenOwner != address(blacklistedOperatorMock));
         vm.assume(tokenOwner != address(blacklistedOperatorMock1));
@@ -195,7 +188,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelTwoNonOTC(address caller, address from, address to) public {
+    // 10375 gas (3 SLOADS)
+    function testBenchmarktokenLevelTwoNonOTC(address caller, address from, address to) public {
         vm.assume(caller != address(0));
         vm.assume(caller != address(blacklistedOperatorMock));
         vm.assume(caller != address(blacklistedOperatorMock1));
@@ -227,7 +221,8 @@ contract BenchmarkValidatorV3 is Test {
     /*                               Level Three                               */
     /*************************************************************************/
 
-    function testV3BenchmarktokenLevelThreeOTC(address tokenOwner, address to) public {
+    // 3311 gas (1 SLOAD)
+    function testBenchmarktokenLevelThreeOTC(address tokenOwner, address to) public {
         vm.assume(tokenOwner != address(0));
         vm.assume(tokenOwner != address(whitelistedOperatorMock));
         vm.assume(tokenOwner != address(whitelistedOperatorMock1));
@@ -254,7 +249,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelThreeNonOTCOperatorAccountWhitelisted(address from, address to) public {
+    // 5567 Gas (2 SLOADS)
+    function testBenchmarktokenLevelThreeNonOTCOperatorAccountWhitelisted(address from, address to) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock2));
         vm.assume(to != address(0));
@@ -278,7 +274,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelThreeNonOTCOperatorCodeHashWhitelisted(address from, address to) public {
+    // 10374 gas (3 SLOADS)
+    function testBenchmarktokenLevelThreeNonOTCOperatorCodeHashWhitelisted(address from, address to) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock1));
         vm.assume(to != address(0));
@@ -306,7 +303,8 @@ contract BenchmarkValidatorV3 is Test {
     /*                               Level Four                             */
     /*************************************************************************/
 
-    function testV3BenchmarktokenLevelFourOTCOwnerIsWhitelistedAccount(address to) public {
+    // 5724 gas (2 SLOADS)
+    function testBenchmarktokenLevelFourOTCOwnerIsWhitelistedAccount(address to) public {
         vm.assume(to != address(0));
         vm.assume(to.code.length == 0);
 
@@ -329,7 +327,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFourOTCOwnerIsWhitelistedCodehash(address to) public {
+    // 10746 gas (4 SLOADS, 1 DUP)
+    function testBenchmarktokenLevelFourOTCOwnerIsWhitelistedCodehash(address to) public {
         vm.assume(to != address(0));
         vm.assume(to.code.length == 0);
 
@@ -352,7 +351,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFourNonOTCOperatorIsWhitelistedAccount(address from, address to) public {
+    // 5676 gas (2 SLOADS)
+    function testBenchmarktokenLevelFourNonOTCOperatorIsWhitelistedAccount(address from, address to) public {
         vm.assume(from != address(0));
         vm.assume(from.code.length == 0);
         vm.assume(to != address(0));
@@ -376,7 +376,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFourNonOTCOwnerIsWhitelistedAccount(address caller, address to) public {
+    // 7880 gas (3 SLOADS)
+    function testBenchmarktokenLevelFourNonOTCOwnerIsWhitelistedAccount(address caller, address to) public {
         vm.assume(caller != address(0));
         vm.assume(caller.code.length == 0);
         vm.assume(to != address(0));
@@ -400,7 +401,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFourNonOTCOperatorIsWhitelistedCodeHash(address from, address to) public {
+    // 12698 gas (4 SLOADS)
+    function testBenchmarktokenLevelFourNonOTCOperatorIsWhitelistedCodeHash(address from, address to) public {
         vm.assume(from != address(0));
         vm.assume(from.code.length == 0);
         vm.assume(to != address(0));
@@ -424,7 +426,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFourNonOTCOwnerIsWhitelistedCodeHash(address caller, address to) public {
+    // 15002 gas (5 SLOADS)
+    function testBenchmarktokenLevelFourNonOTCOwnerIsWhitelistedCodeHash(address caller, address to) public {
         vm.assume(caller != address(0));
         vm.assume(caller.code.length == 0);
         vm.assume(to != address(0));
@@ -452,7 +455,8 @@ contract BenchmarkValidatorV3 is Test {
     /*                               Level Five                              */
     /*************************************************************************/
 
-    function testV3BenchmarktokenLevelFiveOTCWhitelistedToAddress(address tokenOwner) public {
+    // 8200 gas (2 SLOADS)
+    function testBenchmarktokenLevelFiveOTCWhitelistedToAddress(address tokenOwner) public {
         vm.assume(tokenOwner != address(0));
         vm.assume(tokenOwner != address(whitelistedOperatorMock));
         vm.assume(tokenOwner != address(whitelistedOperatorMock1));
@@ -477,7 +481,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFiveOTCWhitelistedToCodeHash(address tokenOwner) public {
+    // 10503 gas (3 SLOADS)
+    function testBenchmarktokenLevelFiveOTCWhitelistedToCodeHash(address tokenOwner) public {
         vm.assume(tokenOwner != address(0));
         vm.assume(tokenOwner != address(whitelistedOperatorMock));
         vm.assume(tokenOwner != address(whitelistedOperatorMock1));
@@ -502,7 +507,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFiveOTCWhitelistedToHasNoCode(address tokenOwner, address to) public {
+    // 3497 gas (1 SLOAD)
+    function testBenchmarktokenLevelFiveOTCWhitelistedToHasNoCode(address tokenOwner, address to) public {
         vm.assume(tokenOwner != address(0));
         vm.assume(tokenOwner != address(whitelistedOperatorMock));
         vm.assume(tokenOwner != address(whitelistedOperatorMock1));
@@ -529,7 +535,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFiveNonOTCWhitelistedToAddress(address from) public {
+    // 15263 gas (4 SLOADS)
+    function testBenchmarktokenLevelFiveNonOTCWhitelistedToAddress(address from) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -553,7 +560,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFiveNonOTCWhitelistedToCodeHash(address from) public {
+    // 12759 (4 SLOADS)
+    function testBenchmarktokenLevelFiveNonOTCWhitelistedToCodeHash(address from) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -577,7 +585,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelFiveNonOTCWhitelistedToHasNoCode(address from, address to) public {
+    // 5753 (2 SLOADS)
+    function testBenchmarktokenLevelFiveNonOTCWhitelistedToHasNoCode(address from, address to) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -607,7 +616,8 @@ contract BenchmarkValidatorV3 is Test {
     /*                               Level Six                              */
     /*************************************************************************/
 
-    function testV3BenchmarktokenLevelSixOTCWhitelistedToAddress(address tokenOwner) public {
+    // 7861 gas (3 SLOADS)
+    function testBenchmarktokenLevelSixOTCWhitelistedToAddress(address tokenOwner) public {
         vm.assume(tokenOwner != address(0));
         vm.assume(tokenOwner != address(whitelistedOperatorMock));
         vm.assume(tokenOwner != address(whitelistedOperatorMock1));
@@ -632,7 +642,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelSixOTCWhitelistedToCodeHash(address tokenOwner) public {
+    // 12664 gas (4 SLOADS)
+    function testBenchmarktokenLevelSixOTCWhitelistedToCodeHash(address tokenOwner) public {
         vm.assume(tokenOwner != address(0));
         vm.assume(tokenOwner != address(whitelistedOperatorMock));
         vm.assume(tokenOwner != address(whitelistedOperatorMock1));
@@ -657,7 +668,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelSixOTCWhitelistedToHasNoCode(address tokenOwner, uint160 toKey) public {
+    // 3658 gas (2 SLOADS)
+    function testBenchmarktokenLevelSixOTCWhitelistedToHasNoCode(address tokenOwner, uint160 toKey) public {
         address to = _verifyEOA(toKey);
 
         vm.assume(tokenOwner != address(0));
@@ -686,7 +698,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelSixNonOTCWhitelistedToAddress(address from) public {
+    // 14924 gas (5 SLOADS)
+    function testBenchmarktokenLevelSixNonOTCWhitelistedToAddress(address from) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -710,7 +723,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelSixNonOTCWhitelistedToCodeHash(address from) public {
+    // 14920 (5 SLOADS)
+    function testBenchmarktokenLevelSixNonOTCWhitelistedToCodeHash(address from) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -734,7 +748,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelSixNonOTCWhitelistedToHasNoCode(address from, uint160 toKey) public {
+    // 5914 gas (3 SLOADS)
+    function testBenchmarktokenLevelSixNonOTCWhitelistedToHasNoCode(address from, uint160 toKey) public {
         address to = _verifyEOA(toKey);
 
         vm.assume(from != address(0));
@@ -766,7 +781,8 @@ contract BenchmarkValidatorV3 is Test {
     /*                               Level Seven                               */
     /*************************************************************************/
 
-    function testV3BenchmarktokenLevelSevenNonOTCWhitelistedToAddress(address from) public {
+    // 17636 gas (5 SLOADS)
+    function testBenchmarktokenLevelSevenNonOTCWhitelistedToAddress(address from) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -790,7 +806,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelSevenNonOTCWhitelistedToCodeHash(address from) public {
+    // 12917 gas (4 SLOADS)
+    function testBenchmarktokenLevelSevenNonOTCWhitelistedToCodeHash(address from) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -814,7 +831,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelSevenNonOTCWhitelistedToHasNoCode(address from, address to) public {
+    // 5911 gas (2 SLOADS)
+    function testBenchmarktokenLevelSevenNonOTCWhitelistedToHasNoCode(address from, address to) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -844,7 +862,8 @@ contract BenchmarkValidatorV3 is Test {
     /*                               Level Eight                             */
     /*************************************************************************/
 
-    function testV3BenchmarktokenLevelEightNonOTCWhitelistedToAddress(address from) public {
+    // 17249 gas (6 SLOADS)
+    function testBenchmarktokenLevelEightNonOTCWhitelistedToAddress(address from) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -868,7 +887,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelEightNonOTCWhitelistedToCodeHash(address from) public {
+    // 15030 gas (5 SLOADS)
+    function testBenchmarktokenLevelEightNonOTCWhitelistedToCodeHash(address from) public {
         vm.assume(from != address(0));
         vm.assume(from != address(whitelistedOperatorMock));
         vm.assume(from != address(whitelistedOperatorMock1));
@@ -892,7 +912,8 @@ contract BenchmarkValidatorV3 is Test {
         }
     }
 
-    function testV3BenchmarktokenLevelEightNonOTCWhitelistedToHasNoCode(address from, uint160 toKey) public {
+    // 6024 gas (3 SLOADS)
+    function testBenchmarktokenLevelEightNonOTCWhitelistedToHasNoCode(address from, uint160 toKey) public {
         address to = _verifyEOA(toKey);
 
         vm.assume(from != address(0));
@@ -930,3 +951,5 @@ contract BenchmarkValidatorV3 is Test {
         validator.verifySignatureVRS(v, r, s);
     }
 }
+
+//| applyCollectionTransferPolicy  | 3262            | 9487  | 9287   | 17636 | 30

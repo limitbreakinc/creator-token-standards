@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.24;
 
-import "../../src/access/OwnableBasic.sol";
-import "../../src/erc721c/ERC721AC.sol";
+import "src/access/OwnableBasic.sol";
+import "src/erc721c/ERC721AC.sol";
 
 contract ERC721ACMock is OwnableBasic, ERC721AC {
     constructor() ERC721AC("ERC-721C Mock", "MOCK") {}

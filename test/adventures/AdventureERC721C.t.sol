@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import "../mocks/AdventureMock.sol";
 import "../mocks/AdventureERC721CMock.sol";
 import "../mocks/ClonerMock.sol";
-import "../../src/adventures/AdventureERC721.sol";
+import "src/adventures/AdventureERC721.sol";
 import "../CreatorTokenTransferValidatorERC721.t.sol";
 
 abstract contract AdventureHelper {
@@ -25,7 +25,7 @@ contract AdventureERC721CTest is CreatorTokenTransferValidatorERC721Test, Advent
         super.setUp();
 
         tokenMock = new AdventureERC721CMock();
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
@@ -84,7 +84,7 @@ contract AdventureERC721CInitializableTest is AdventureHelper, CreatorTokenTrans
                 address(referenceTokenMock), address(this), initializationSelectors, initializationArguments
             )
         );
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {

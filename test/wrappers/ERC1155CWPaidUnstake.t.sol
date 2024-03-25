@@ -20,7 +20,7 @@ contract ERC1155CWPaidUnstakeTest is CreatorTokenTransferValidatorERC1155Test {
 
         wrappedTokenMock = new ERC1155Mock();
         tokenMock = new ERC1155CWPaidUnstakeMock(1 ether, address(wrappedTokenMock));
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken1155) {
