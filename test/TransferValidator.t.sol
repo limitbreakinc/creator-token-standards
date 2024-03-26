@@ -11,62 +11,91 @@ import "src/utils/TransferPolicy.sol";
 import "src/utils/CreatorTokenTransferValidator.sol";
 import "src/Constants.sol";
 
-contract CreatorTokenTransferValidatorERC721Test is Test {
+contract TransferValidatorTest is Test {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
-    event CreatedList(uint256 indexed id, string name);
-    event AppliedListToCollection(address indexed collection, uint120 indexed id);
-    event ReassignedListOwnership(uint256 indexed id, address indexed newOwner);
-    event AddedAccountToList(ListTypes indexed kind, uint256 indexed id, address indexed account);
-    event AddedCodeHashToList(ListTypes indexed kind, uint256 indexed id, bytes32 indexed codehash);
-    event RemovedAccountFromList(ListTypes indexed kind, uint256 indexed id, address indexed account);
-    event RemovedCodeHashFromList(ListTypes indexed kind, uint256 indexed id, bytes32 indexed codehash);
-    event SetTransferSecurityLevel(address indexed collection, TransferSecurityLevels level);
-
     CreatorTokenTransferValidator public validator;
 
-    address validatorDeployer;
     address whitelistedOperator;
 
     function setUp() public virtual {
-        validatorDeployer = vm.addr(1);
-        vm.startPrank(validatorDeployer);
-        validator = new CreatorTokenTransferValidator(validatorDeployer, "", "");
-        vm.stopPrank();
+        validator = new CreatorTokenTransferValidator(address(this), "", "");
 
         whitelistedOperator = vm.addr(2);
 
         // TODO: vm.prank(validatorDeployer);
         // TODO: validator.addOperatorToWhitelist(0, whitelistedOperator);
-
-        console.log(address(validator));
     }
 
-    function _deployNewToken(address creator) internal virtual returns (ITestCreatorToken) {
-        vm.prank(creator);
-        return ITestCreatorToken(address(new ERC721CMock()));
+    function testTransferSecurityLevelRecommended() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_RECOMMENDED);
+        assertEq(TRANSFER_SECURITY_LEVEL_RECOMMENDED, 0);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_NONE);
     }
 
-    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual {
-        ERC721CMock(tokenAddress).mint(to, tokenId);
+    function testTransferSecurityLevelOne() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_ONE);
+        assertEq(TRANSFER_SECURITY_LEVEL_ONE, 1);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_NONE);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_NONE);
     }
 
-    function _verifyEOA(uint160 toKey) internal returns (address to) {
-        vm.assume(toKey > 0 && toKey < type(uint160).max);
-        to = vm.addr(toKey);
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(toKey, ECDSA.toEthSignedMessageHash(bytes(validator.MESSAGE_TO_SIGN())));
-        vm.prank(to);
-        validator.verifySignatureVRS(v, r, s);
+    function testTransferSecurityLevelTwo() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_TWO);
+        assertEq(TRANSFER_SECURITY_LEVEL_TWO, 2);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_NONE);
     }
 
-    function _sanitizeAddress(address addr) internal view virtual {
-        vm.assume(addr.code.length == 0);
-        vm.assume(uint160(addr) > 0xFF);
-        vm.assume(addr != address(0));
-        vm.assume(addr != address(0x000000000000000000636F6e736F6c652e6c6f67));
-        vm.assume(addr != address(0xDDc10602782af652bB913f7bdE1fD82981Db7dd9));
+    function testTransferSecurityLevelThree() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_THREE);
+        assertEq(TRANSFER_SECURITY_LEVEL_THREE, 3);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_NONE);
+    }
+
+    function testTransferSecurityLevelFour() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_FOUR);
+        assertEq(TRANSFER_SECURITY_LEVEL_FOUR, 4);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_NONE);
+    }
+
+    function testTransferSecurityLevelFive() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_FIVE);
+        assertEq(TRANSFER_SECURITY_LEVEL_FIVE, 5);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_NO_CODE);
+    }
+
+    function testTransferSecurityLevelSix() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_SIX);
+        assertEq(TRANSFER_SECURITY_LEVEL_SIX, 6);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_EOA);
+    }
+
+    function testTransferSecurityLevelSeven() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_SEVEN);
+        assertEq(TRANSFER_SECURITY_LEVEL_SEVEN, 7);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_NO_CODE);
+    }
+
+    function testTransferSecurityLevelEight() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_EIGHT);
+        assertEq(TRANSFER_SECURITY_LEVEL_EIGHT, 8);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_EOA);
+    }
+
+    function testTransferSecurityLevelNine() public {
+        (uint256 callerConstraints, uint256 receiverConstraints) = validator.transferSecurityPolicies(TRANSFER_SECURITY_LEVEL_NINE);
+        assertEq(TRANSFER_SECURITY_LEVEL_NINE, 9);
+        assertTrue(callerConstraints == CALLER_CONSTRAINTS_SBT);
+        assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_SBT);
     }
 
     /*
