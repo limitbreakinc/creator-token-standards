@@ -570,9 +570,16 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function addAccountsToBlacklist(
         uint120 id, 
-        address[] calldata accounts
+        address[] memory accounts
     ) external {
         _addAccountsToList(blacklists[id], LIST_TYPE_BLACKLIST, id, accounts);
+    }
+
+    function addAccountToBlacklist(
+        uint120 id,
+        address account
+    ) external {
+        _addAccountToList(blacklists[id], LIST_TYPE_BLACKLIST, id, account);
     }
 
     /**
@@ -590,9 +597,16 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function addAccountsToWhitelist(
         uint120 id, 
-        address[] calldata accounts
+        address[] memory accounts
     ) external {
         _addAccountsToList(whitelists[id], LIST_TYPE_WHITELIST, id, accounts);
+    }
+
+    function addAccountToWhitelist(
+        uint120 id,
+        address account
+    ) external {
+        _addAccountToList(whitelists[id], LIST_TYPE_WHITELIST, id, account);
     }
 
     /**
@@ -610,9 +624,16 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function addAccountsToAuthorizers(
         uint120 id, 
-        address[] calldata accounts
+        address[] memory accounts
     ) external {
         _addAccountsToList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, accounts);
+    }
+
+    function addAccountToAuthorizers(
+        uint120 id,
+        address account
+    ) external {
+        _addAccountToList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, account);
     }
 
     /**
@@ -672,9 +693,16 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function removeAccountsFromBlacklist(
         uint120 id, 
-        address[] calldata accounts
+        address[] memory accounts
     ) external {
         _removeAccountsFromList(blacklists[id], LIST_TYPE_BLACKLIST, id, accounts);
+    }
+
+    function removeAccountFromBlacklist(
+        uint120 id,
+        address account
+    ) external {
+        _removeAccountFromList(blacklists[id], LIST_TYPE_BLACKLIST, id, account);
     }
 
     /**
@@ -692,9 +720,16 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function removeAccountsFromWhitelist(
         uint120 id, 
-        address[] calldata accounts
+        address[] memory accounts
     ) external {
         _removeAccountsFromList(whitelists[id], LIST_TYPE_WHITELIST, id, accounts);
+    }
+
+    function removeAccountFromWhitelist(
+        uint120 id,
+        address account
+    ) external {
+        _removeAccountFromList(whitelists[id], LIST_TYPE_WHITELIST, id, account);
     }
 
     /**
@@ -712,9 +747,16 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function removeAccountsFromAuthorizers(
         uint120 id, 
-        address[] calldata accounts
+        address[] memory accounts
     ) external {
         _removeAccountsFromList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, accounts);
+    }
+
+    function removeAccountFromAuthorizers(
+        uint120 id,
+        address account
+    ) external {
+        _removeAccountFromList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, account);
     }
 
     /**
@@ -1087,6 +1129,17 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         }
     }
 
+    function _addAccountToList(
+        List storage list,
+        uint8 listType,
+        uint120 id,
+        address account
+    ) internal {
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+        _addAccountsToList(list, listType, id, accounts);
+    }
+
     /**
      * @notice Adds one or more accounts to a list.
      */
@@ -1094,7 +1147,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         List storage list,
         uint8 listType,
         uint120 id,
-        address[] calldata accounts
+        address[] memory accounts
     ) 
     internal
     onlyListOwner(id) 
@@ -1149,6 +1202,17 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         }
     }
 
+    function _removeAccountFromList(
+        List storage list,
+        uint8 listType,
+        uint120 id,
+        address account
+    ) internal {
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+        _removeAccountsFromList(list, listType, id, accounts);
+    }
+
     /**
      * @notice Removes one or more accounts from a list.
      */
@@ -1156,7 +1220,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         List storage list, 
         uint8 listType,
         uint120 id, 
-        address[] calldata accounts
+        address[] memory accounts
     ) 
     internal 
     onlyListOwner(id) 
