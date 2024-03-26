@@ -138,6 +138,7 @@ struct CollectionSecurityPolicyV3 {
     bool enableAuthorizationMode;
     uint8 transferSecurityLevel;
     uint120 listId;
+    bool enableAccountFreezingMode;
 }
 
 /** 

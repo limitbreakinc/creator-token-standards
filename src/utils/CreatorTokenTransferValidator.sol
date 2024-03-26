@@ -121,6 +121,12 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     /// @dev Thrown when validating a transfer for a collection that requires receivers be verified EOAs and the receiver is not verified.
     error CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified();
 
+    /// @dev Thrown when a frozen account is the receiver of a transfer
+    error CreatorTokenTransferValidator__ReceiverAccountIsFrozen();
+
+    /// @dev Thrown when a frozen account is the sender of a transfer
+    error CreatorTokenTransferValidator__SenderAccountIsFrozen();
+
     /// @dev Thrown when validating a transfer for a collection that is in soulbound token mode.
     error CreatorTokenTransferValidator__TokenIsSoulbound();
 
@@ -136,12 +142,15 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     event CreatedList(uint256 indexed id, string name);
     event AppliedListToCollection(address indexed collection, uint120 indexed id);
     event ReassignedListOwnership(uint256 indexed id, address indexed newOwner);
+    event AccountFrozenForCollection(address indexed collection, address indexed account);
+    event AccountUnfrozenForCollection(address indexed collection, address indexed account);
     event AddedAccountToList(uint8 indexed kind, uint256 indexed id, address indexed account);
     event AddedCodeHashToList(uint8 indexed kind, uint256 indexed id, bytes32 indexed codehash);
     event RemovedAccountFromList(uint8 indexed kind, uint256 indexed id, address indexed account);
     event RemovedCodeHashFromList(uint8 indexed kind, uint256 indexed id, bytes32 indexed codehash);
     event SetTransferSecurityLevel(address indexed collection, uint8 level);
     event SetAuthorizationModeEnabled(address indexed collection, bool enabled);
+    event SetAccountFreezingModeEnabled(address indexed collection, bool enabled);
 
     // Structs
     /**
@@ -152,6 +161,11 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         EnumerableSet.Bytes32Set enumerableCodehashes;
         mapping (address => bool) nonEnumerableAccounts;
         mapping (bytes32 => bool) nonEnumerableCodehashes;
+    }
+
+    struct AccountList {
+        EnumerableSet.AddressSet enumerableAccounts;
+        mapping (address => bool) nonEnumerableAccounts;
     }
 
     struct CollectionTokenIdAndAmount {
@@ -192,6 +206,9 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
 
     /// @dev Mapping of list ids to authorizers
     mapping (uint120 => List) internal authorizers;
+
+    /// @dev Mapping of collections to accounts that are frozen for those collections
+    mapping (address => AccountList) internal frozenAccounts;
 
     constructor(
         address defaultOwner,
@@ -449,7 +466,8 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function setTransferSecurityLevelOfCollection(
         address collection, 
         uint8 level,
-        bool enableAuthorizationMode) external {
+        bool enableAuthorizationMode,
+        bool enableAccountFreezingMode) external {
 
         if (level > TRANSFER_SECURITY_LEVEL_EIGHT) {
             revert CreatorTokenTransferValidator__InvalidTransferSecurityLevel();
@@ -458,8 +476,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
         collectionSecurityPolicies[collection].transferSecurityLevel = level;
         collectionSecurityPolicies[collection].enableAuthorizationMode = enableAuthorizationMode;
+        collectionSecurityPolicies[collection].enableAccountFreezingMode = enableAccountFreezingMode;
         emit SetTransferSecurityLevel(collection, level);
         emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode);
+        emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
     }
 
     /**
@@ -484,6 +504,44 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
 
         collectionSecurityPolicies[collection].listId = id;
         emit AppliedListToCollection(collection, id);
+    }
+
+    function freezeAccountsForCollection(address collection, address[] calldata accountsToFreeze) external {
+        _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
+
+        AccountList storage accounts = frozenAccounts[collection];
+
+        for (uint256 i = 0; i < accountsToFreeze.length;) {
+            address accountToFreeze = accountsToFreeze[i];
+
+            if (accounts.enumerableAccounts.add(accountToFreeze)) {
+                emit AccountFrozenForCollection(collection, accountToFreeze);
+                accounts.nonEnumerableAccounts[accountToFreeze] = true;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function unfreezeAccountsForCollection(address collection, address[] calldata accountsToUnfreeze) external {
+        _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
+
+        AccountList storage accounts = frozenAccounts[collection];
+
+        for (uint256 i = 0; i < accountsToUnfreeze.length;) {
+            address accountToUnfreeze = accountsToUnfreeze[i];
+
+            if (accounts.enumerableAccounts.remove(accountToUnfreeze)) {
+                emit AccountUnfrozenForCollection(collection, accountToUnfreeze);
+                accounts.nonEnumerableAccounts[accountToUnfreeze] = false;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /**
@@ -821,6 +879,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         return getAuthorizerAccounts(collectionSecurityPolicies[collection].listId);
     }
 
+    function getFrozenAccountsByCollection(address collection) external view returns (address[] memory) {
+        return frozenAccounts[collection].enumerableAccounts.values();
+    }
+
     /**
      * @notice Get blacklisted codehashes by collection.
      * @param collection The address of the collection.
@@ -867,6 +929,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function isAccountAuthorizerOfCollection(address collection, address account) external view returns (bool) {
         return isAccountAuthorizer(collectionSecurityPolicies[collection].listId, account);
+    }
+
+    function isAccountFrozenForCollection(address collection, address account) external view returns (bool) {
+        return frozenAccounts[collection].nonEnumerableAccounts[account];
     }
 
     /**
@@ -1251,130 +1317,28 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
 
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
 
-        if (collectionSecurityPolicy.enableAuthorizationMode) {
-            return _validateTransferWithAuthorizers(
-                collection, 
-                caller, 
-                from, 
-                to, 
-                tokenId, 
-                collectionSecurityPolicy.listId, 
-                collectionSecurityPolicy.transferSecurityLevel);
-        } else {
-            return _validateTransferWithoutAuthorizers(
-                collection, 
-                caller, 
-                from, 
-                to, 
-                tokenId, 
-                collectionSecurityPolicy.listId, 
-                collectionSecurityPolicy.transferSecurityLevel);
-        }
-    }
+        uint120 listId = collectionSecurityPolicy.listId;
 
-    function _validateTransferWithoutAuthorizers(
-        address collection, 
-        address caller, 
-        address from, 
-        address to,
-        uint256 tokenId,
-        uint120 listId,
-        uint8 transferSecurityLevel
-    ) internal view returns (bytes4) {
         (uint256 callerConstraints, uint256 receiverConstraints) = 
-            transferSecurityPolicies(transferSecurityLevel);
+            transferSecurityPolicies(collectionSecurityPolicy.transferSecurityLevel);
+
+        if (collectionSecurityPolicy.enableAccountFreezingMode) {
+            AccountList storage frozenAccountList = frozenAccounts[collection];
+            
+            if (frozenAccountList.nonEnumerableAccounts[from]) {
+                return CreatorTokenTransferValidator__SenderAccountIsFrozen.selector;
+            }
+
+            if (frozenAccountList.nonEnumerableAccounts[to]) {
+                return CreatorTokenTransferValidator__ReceiverAccountIsFrozen.selector;
+            }
+        }
 
         if (callerConstraints == CALLER_CONSTRAINTS_SBT) {
             return CreatorTokenTransferValidator__TokenIsSoulbound.selector;
         }
 
-        List storage whitelist = whitelists[listId];
-
-        if (receiverConstraints == RECEIVER_CONSTRAINTS_NO_CODE) {
-            if (_getCodeLengthAsm(to) > 0) {
-                if (!whitelist.nonEnumerableAccounts[to]) {
-                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                        return CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector;
-                    }
-                }
-            }
-        } else if (receiverConstraints == RECEIVER_CONSTRAINTS_EOA) {
-            if (!isVerifiedEOA(to)) {
-                if (!whitelist.nonEnumerableAccounts[to]) {
-                    if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                        return CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector;
-                    }
-                }
-            }
-        }
-
-        if (caller == from) {
-            if (callerConstraints != CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
-                return SELECTOR_NO_ERROR;
-            }
-        }
-
-        if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC) {
-            List storage blacklist = blacklists[listId];
-            if (blacklist.nonEnumerableAccounts[caller]) {
-                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
-            }
-
-            if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
-            }
-        } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC) {
-            if (whitelist.nonEnumerableAccounts[caller]) {
-                return SELECTOR_NO_ERROR;
-            }
-
-            if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                return SELECTOR_NO_ERROR;
-            }
-
-            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
-        } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
-            mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
-
-            if (accountWhitelist[caller]) {
-                return SELECTOR_NO_ERROR;
-            }
-
-            if (accountWhitelist[from]) {
-                return SELECTOR_NO_ERROR;
-            }
-
-            mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
-
-            if (codehashWhitelist[_getCodeHashAsm(caller)]) {
-                return SELECTOR_NO_ERROR;
-            }
-
-            if (codehashWhitelist[_getCodeHashAsm(from)]) {
-                return SELECTOR_NO_ERROR;
-            }
-
-            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
-        }
-
-        return SELECTOR_NO_ERROR;
-    }
-
-    function _validateTransferWithAuthorizers(
-        address collection, 
-        address caller, 
-        address from, 
-        address to,
-        uint256 tokenId,
-        uint120 listId,
-        uint8 transferSecurityLevel
-    ) internal view returns (bytes4) {
-        (uint256 callerConstraints, uint256 receiverConstraints) = 
-            transferSecurityPolicies(transferSecurityLevel);
-
-        if (callerConstraints == CALLER_CONSTRAINTS_SBT) {
-            return CreatorTokenTransferValidator__TokenIsSoulbound.selector;
-        }
+        
 
         List storage whitelist = whitelists[listId];
 

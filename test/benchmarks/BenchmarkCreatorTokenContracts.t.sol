@@ -79,28 +79,28 @@ contract BenchmarkCreatorTokenContracts is Test {
         listIdBlacklist = validator.createList("blacklist");
         listIdWhitelist = validator.createList("whitelist");
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelOne), TRANSFER_SECURITY_LEVEL_ONE, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelOne), TRANSFER_SECURITY_LEVEL_ONE, false, false);
         validator.applyListToCollection(address(tokenLevelOne), 0);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelTwo), TRANSFER_SECURITY_LEVEL_TWO, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelTwo), TRANSFER_SECURITY_LEVEL_TWO, false, false);
         validator.applyListToCollection(address(tokenLevelTwo), listIdBlacklist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelThree), TRANSFER_SECURITY_LEVEL_THREE, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelThree), TRANSFER_SECURITY_LEVEL_THREE, false, false);
         validator.applyListToCollection(address(tokenLevelThree), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFour), TRANSFER_SECURITY_LEVEL_FOUR, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFour), TRANSFER_SECURITY_LEVEL_FOUR, false, false);
         validator.applyListToCollection(address(tokenLevelFour), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFive), TRANSFER_SECURITY_LEVEL_FIVE, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFive), TRANSFER_SECURITY_LEVEL_FIVE, false, false);
         validator.applyListToCollection(address(tokenLevelFive), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSix), TRANSFER_SECURITY_LEVEL_SIX, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSix), TRANSFER_SECURITY_LEVEL_SIX, false, false);
         validator.applyListToCollection(address(tokenLevelSix), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSeven), TRANSFER_SECURITY_LEVEL_SEVEN, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSeven), TRANSFER_SECURITY_LEVEL_SEVEN, false, false);
         validator.applyListToCollection(address(tokenLevelSeven), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelEight), TRANSFER_SECURITY_LEVEL_EIGHT, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelEight), TRANSFER_SECURITY_LEVEL_EIGHT, false, false);
         validator.applyListToCollection(address(tokenLevelEight), listIdWhitelist);
 
         blacklistedOperatorMock = new OperatorMock(1);
