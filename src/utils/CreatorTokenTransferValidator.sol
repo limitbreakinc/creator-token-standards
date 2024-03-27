@@ -88,8 +88,6 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
     // Custom Errors
-    /// @dev Thrown when an array that cannot be zero length is supplied with zero length.
-    error CreatorTokenTransferValidator__ArrayLengthCannotBeZero();
 
     /// @dev Thrown when attempting to set a list id that does not exist.
     error CreatorTokenTransferValidator__ListDoesNotExist();
@@ -259,15 +257,6 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     modifier onlyListOwner(uint120 id) {
         _requireCallerOwnsList(id);
-        _;
-    }
-
-    /**
-     * @dev This modifier reverts a transaction if the supplied array has a zero length.
-     * @dev Throws when the array parameter has a zero length.
-     */
-    modifier notZero(uint256 value) {
-        _requireNotZero(value);
         _;
     }
 
@@ -567,7 +556,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function addAccountsToBlacklist(
         uint120 id, 
         address[] memory accounts
-    ) external {
+    ) public {
         _addAccountsToList(blacklists[id], LIST_TYPE_BLACKLIST, id, accounts);
     }
 
@@ -575,7 +564,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         uint120 id,
         address account
     ) external {
-        _addAccountToList(blacklists[id], LIST_TYPE_BLACKLIST, id, account);
+        addAccountsToBlacklist(id, _asSingletonArray(account));
     }
 
     /**
@@ -594,7 +583,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function addAccountsToWhitelist(
         uint120 id, 
         address[] memory accounts
-    ) external {
+    ) public {
         _addAccountsToList(whitelists[id], LIST_TYPE_WHITELIST, id, accounts);
     }
 
@@ -602,7 +591,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         uint120 id,
         address account
     ) external {
-        _addAccountToList(whitelists[id], LIST_TYPE_WHITELIST, id, account);
+        addAccountsToWhitelist(id, _asSingletonArray(account));
     }
 
     /**
@@ -621,7 +610,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function addAccountsToAuthorizers(
         uint120 id, 
         address[] memory accounts
-    ) external {
+    ) public {
         _addAccountsToList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, accounts);
     }
 
@@ -629,7 +618,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         uint120 id,
         address account
     ) external {
-        _addAccountToList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, account);
+        addAccountsToAuthorizers(id, _asSingletonArray(account));
     }
 
     /**
@@ -690,7 +679,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function removeAccountsFromBlacklist(
         uint120 id, 
         address[] memory accounts
-    ) external {
+    ) public {
         _removeAccountsFromList(blacklists[id], LIST_TYPE_BLACKLIST, id, accounts);
     }
 
@@ -698,7 +687,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         uint120 id,
         address account
     ) external {
-        _removeAccountFromList(blacklists[id], LIST_TYPE_BLACKLIST, id, account);
+        removeAccountsFromBlacklist(id, _asSingletonArray(account));
     }
 
     /**
@@ -717,7 +706,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function removeAccountsFromWhitelist(
         uint120 id, 
         address[] memory accounts
-    ) external {
+    ) public {
         _removeAccountsFromList(whitelists[id], LIST_TYPE_WHITELIST, id, accounts);
     }
 
@@ -725,7 +714,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         uint120 id,
         address account
     ) external {
-        _removeAccountFromList(whitelists[id], LIST_TYPE_WHITELIST, id, account);
+        removeAccountsFromWhitelist(id, _asSingletonArray(account));
     }
 
     /**
@@ -744,7 +733,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function removeAccountsFromAuthorizers(
         uint120 id, 
         address[] memory accounts
-    ) external {
+    ) public {
         _removeAccountsFromList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, accounts);
     }
 
@@ -752,7 +741,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         uint120 id,
         address account
     ) external {
-        _removeAccountFromList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, account);
+        removeAccountsFromAuthorizers(id, _asSingletonArray(account));
     }
 
     /**
@@ -1122,17 +1111,6 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         }
     }
 
-    function _addAccountToList(
-        List storage list,
-        uint8 listType,
-        uint120 id,
-        address account
-    ) internal {
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
-        _addAccountsToList(list, listType, id, accounts);
-    }
-
     /**
      * @notice Adds one or more accounts to a list.
      */
@@ -1143,15 +1121,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         address[] memory accounts
     ) 
     internal
-    onlyListOwner(id) 
-    notZero(accounts.length) {
+    onlyListOwner(id) {
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
-
-            if (account == address(0)) {
-                revert CreatorTokenTransferValidator__ZeroAddressNotAllowed();
-            }
 
             if (list.enumerableAccounts.add(account)) {
                 emit AddedAccountToList(listType, id, account);
@@ -1174,15 +1147,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         bytes32[] calldata codehashes
     ) 
     internal
-    onlyListOwner(id) 
-    notZero(codehashes.length) {
+    onlyListOwner(id) {
         bytes32 codehash;
         for (uint256 i = 0; i < codehashes.length;) {
             codehash = codehashes[i];
-
-            if (codehash == BYTES32_ZERO) {
-                revert CreatorTokenTransferValidator__ZeroCodeHashNotAllowed();
-            }
 
             if (list.enumerableCodehashes.add(codehash)) {
                 emit AddedCodeHashToList(listType, id, codehash);
@@ -1195,17 +1163,6 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         }
     }
 
-    function _removeAccountFromList(
-        List storage list,
-        uint8 listType,
-        uint120 id,
-        address account
-    ) internal {
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
-        _removeAccountsFromList(list, listType, id, accounts);
-    }
-
     /**
      * @notice Removes one or more accounts from a list.
      */
@@ -1216,8 +1173,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         address[] memory accounts
     ) 
     internal 
-    onlyListOwner(id) 
-    notZero(accounts.length) {
+    onlyListOwner(id) {
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
@@ -1242,8 +1198,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         bytes32[] calldata codehashes
     ) 
     internal 
-    onlyListOwner(id) 
-    notZero(codehashes.length) {
+    onlyListOwner(id) {
         bytes32 codehash;
         for (uint256 i = 0; i < codehashes.length;) {
             codehash = codehashes[i];
@@ -1304,15 +1259,6 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function _getCodeHashAsm(address account) internal view returns (bytes32 codehash) {
         assembly { codehash := extcodehash(account) }
-    }
-
-    /**
-     * @dev Reverts if `value` is zero.
-     */
-    function _requireNotZero(uint256 value) internal pure {
-        if (value == 0) {
-            revert CreatorTokenTransferValidator__ArrayLengthCannotBeZero();
-        }
     }
 
     /**
@@ -1615,5 +1561,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
             }
             hasRole, isError := _callHasRole(tokenAddress, role, account)
         }
+    }
+
+    function _asSingletonArray(address account) private pure returns (address[] memory array) {
+        array = new address[](1);
+        array[0] = account;
     }
 }

@@ -526,6 +526,877 @@ contract TransferValidatorTest is Events, Helpers {
         validator.unfreezeAccountsForCollection(collection, accountsToUnfreeze);
     }
 
+    function testAddAccountToBlacklist(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        vm.expectEmit(true, true, true, true);
+        emit AddedAccountToList(LIST_TYPE_BLACKLIST, listId, account);
+
+        vm.prank(listOwner);
+        validator.addAccountToBlacklist(listId, account);
+        assertTrue(validator.isAccountBlacklisted(listId, account));
+    }
+
+    function testRevertsWhenUnauthorizedUserAddsAccountToBlacklist(
+        address listOwner,
+        address unauthorizedUser,
+        address account
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addAccountToBlacklist(listId, account);
+    }
+
+    function testAddAccountsToBlacklist(address listOwner, uint256 numAccountsToBlacklist, address[10] memory accounts) public {
+        _sanitizeAddress(listOwner);
+        numAccountsToBlacklist = bound(numAccountsToBlacklist, 0, 10);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        uint256 expectedNumAccountsBlacklisted = 0;
+        address[] memory accountsToBlacklist = new address[](numAccountsToBlacklist);
+        for (uint256 i = 0; i < numAccountsToBlacklist; i++) {
+            bool firstTimeAccount = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (accountsToBlacklist[j] == accounts[i]) {
+                    firstTimeAccount = false;
+                    break;
+                }
+            }
+
+            accountsToBlacklist[i] = accounts[i];
+
+            if (firstTimeAccount) {
+                expectedNumAccountsBlacklisted++;
+                vm.expectEmit(true, true, true, true);
+                emit AddedAccountToList(LIST_TYPE_BLACKLIST, listId, accounts[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.addAccountsToBlacklist(listId, accountsToBlacklist);
+
+        for (uint256 i = 0; i < numAccountsToBlacklist; i++) {
+            assertTrue(validator.isAccountBlacklisted(listId, accountsToBlacklist[i]));
+        }
+
+        address[] memory blacklistedAccounts = validator.getBlacklistedAccounts(listId);
+        assertEq(blacklistedAccounts.length, expectedNumAccountsBlacklisted);
+    }
+
+    function testRevertsWhenUnauthorizedUserAddsAccountsToBlacklist(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numAccountsToBlacklist,
+        address[10] memory accounts
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        numAccountsToBlacklist = bound(numAccountsToBlacklist, 1, 10);
+
+        address[] memory accountsToBlacklist = new address[](numAccountsToBlacklist);
+        for (uint256 i = 0; i < numAccountsToBlacklist; i++) {
+            accountsToBlacklist[i] = accounts[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addAccountsToBlacklist(0, accountsToBlacklist);
+    }
+
+    function testRemoveAccountFromBlacklist(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+        validator.addAccountToBlacklist(listId, account);
+
+        vm.expectEmit(true, true, true, true);
+        emit RemovedAccountFromList(LIST_TYPE_BLACKLIST, listId, account);
+
+        validator.removeAccountFromBlacklist(listId, account);
+        assertFalse(validator.isAccountBlacklisted(listId, account));
+        vm.stopPrank();
+    }
+
+    function testRevertsWhenUnauthorizedUserRemovesAccountFromBlacklist(
+        address listOwner,
+        address unauthorizedUser,
+        address account
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+        validator.addAccountToBlacklist(listId, account);
+        vm.stopPrank();
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeAccountFromBlacklist(listId, account);
+    }
+
+    function testRemoveAccountsFromBlacklist(address listOwner, uint256 numAccountsToRemove, address[10] memory accounts) public {
+        _sanitizeAddress(listOwner);
+        numAccountsToRemove = bound(numAccountsToRemove, 1, 10);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accountsToBlacklist = new address[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            accountsToBlacklist[i] = accounts[i];
+        }
+
+        validator.addAccountsToBlacklist(listId, accountsToBlacklist);
+        vm.stopPrank();
+
+        uint256 numPreBlacklistedAccounts = validator.getBlacklistedAccounts(listId).length;
+
+        uint256 expectedNumAccountsRemoved = 0;
+        address[] memory accountsToRemove = new address[](numAccountsToRemove);
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            bool firstTimeAccount = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (accountsToRemove[j] == accounts[i]) {
+                    firstTimeAccount = false;
+                    break;
+                }
+            }
+
+            accountsToRemove[i] = accounts[i];
+
+            if (firstTimeAccount) {
+                expectedNumAccountsRemoved++;
+                vm.expectEmit(true, true, true, true);
+                emit RemovedAccountFromList(LIST_TYPE_BLACKLIST, listId, accounts[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.removeAccountsFromBlacklist(listId, accountsToRemove);
+
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            assertFalse(validator.isAccountBlacklisted(listId, accountsToRemove[i]));
+        }
+
+        address[] memory blacklistedAccounts = validator.getBlacklistedAccounts(listId);
+        assertEq(blacklistedAccounts.length, numPreBlacklistedAccounts - expectedNumAccountsRemoved);
+    }
+
+    function testRevertsWhenUnauthorizedUserRemovesAccountsFromBlacklist(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numAccountsToRemove,
+        address[10] memory accounts
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        numAccountsToRemove = bound(numAccountsToRemove, 1, 10);
+
+        address[] memory accountsToRemove = new address[](numAccountsToRemove);
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            accountsToRemove[i] = accounts[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeAccountsFromBlacklist(listId, accountsToRemove);
+    }
+
+    function testAddAccountToWhitelist(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        vm.expectEmit(true, true, true, true);
+        emit AddedAccountToList(LIST_TYPE_WHITELIST, listId, account);
+
+        vm.prank(listOwner);
+        validator.addAccountToWhitelist(listId, account);
+        assertTrue(validator.isAccountWhitelisted(listId, account));
+    }
+
+    function testRevertsWhenUnauthorizedUserAddsAccountToWhitelist(
+        address listOwner,
+        address unauthorizedUser,
+        address account
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addAccountToWhitelist(listId, account);
+    }
+
+    function testAddAccountsToWhitelist(address listOwner, uint256 numAccountsToWhitelist, address[10] memory accounts) public {
+        _sanitizeAddress(listOwner);
+        numAccountsToWhitelist = bound(numAccountsToWhitelist, 1, 10);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        uint256 expectedNumAccountsWhitelisted = 0;
+        address[] memory accountsToWhitelist = new address[](numAccountsToWhitelist);
+        for (uint256 i = 0; i < numAccountsToWhitelist; i++) {
+            bool firstTimeAccount = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (accountsToWhitelist[j] == accounts[i]) {
+                    firstTimeAccount = false;
+                    break;
+                }
+            }
+
+            accountsToWhitelist[i] = accounts[i];
+
+            if (firstTimeAccount) {
+                expectedNumAccountsWhitelisted++;
+                vm.expectEmit(true, true, true, true);
+                emit AddedAccountToList(LIST_TYPE_WHITELIST, listId, accounts[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.addAccountsToWhitelist(listId, accountsToWhitelist);
+
+        for (uint256 i = 0; i < numAccountsToWhitelist; i++) {
+            assertTrue(validator.isAccountWhitelisted(listId, accountsToWhitelist[i]));
+        }
+
+        address[] memory whitelistedAccounts = validator.getWhitelistedAccounts(listId);
+        assertEq(whitelistedAccounts.length, expectedNumAccountsWhitelisted);
+    }
+
+    function testRevertsWhenUnauthorizedUserAddsAccountsToWhitelist(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numAccountsToWhitelist,
+        address[10] memory accounts
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        numAccountsToWhitelist = bound(numAccountsToWhitelist, 1, 10);
+
+        address[] memory accountsToWhitelist = new address[](numAccountsToWhitelist);
+        for (uint256 i = 0; i < numAccountsToWhitelist; i++) {
+            accountsToWhitelist[i] = accounts[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addAccountsToWhitelist(0, accountsToWhitelist);
+    }
+
+    function testRemoveAccountFromWhitelist(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+        validator.addAccountToWhitelist(listId, account);
+
+        vm.expectEmit(true, true, true, true);
+        emit RemovedAccountFromList(LIST_TYPE_WHITELIST, listId, account);
+
+        validator.removeAccountFromWhitelist(listId, account);
+        assertFalse(validator.isAccountWhitelisted(listId, account));
+        vm.stopPrank();
+    }
+
+    function testRevertsWhenUnauthorizedUserRemovesAccountFromWhitelist(
+        address listOwner,
+        address unauthorizedUser,
+        address account
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+        validator.addAccountToWhitelist(listId, account);
+        vm.stopPrank();
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeAccountFromWhitelist(listId, account);
+    }
+
+    function testRemoveAccountsFromWhitelist(address listOwner, uint256 numAccountsToRemove, address[10] memory accounts) public {
+        _sanitizeAddress(listOwner);
+        numAccountsToRemove = bound(numAccountsToRemove, 1, 10);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accountsToWhitelist = new address[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            accountsToWhitelist[i] = accounts[i];
+        }
+
+        validator.addAccountsToWhitelist(listId, accountsToWhitelist);
+        vm.stopPrank();
+
+        uint256 numPreWhitelistedAccounts = validator.getWhitelistedAccounts(listId).length;
+
+        uint256 expectedNumAccountsRemoved = 0;
+        address[] memory accountsToRemove = new address[](numAccountsToRemove);
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            bool firstTimeAccount = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (accountsToRemove[j] == accounts[i]) {
+                    firstTimeAccount = false;
+                    break;
+                }
+            }
+
+            accountsToRemove[i] = accounts[i];
+
+            if (firstTimeAccount) {
+                expectedNumAccountsRemoved++;
+                vm.expectEmit(true, true, true, true);
+                emit RemovedAccountFromList(LIST_TYPE_WHITELIST, listId, accounts[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.removeAccountsFromWhitelist(listId, accountsToRemove);
+
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            assertFalse(validator.isAccountWhitelisted(listId, accountsToRemove[i]));
+        }
+
+        address[] memory whitelistedAccounts = validator.getWhitelistedAccounts(listId);
+        assertEq(whitelistedAccounts.length, numPreWhitelistedAccounts - expectedNumAccountsRemoved);
+    }
+
+    function testRevertsWhenUnauthorizedUserRemovesAccountsFromWhitelist(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numAccountsToRemove,
+        address[10] memory accounts
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        numAccountsToRemove = bound(numAccountsToRemove, 1, 10);
+
+        address[] memory accountsToRemove = new address[](numAccountsToRemove);
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            accountsToRemove[i] = accounts[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeAccountsFromWhitelist(listId, accountsToRemove);
+    }
+
+    function testAddAccountToAuthorizerList(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        vm.expectEmit(true, true, true, true);
+        emit AddedAccountToList(LIST_TYPE_AUTHORIZERS, listId, account);
+
+        vm.prank(listOwner);
+        validator.addAccountToAuthorizers(listId, account);
+        assertTrue(validator.isAccountAuthorizer(listId, account));
+    }
+
+    function testRevertsWhenUnauthorizedUserAddsAccountToAuthorizerList(
+        address listOwner,
+        address unauthorizedUser,
+        address account
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addAccountToAuthorizers(listId, account);
+    }
+
+    function testAddAccountsToAuthorizerList(address listOwner, uint256 numAccountsToAuthorize, address[10] memory accounts) public {
+        _sanitizeAddress(listOwner);
+        numAccountsToAuthorize = bound(numAccountsToAuthorize, 1, 10);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        uint256 expectedNumAccountsAuthorized = 0;
+        address[] memory accountsToAuthorize = new address[](numAccountsToAuthorize);
+        for (uint256 i = 0; i < numAccountsToAuthorize; i++) {
+            bool firstTimeAccount = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (accountsToAuthorize[j] == accounts[i]) {
+                    firstTimeAccount = false;
+                    break;
+                }
+            }
+
+            accountsToAuthorize[i] = accounts[i];
+
+            if (firstTimeAccount) {
+                expectedNumAccountsAuthorized++;
+                vm.expectEmit(true, true, true, true);
+                emit AddedAccountToList(LIST_TYPE_AUTHORIZERS, listId, accounts[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.addAccountsToAuthorizers(listId, accountsToAuthorize);
+
+        for (uint256 i = 0; i < numAccountsToAuthorize; i++) {
+            assertTrue(validator.isAccountAuthorizer(listId, accountsToAuthorize[i]));
+        }
+
+        address[] memory authorizerAccounts = validator.getAuthorizerAccounts(listId);
+        assertEq(authorizerAccounts.length, expectedNumAccountsAuthorized);
+    }
+
+    function testRevertsWhenUnauthorizedUserAddsAccountsToAuthorizerList(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numAccountsToAuthorize,
+        address[10] memory accounts
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        numAccountsToAuthorize = bound(numAccountsToAuthorize, 1, 10);
+
+        address[] memory accountsToAuthorize = new address[](numAccountsToAuthorize);
+        for (uint256 i = 0; i < numAccountsToAuthorize; i++) {
+            accountsToAuthorize[i] = accounts[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addAccountsToAuthorizers(0, accountsToAuthorize);
+    }
+
+    function testRemoveAccountFromAuthorizerList(address listOwner, address account) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(account);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+        validator.addAccountToAuthorizers(listId, account);
+
+        vm.expectEmit(true, true, true, true);
+        emit RemovedAccountFromList(LIST_TYPE_AUTHORIZERS, listId, account);
+
+        validator.removeAccountFromAuthorizers(listId, account);
+        assertFalse(validator.isAccountAuthorizer(listId, account));
+        vm.stopPrank();
+    }
+
+    function testRevertsWhenUnauthorizedUserRemovesAccountFromAuthorizerList(
+        address listOwner,
+        address unauthorizedUser,
+        address account
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        _sanitizeAddress(account);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+        validator.addAccountToAuthorizers(listId, account);
+        vm.stopPrank();
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeAccountFromAuthorizers(listId, account);
+    }
+
+    function testRemoveAccountsFromAuthorizerList(address listOwner, uint256 numAccountsToRemove, address[10] memory accounts) public {
+        _sanitizeAddress(listOwner);
+        numAccountsToRemove = bound(numAccountsToRemove, 1, 10);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        address[] memory accountsToAuthorize = new address[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            accountsToAuthorize[i] = accounts[i];
+        }
+
+        validator.addAccountsToAuthorizers(listId, accountsToAuthorize);
+        vm.stopPrank();
+
+        uint256 numPreAuthorizedAccounts = validator.getAuthorizerAccounts(listId).length;
+
+        uint256 expectedNumAccountsRemoved = 0;
+        address[] memory accountsToRemove = new address[](numAccountsToRemove);
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            bool firstTimeAccount = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (accountsToRemove[j] == accounts[i]) {
+                    firstTimeAccount = false;
+                    break;
+                }
+            }
+
+            accountsToRemove[i] = accounts[i];
+
+            if (firstTimeAccount) {
+                expectedNumAccountsRemoved++;
+                vm.expectEmit(true, true, true, true);
+                emit RemovedAccountFromList(LIST_TYPE_AUTHORIZERS, listId, accounts[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.removeAccountsFromAuthorizers(listId, accountsToRemove);
+
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            assertFalse(validator.isAccountAuthorizer(listId, accountsToRemove[i]));
+        }
+
+        address[] memory authorizerAccounts = validator.getAuthorizerAccounts(listId);
+        assertEq(authorizerAccounts.length, numPreAuthorizedAccounts - expectedNumAccountsRemoved);
+    }
+
+    function testRevertsWhenUnauthorizedUserRemovesAccountsFromAuthorizerList(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numAccountsToRemove,
+        address[10] memory accounts
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        numAccountsToRemove = bound(numAccountsToRemove, 1, 10);
+
+        address[] memory accountsToRemove = new address[](numAccountsToRemove);
+        for (uint256 i = 0; i < numAccountsToRemove; i++) {
+            accountsToRemove[i] = accounts[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeAccountsFromAuthorizers(listId, accountsToRemove);
+    }
+
+    function testAddCodeHashesToBlacklist(address listOwner, uint256 numCodeHashesToBlacklist, bytes32[10] memory codeHashes) public {
+        _sanitizeAddress(listOwner);
+        numCodeHashesToBlacklist = bound(numCodeHashesToBlacklist, 1, 10);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        uint256 expectedNumCodeHashesBlacklisted = 0;
+        bytes32[] memory codeHashesToBlacklist = new bytes32[](numCodeHashesToBlacklist);
+        for (uint256 i = 0; i < numCodeHashesToBlacklist; i++) {
+            bool firstTimeCodeHash = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (codeHashesToBlacklist[j] == codeHashes[i]) {
+                    firstTimeCodeHash = false;
+                    break;
+                }
+            }
+
+            codeHashesToBlacklist[i] = codeHashes[i];
+
+            if (firstTimeCodeHash) {
+                expectedNumCodeHashesBlacklisted++;
+                vm.expectEmit(true, true, true, true);
+                emit AddedCodeHashToList(LIST_TYPE_BLACKLIST, listId, codeHashes[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.addCodeHashesToBlacklist(listId, codeHashesToBlacklist);
+
+        for (uint256 i = 0; i < numCodeHashesToBlacklist; i++) {
+            assertTrue(validator.isCodeHashBlacklisted(listId, codeHashesToBlacklist[i]));
+        }
+
+        bytes32[] memory blacklistedCodeHashes = validator.getBlacklistedCodeHashes(listId);
+        assertEq(blacklistedCodeHashes.length, expectedNumCodeHashesBlacklisted);
+    }
+
+    function testRevertsWhenUnauthorizedUserAddsCodeHashesToBlacklist(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numCodeHashesToBlacklist,
+        bytes32[10] memory codeHashes
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        numCodeHashesToBlacklist = bound(numCodeHashesToBlacklist, 1, 10);
+
+        bytes32[] memory codeHashesToBlacklist = new bytes32[](numCodeHashesToBlacklist);
+        for (uint256 i = 0; i < numCodeHashesToBlacklist; i++) {
+            codeHashesToBlacklist[i] = codeHashes[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addCodeHashesToBlacklist(0, codeHashesToBlacklist);
+    }
+
+    function testRemoveCodeHashesFromBlacklist(address listOwner, uint256 numCodeHashesToRemove, bytes32[10] memory codeHashes) public {
+        _sanitizeAddress(listOwner);
+        numCodeHashesToRemove = bound(numCodeHashesToRemove, 1, 10);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codeHashesToBlacklist = new bytes32[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            codeHashesToBlacklist[i] = codeHashes[i];
+        }
+
+        validator.addCodeHashesToBlacklist(listId, codeHashesToBlacklist);
+        vm.stopPrank();
+
+        uint256 numPreBlacklistedCodeHashes = validator.getBlacklistedCodeHashes(listId).length;
+
+        uint256 expectedNumCodeHashesRemoved = 0;
+        bytes32[] memory codeHashesToRemove = new bytes32[](numCodeHashesToRemove);
+        for (uint256 i = 0; i < numCodeHashesToRemove; i++) {
+            bool firstTimeCodeHash = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (codeHashesToRemove[j] == codeHashes[i]) {
+                    firstTimeCodeHash = false;
+                    break;
+                }
+            }
+
+            codeHashesToRemove[i] = codeHashes[i];
+
+            if (firstTimeCodeHash) {
+                expectedNumCodeHashesRemoved++;
+                vm.expectEmit(true, true, true, true);
+                emit RemovedCodeHashFromList(LIST_TYPE_BLACKLIST, listId, codeHashes[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.removeCodeHashesFromBlacklist(listId, codeHashesToRemove);
+
+        for (uint256 i = 0; i < numCodeHashesToRemove; i++) {
+            assertFalse(validator.isCodeHashBlacklisted(listId, codeHashesToRemove[i]));
+        }
+
+        bytes32[] memory blacklistedCodeHashes = validator.getBlacklistedCodeHashes(listId);
+        assertEq(blacklistedCodeHashes.length, numPreBlacklistedCodeHashes - expectedNumCodeHashesRemoved);
+    }
+
+    function testRevertsWhenUnauthorizedUserRemovesCodeHashesFromBlacklist(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numCodeHashesToRemove,
+        bytes32[10] memory codeHashes
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        numCodeHashesToRemove = bound(numCodeHashesToRemove, 1, 10);
+
+        bytes32[] memory codeHashesToRemove = new bytes32[](numCodeHashesToRemove);
+        for (uint256 i = 0; i < numCodeHashesToRemove; i++) {
+            codeHashesToRemove[i] = codeHashes[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeCodeHashesFromBlacklist(listId, codeHashesToRemove);
+    }
+
+    function testAddCodeHashesToWhitelist(address listOwner, uint256 numCodeHashesToWhitelist, bytes32[10] memory codeHashes) public {
+        _sanitizeAddress(listOwner);
+        numCodeHashesToWhitelist = bound(numCodeHashesToWhitelist, 1, 10);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        uint256 expectedNumCodeHashesWhitelisted = 0;
+        bytes32[] memory codeHashesToWhitelist = new bytes32[](numCodeHashesToWhitelist);
+        for (uint256 i = 0; i < numCodeHashesToWhitelist; i++) {
+            bool firstTimeCodeHash = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (codeHashesToWhitelist[j] == codeHashes[i]) {
+                    firstTimeCodeHash = false;
+                    break;
+                }
+            }
+
+            codeHashesToWhitelist[i] = codeHashes[i];
+
+            if (firstTimeCodeHash) {
+                expectedNumCodeHashesWhitelisted++;
+                vm.expectEmit(true, true, true, true);
+                emit AddedCodeHashToList(LIST_TYPE_WHITELIST, listId, codeHashes[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.addCodeHashesToWhitelist(listId, codeHashesToWhitelist);
+
+        for (uint256 i = 0; i < numCodeHashesToWhitelist; i++) {
+            assertTrue(validator.isCodeHashWhitelisted(listId, codeHashesToWhitelist[i]));
+        }
+
+        bytes32[] memory whitelistedCodeHashes = validator.getWhitelistedCodeHashes(listId);
+        assertEq(whitelistedCodeHashes.length, expectedNumCodeHashesWhitelisted);
+    }
+
+    function testRevertsWhenUnauthorizedUserAddsCodeHashesToWhitelist(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numCodeHashesToWhitelist,
+        bytes32[10] memory codeHashes
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        numCodeHashesToWhitelist = bound(numCodeHashesToWhitelist, 1, 10);
+
+        bytes32[] memory codeHashesToWhitelist = new bytes32[](numCodeHashesToWhitelist);
+        for (uint256 i = 0; i < numCodeHashesToWhitelist; i++) {
+            codeHashesToWhitelist[i] = codeHashes[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.addCodeHashesToWhitelist(0, codeHashesToWhitelist);
+    }
+
+    function testRemoveCodeHashesFromWhitelist(address listOwner, uint256 numCodeHashesToRemove, bytes32[10] memory codeHashes) public {
+        _sanitizeAddress(listOwner);
+        numCodeHashesToRemove = bound(numCodeHashesToRemove, 1, 10);
+
+        vm.startPrank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        bytes32[] memory codeHashesToWhitelist = new bytes32[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            codeHashesToWhitelist[i] = codeHashes[i];
+        }
+
+        validator.addCodeHashesToWhitelist(listId, codeHashesToWhitelist);
+        vm.stopPrank();
+
+        uint256 numPreWhitelistedCodeHashes = validator.getWhitelistedCodeHashes(listId).length;
+
+        uint256 expectedNumCodeHashesRemoved = 0;
+        bytes32[] memory codeHashesToRemove = new bytes32[](numCodeHashesToRemove);
+        for (uint256 i = 0; i < numCodeHashesToRemove; i++) {
+            bool firstTimeCodeHash = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (codeHashesToRemove[j] == codeHashes[i]) {
+                    firstTimeCodeHash = false;
+                    break;
+                }
+            }
+
+            codeHashesToRemove[i] = codeHashes[i];
+
+            if (firstTimeCodeHash) {
+                expectedNumCodeHashesRemoved++;
+                vm.expectEmit(true, true, true, true);
+                emit RemovedCodeHashFromList(LIST_TYPE_WHITELIST, listId, codeHashes[i]);
+            }
+        }
+
+        vm.prank(listOwner);
+        validator.removeCodeHashesFromWhitelist(listId, codeHashesToRemove);
+
+        for (uint256 i = 0; i < numCodeHashesToRemove; i++) {
+            assertFalse(validator.isCodeHashWhitelisted(listId, codeHashesToRemove[i]));
+        }
+
+        bytes32[] memory whitelistedCodeHashes = validator.getWhitelistedCodeHashes(listId);
+        assertEq(whitelistedCodeHashes.length, numPreWhitelistedCodeHashes - expectedNumCodeHashesRemoved);
+    }
+
+    function testRevertsWhenUnauthorizedUserRemovesCodeHashesFromWhitelist(
+        address listOwner,
+        address unauthorizedUser,
+        uint256 numCodeHashesToRemove,
+        bytes32[10] memory codeHashes
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(listOwner != unauthorizedUser);
+
+        vm.prank(listOwner);
+        uint120 listId = validator.createList("test");
+
+        numCodeHashesToRemove = bound(numCodeHashesToRemove, 1, 10);
+
+        bytes32[] memory codeHashesToRemove = new bytes32[](numCodeHashesToRemove);
+        for (uint256 i = 0; i < numCodeHashesToRemove; i++) {
+            codeHashesToRemove[i] = codeHashes[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
+        vm.prank(unauthorizedUser);
+        validator.removeCodeHashesFromWhitelist(listId, codeHashesToRemove);
+    }
 
     /*
 
