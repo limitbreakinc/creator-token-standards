@@ -352,18 +352,16 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      *      3. A `CreatedList` event is emitted.
      *      4. A `ReassignedListOwnership` event is emitted.
      *
-     * @param name The name of the new list.
-     * @return     The id of the new list.
+     * @param  name The name of the new list.
+     * @return id   The id of the new list.
      */
-    function createList(string calldata name) public returns (uint120) {
-        uint120 id = ++lastListId;
+    function createList(string calldata name) public returns (uint120 id) {
+        id = ++lastListId;
 
         listOwners[id] = _msgSender();
 
         emit CreatedList(id, name);
         emit ReassignedListOwnership(id, _msgSender());
-
-        return id;
     }
 
     /**
@@ -380,12 +378,12 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      *         6. An `AddedAccountToList` event is emitted for each blacklisted and whitelisted account copied.
      *         7. An `AddedCodeHashToList` event is emitted for each blacklisted and whitelisted codehash copied.
      *
-     * @param name         The name of the new list.
-     * @param sourceListId The id of the source list to copy from.
-     * @return             The id of the new list.
+     * @param  name         The name of the new list.
+     * @param  sourceListId The id of the source list to copy from.
+     * @return id           The id of the new list.
      */
-    function createListCopy(string calldata name, uint120 sourceListId) external returns (uint120) {
-        uint120 id = ++lastListId;
+    function createListCopy(string calldata name, uint120 sourceListId) external returns (uint120 id) {
+        id = ++lastListId;
 
         unchecked {
             if (sourceListId > id - 1) {
@@ -411,8 +409,6 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         _copyBytes32Set(LIST_TYPE_WHITELIST, id, sourceWhitelist, targetWhitelist);
         _copyAddressSet(LIST_TYPE_AUTHORIZERS, id, sourceAuthorizers, targetAuthorizers);
         _copyBytes32Set(LIST_TYPE_AUTHORIZERS, id, sourceAuthorizers, targetAuthorizers);
-
-        return id;
     }
 
     /**
@@ -469,7 +465,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         bool enableAuthorizationMode,
         bool enableAccountFreezingMode) external {
 
-        if (level > TRANSFER_SECURITY_LEVEL_EIGHT) {
+        if (level > TRANSFER_SECURITY_LEVEL_NINE) {
             revert CreatorTokenTransferValidator__InvalidTransferSecurityLevel();
         }
 
@@ -550,7 +546,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      * @return           The security policy of the specified collection, which includes:
      *                   Transfer security level, operator whitelist id, permitted contract receiver allowlist id
      */
-    function getCollectionSecurityPolicyV3(address collection) 
+    function getCollectionSecurityPolicy(address collection) 
         external view returns (CollectionSecurityPolicyV3 memory) {
         return collectionSecurityPolicies[collection];
     }
@@ -1025,20 +1021,17 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      */
     function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
         bool callerHasPermissions = false;
-        if(_getCodeLengthAsm(tokenAddress) > 0) {
-            callerHasPermissions = _msgSender() == tokenAddress;
+
+        address caller = _msgSender();
+        
+        callerHasPermissions = caller == tokenAddress;
+        if(!callerHasPermissions) {
+            (address contractOwner,) = _safeOwner(tokenAddress);
+            callerHasPermissions = caller == contractOwner;
+
             if(!callerHasPermissions) {
-
-                try IOwnable(tokenAddress).owner() returns (address contractOwner) {
-                    callerHasPermissions = _msgSender() == contractOwner;
-                } catch {}
-
-                if(!callerHasPermissions) {
-                    try IAccessControl(tokenAddress).hasRole(DEFAULT_ACCESS_CONTROL_ADMIN_ROLE, _msgSender()) 
-                        returns (bool callerIsContractAdmin) {
-                        callerHasPermissions = callerIsContractAdmin;
-                    } catch {}
-                }
+                (bool callerIsContractAdmin,) = _safeHasRole(tokenAddress, DEFAULT_ACCESS_CONTROL_ADMIN_ROLE, caller);
+                callerHasPermissions = callerIsContractAdmin;
             }
         }
 
@@ -1332,7 +1325,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         address from, 
         address to, 
         uint256 id, 
-        uint256 amount
+        uint256 /*amount*/
     ) internal override returns (bool isError) {
         isError = SELECTOR_NO_ERROR != _validateTransfer(token, msg.sender, from, to, id);
     }
@@ -1573,6 +1566,54 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function _tload(bytes32 slot) internal view returns (bytes32 value) {
         assembly {
             value := tload(slot)
+        }
+    }
+
+    /**
+     * @dev A gas efficient, and fallback-safe way to call the owner function on a token contract.
+     *      This will get the owner if it exists - and when the function is unimplemented, the
+     *      presence of a fallback function will not result in halted execution.
+     */
+    function _safeOwner(
+        address tokenAddress
+    ) internal view returns(address owner, bool isError) {
+        assembly {
+            function _callOwner(_tokenAddress) -> _owner, _isError {
+                mstore(0x00, 0x8da5cb5b)
+                if and(not(lt(returndatasize(), 0x20)), staticcall(gas(), _tokenAddress, 0x1C, 0x04, 0x00, 0x20)) {
+                    _owner := mload(0x00)
+                    leave
+                }
+                _isError := true
+            }
+            owner, isError := _callOwner(tokenAddress)
+        }
+    }
+    
+    /**
+     * @dev A gas efficient, and fallback-safe way to call the hasRole function on a token contract.
+     *      This will check if the account `hasRole` if `hasRole` exists - and when the function is unimplemented, the
+     *      presence of a fallback function will not result in halted execution.
+     */
+    function _safeHasRole(
+        address tokenAddress,
+        bytes32 role,
+        address account
+    ) internal view returns(bool hasRole, bool isError) {
+        assembly {
+            function _callHasRole(_tokenAddress, _role, _account) -> _hasRole, _isError {
+                let ptr := mload(0x40)
+                mstore(0x40, add(ptr, 0x60))
+                mstore(ptr, 0x91d14854)
+                mstore(add(0x20, ptr), _role)
+                mstore(add(0x40, ptr), _account)
+                if and(not(lt(returndatasize(), 0x20)), staticcall(gas(), _tokenAddress, add(ptr, 0x1C), 0x44, 0x00, 0x20)) {
+                    _hasRole := mload(0x00)
+                    leave
+                }
+                _isError := true
+            }
+            hasRole, isError := _callHasRole(tokenAddress, role, account)
         }
     }
 }

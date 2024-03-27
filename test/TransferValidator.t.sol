@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "./mocks/ClonerMock.sol";
 import "./mocks/ContractMock.sol";
@@ -10,16 +9,20 @@ import "./interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
 import "src/utils/CreatorTokenTransferValidator.sol";
 import "src/Constants.sol";
+import "./utils/Events.sol";
+import "./utils/Helpers.sol";
 
-contract TransferValidatorTest is Test {
-    using EnumerableSet for EnumerableSet.AddressSet;
-    using EnumerableSet for EnumerableSet.Bytes32Set;
+contract TransferValidatorTest is Events, Helpers {
+    //using EnumerableSet for EnumerableSet.AddressSet;
+    //using EnumerableSet for EnumerableSet.Bytes32Set;
 
     CreatorTokenTransferValidator public validator;
 
     address whitelistedOperator;
 
-    function setUp() public virtual {
+    function setUp() public virtual override {
+        super.setUp();
+
         validator = new CreatorTokenTransferValidator(address(this), "", "");
 
         whitelistedOperator = vm.addr(2);
@@ -98,11 +101,9 @@ contract TransferValidatorTest is Test {
         assertTrue(receiverConstraints == RECEIVER_CONSTRAINTS_SBT);
     }
 
-    /*
-
-    function testCreateOperatorWhitelist(address listOwner, string memory name) public {
-        vm.assume(listOwner != address(0));
-        vm.assume(bytes(name).length < 200);
+    function testCreateList(address listOwner, bytes32 nameBytes) public {
+        _sanitizeAddress(listOwner);
+        string memory name = string(abi.encodePacked(nameBytes));
 
         uint120 firstListId = 1;
         for (uint120 i = 0; i < 5; ++i) {
@@ -115,304 +116,418 @@ contract TransferValidatorTest is Test {
             emit ReassignedListOwnership(expectedId, listOwner);
 
             vm.prank(listOwner);
-            uint120 actualId = validator.createOperatorWhitelist(name);
+            uint120 actualId = validator.createList(name);
             assertEq(actualId, expectedId);
             assertEq(validator.listOwners(actualId), listOwner);
         }
     }
 
-    function testReassignOwnershipOfOperatorWhitelist(address originalListOwner, address newListOwner) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(newListOwner != address(0));
+    function testCreateListCopy(
+        address listOwner, 
+        address listCopyOwner, 
+        bytes32 nameBytes, 
+        bytes32 nameBytesCopy,
+        address whitelistedAccount,
+        address blacklistedAccount,
+        address authorizerAccount
+    ) public {
+        _sanitizeAddress(listOwner);
+        _sanitizeAddress(listCopyOwner);
+        _sanitizeAddress(whitelistedAccount);
+        _sanitizeAddress(blacklistedAccount);
+        _sanitizeAddress(authorizerAccount);
+        string memory name = string(abi.encodePacked(nameBytes));
+        string memory nameCopy = string(abi.encodePacked(nameBytesCopy));
+
+        bytes32[] memory whitelistedCodeHashes = new bytes32[](2);
+        whitelistedCodeHashes[0] = keccak256(abi.encode(whitelistedAccount));
+        whitelistedCodeHashes[1] = keccak256(abi.encode(whitelistedCodeHashes[0]));
+
+        bytes32[] memory blacklistedCodeHashes = new bytes32[](2);
+        blacklistedCodeHashes[0] = keccak256(abi.encode(blacklistedAccount));
+        blacklistedCodeHashes[1] = keccak256(abi.encode(blacklistedCodeHashes[0]));
+
+        vm.startPrank(listOwner);
+        uint120 sourceListId = validator.createList(name);
+        validator.addAccountToWhitelist(sourceListId, whitelistedAccount);
+        validator.addAccountToWhitelist(sourceListId, address(uint160(uint256(keccak256(abi.encode(whitelistedAccount))))));
+        validator.addAccountToBlacklist(sourceListId, blacklistedAccount);
+        validator.addAccountToBlacklist(sourceListId, address(uint160(uint256(keccak256(abi.encode(blacklistedAccount))))));
+        validator.addAccountToAuthorizers(sourceListId, authorizerAccount);
+        validator.addAccountToAuthorizers(sourceListId, address(uint160(uint256(keccak256(abi.encode(authorizerAccount))))));
+        validator.addCodeHashesToWhitelist(sourceListId, whitelistedCodeHashes);
+        validator.addCodeHashesToBlacklist(sourceListId, blacklistedCodeHashes);
+        vm.stopPrank();
+
+        uint120 expectedCopyListId = validator.lastListId() + 1;
+
+        vm.expectEmit(true, true, true, false);
+        emit CreatedList(expectedCopyListId, name);
+
+        vm.expectEmit(true, true, true, false);
+        emit ReassignedListOwnership(expectedCopyListId, listCopyOwner);
+
+        vm.prank(listCopyOwner);
+        uint120 copyId = validator.createListCopy(nameCopy, sourceListId);
+
+        assertEq(copyId, expectedCopyListId);
+        assertEq(validator.listOwners(copyId), listCopyOwner);
+
+        address[] memory sourceWhitelistedAccounts = validator.getWhitelistedAccounts(sourceListId);
+        address[] memory sourceBlacklistedAccounts = validator.getBlacklistedAccounts(sourceListId);
+        address[] memory sourceAuthorizerAccounts = validator.getAuthorizerAccounts(sourceListId);
+        bytes32[] memory sourceWhitelistedCodeHashes = validator.getWhitelistedCodeHashes(sourceListId);
+        bytes32[] memory sourceBlacklistedCodeHashes = validator.getBlacklistedCodeHashes(sourceListId);
+
+        address[] memory copyWhitelistedAccounts = validator.getWhitelistedAccounts(copyId);
+        address[] memory copyBlacklistedAccounts = validator.getBlacklistedAccounts(copyId);
+        address[] memory copyAuthorizerAccounts = validator.getAuthorizerAccounts(copyId);
+        bytes32[] memory copyWhitelistedCodeHashes = validator.getWhitelistedCodeHashes(copyId);
+        bytes32[] memory copyBlacklistedCodeHashes = validator.getBlacklistedCodeHashes(copyId);
+
+        assertEq(sourceWhitelistedAccounts.length, copyWhitelistedAccounts.length);
+        assertEq(sourceBlacklistedAccounts.length, copyBlacklistedAccounts.length);
+        assertEq(sourceAuthorizerAccounts.length, copyAuthorizerAccounts.length);
+        assertEq(sourceWhitelistedCodeHashes.length, copyWhitelistedCodeHashes.length);
+        assertEq(sourceBlacklistedCodeHashes.length, copyBlacklistedCodeHashes.length);
+
+        for (uint256 i = 0; i < sourceWhitelistedAccounts.length; i++) {
+            assertEq(sourceWhitelistedAccounts[i], copyWhitelistedAccounts[i]);
+        }
+
+        for (uint256 i = 0; i < sourceBlacklistedAccounts.length; i++) {
+            assertEq(sourceBlacklistedAccounts[i], copyBlacklistedAccounts[i]);
+        }
+
+        for (uint256 i = 0; i < sourceAuthorizerAccounts.length; i++) {
+            assertEq(sourceAuthorizerAccounts[i], copyAuthorizerAccounts[i]);
+        }
+
+        for (uint256 i = 0; i < sourceWhitelistedCodeHashes.length; i++) {
+            assertEq(sourceWhitelistedCodeHashes[i], copyWhitelistedCodeHashes[i]);
+        }
+
+        for (uint256 i = 0; i < sourceBlacklistedCodeHashes.length; i++) {
+            assertEq(sourceBlacklistedCodeHashes[i], copyBlacklistedCodeHashes[i]);
+        }
+    }
+
+    function testRevertsWhenCopyingNonExistentList(uint120 sourceListId) public {
+        uint120 lastKnownListId = validator.lastListId();
+        sourceListId = uint120(bound(sourceListId, lastKnownListId + 1, type(uint120).max));
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ListDoesNotExist.selector);
+        validator.createListCopy("test", sourceListId);
+    }
+
+    function testReassignOwnershipOfList(address originalListOwner, address newListOwner) public {
+        _sanitizeAddress(originalListOwner);
+        _sanitizeAddress(newListOwner);
         vm.assume(originalListOwner != newListOwner);
 
         vm.prank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
+        uint120 listId = validator.createList("test");
 
         vm.expectEmit(true, true, true, false);
         emit ReassignedListOwnership(listId, newListOwner);
 
         vm.prank(originalListOwner);
-        validator.reassignOwnershipOfOperatorWhitelist(listId, newListOwner);
+        validator.reassignOwnershipOfList(listId, newListOwner);
         assertEq(validator.listOwners(listId), newListOwner);
     }
 
-    function testRevertsWhenReassigningOwnershipOfOperatorWhitelistToZero(address originalListOwner) public {
-        vm.assume(originalListOwner != address(0));
+    function testRevertsWhenReassigningOwnershipOfListToZero(address originalListOwner) public {
+        _sanitizeAddress(originalListOwner);
 
         vm.prank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
+        uint120 listId = validator.createList("test");
 
         vm.expectRevert(
             CreatorTokenTransferValidator
                 .CreatorTokenTransferValidator__ListOwnershipCannotBeTransferredToZeroAddress
                 .selector
         );
-        validator.reassignOwnershipOfOperatorWhitelist(listId, address(0));
+        validator.reassignOwnershipOfList(listId, address(0));
     }
 
-    function testRevertsWhenNonOwnerReassignsOwnershipOfOperatorWhitelist(
+    function testRevertsWhenNonOwnerReassignsOwnershipOfList(
         address originalListOwner,
         address unauthorizedUser
     ) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(unauthorizedUser != address(0));
+        _sanitizeAddress(originalListOwner);
+        _sanitizeAddress(unauthorizedUser);
         vm.assume(originalListOwner != unauthorizedUser);
 
         vm.prank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
+        uint120 listId = validator.createList("test");
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
-        validator.reassignOwnershipOfOperatorWhitelist(listId, unauthorizedUser);
+        validator.reassignOwnershipOfList(listId, unauthorizedUser);
     }
 
-    function testRenounceOwnershipOfOperatorWhitelist(address originalListOwner) public {
-        vm.assume(originalListOwner != address(0));
+    function testRenounceOwnershipOfList(address originalListOwner) public {
+        _sanitizeAddress(originalListOwner);
 
         vm.prank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
+        uint120 listId = validator.createList("test");
 
         vm.expectEmit(true, true, true, false);
         emit ReassignedListOwnership(listId, address(0));
 
         vm.prank(originalListOwner);
-        validator.renounceOwnershipOfOperatorWhitelist(listId);
+        validator.renounceOwnershipOfList(listId);
         assertEq(validator.listOwners(listId), address(0));
     }
 
-    function testRevertsWhenNonOwnerRenouncesOwnershipOfOperatorWhitelist(
+    function testRevertsWhenNonOwnerRenouncesOwnershipOfList(
         address originalListOwner,
         address unauthorizedUser
     ) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(unauthorizedUser != address(0));
+        _sanitizeAddress(originalListOwner);
+        _sanitizeAddress(unauthorizedUser);
         vm.assume(originalListOwner != unauthorizedUser);
 
         vm.prank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
+        uint120 listId = validator.createList("test");
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
-        validator.renounceOwnershipOfOperatorWhitelist(listId);
+        validator.renounceOwnershipOfList(listId);
     }
 
-    function testGetTransferValidatorReturnsTransferValidatorAddressBeforeValidatorIsSet(address creator) public {
-        vm.assume(creator != address(0));
+    function testSetTransferSecurityLevelOfCollection(
+        address collection,
+        uint8 level,
+        bool enableAuthorizationMode,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAddress(collection);
 
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-        assertEq(address(token.getTransferValidator()), token.DEFAULT_TRANSFER_VALIDATOR());
+        level = uint8(bound(level, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+
+        vm.expectEmit(true, true, true, true);
+        emit SetTransferSecurityLevel(collection, level);
+
+        vm.expectEmit(true, true, true, true);
+        emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode);
+
+        vm.expectEmit(true, true, true, true);
+        emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
+
+        vm.prank(collection);
+        validator.setTransferSecurityLevelOfCollection(
+            collection, 
+            level, 
+            enableAuthorizationMode, 
+            enableAccountFreezingMode);
+
+        CollectionSecurityPolicyV3 memory policy = validator.getCollectionSecurityPolicy(collection);
+
+        assertEq(policy.transferSecurityLevel, level);
+        assertEq(policy.enableAuthorizationMode, enableAuthorizationMode);
+        assertEq(policy.enableAccountFreezingMode, enableAccountFreezingMode);
     }
 
-    function testRevertsWhenSetTransferValidatorCalledWithContractThatDoesNotImplementRequiredInterface(address creator)
-        public
-    {
-        vm.assume(creator != address(0));
+    function testRevertsWhenSecurityLevelOutOfRangeForSetTransferSecurityLevelOfCollection(
+        address collection,
+        uint8 level,
+        bool enableAuthorizationMode,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAddress(collection);
 
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
+        level = uint8(bound(level, TRANSFER_SECURITY_LEVEL_NINE + 1, type(uint8).max));
 
-        vm.startPrank(creator);
-        address invalidContract = address(new ContractMock());
-        vm.expectRevert(CreatorTokenBase.CreatorTokenBase__InvalidTransferValidatorContract.selector);
-        token.setTransferValidator(invalidContract);
-        vm.stopPrank();
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__InvalidTransferSecurityLevel.selector);
+        vm.prank(collection);
+        validator.setTransferSecurityLevelOfCollection(collection, level, enableAuthorizationMode, enableAccountFreezingMode);
     }
 
-    function testAllowsAlternativeValidatorsToBeSetIfTheyImplementRequiredInterface(address creator) public {
-        vm.assume(creator != address(0));
+    function testRevertsWhenUnauthorizedUserCallsSetTransferSecurityLevelOfCollection(
+        address collection,
+        address unauthorizedUser,
+        uint8 level,
+        bool enableAuthorizationMode,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAddress(collection);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(collection != unauthorizedUser);
 
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
+        level = uint8(bound(level, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
 
-        vm.startPrank(creator);
-        address alternativeValidator = address(new CreatorTokenTransferValidator(creator));
-        token.setTransferValidator(alternativeValidator);
-        vm.stopPrank();
-
-        assertEq(address(token.getTransferValidator()), alternativeValidator);
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT.selector);
+        vm.prank(unauthorizedUser);
+        validator.setTransferSecurityLevelOfCollection(collection, level, enableAuthorizationMode, enableAccountFreezingMode);
     }
 
-    function testAllowsValidatorToBeSetBackToZeroAddress(address creator) public {
-        vm.assume(creator != address(0));
+    function testApplyListToCollection(address collection) public {
+        _sanitizeAddress(collection);
 
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
+        uint120 listId = validator.createList("test");
 
-        vm.startPrank(creator);
-        address alternativeValidator = address(new CreatorTokenTransferValidator(creator));
-        token.setTransferValidator(alternativeValidator);
-        token.setTransferValidator(address(0));
-        vm.stopPrank();
+        vm.expectEmit(true, true, true, true);
+        emit AppliedListToCollection(collection, listId);
 
-        assertEq(address(token.getTransferValidator()), address(0));
+        vm.prank(collection);
+        validator.applyListToCollection(collection, listId);
+
+        CollectionSecurityPolicyV3 memory policy = validator.getCollectionSecurityPolicy(collection);
+        assertEq(policy.listId, listId);
     }
 
-    function testGetSecurityPolicyReturnsRecommendedPolicyWhenNoValidatorIsSet(address creator) public {
-        vm.assume(creator != address(0));
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
+    function testRevertsWhenApplyingNonExistentListIdToCollection(address collection, uint120 listId) public {
+        _sanitizeAddress(collection);
+        listId = uint120(bound(listId, validator.lastListId() + 1, type(uint120).max));
 
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
-        assertEq(uint256(securityPolicy.operatorWhitelistId), 0);
-        assertEq(uint256(securityPolicy.permittedContractReceiversId), 0);
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
-        assertEq(uint256(securityPolicy.listId), 0);
-    }
-
-    function testGetSecurityPolicyReturnsEmptyPolicyWhenValidatorIsSetToZeroAddress(address creator) public {
-        vm.assume(creator != address(0));
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.prank(creator);
-        token.setTransferValidator(address(0));
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
-        assertEq(uint256(securityPolicy.operatorWhitelistId), 0);
-        assertEq(uint256(securityPolicy.permittedContractReceiversId), 0);
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
-        assertEq(uint256(securityPolicy.listId), 0);
-    }
-
-    function testGetSecurityPolicyReturnsExpectedSecurityPolicy(address creator, uint8 levelUint8) public {
-        vm.assume(creator != address(0));
-        vm.assume(levelUint8 >= 0 && levelUint8 <= 8);
-
-        TransferSecurityLevels level = TransferSecurityLevels(levelUint8);
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.startPrank(creator);
-        uint120 listId = validator.createList("");
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.applyListToCollection(address(token), listId);
-        vm.stopPrank();
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertTrue(securityPolicy.transferSecurityLevel == level);
-        assertEq(uint256(securityPolicy.operatorWhitelistId), listId);
-        assertEq(uint256(securityPolicy.permittedContractReceiversId), listId);
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertTrue(securityPolicy.transferSecurityLevel == level);
-        assertEq(uint256(securityPolicy.listId), listId);
-    }
-
-    function testSetCustomSecurityPolicy(address creator, uint8 levelUint8) public {
-        vm.assume(creator != address(0));
-        vm.assume(levelUint8 >= 0 && levelUint8 <= 8);
-
-        TransferSecurityLevels level = TransferSecurityLevels(levelUint8);
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.startPrank(creator);
-        uint120 operatorWhitelistId = validator.createOperatorWhitelist("");
-        token.setToCustomValidatorAndSecurityPolicy(address(validator), level, operatorWhitelistId);
-        vm.stopPrank();
-
-        assertEq(address(token.getTransferValidator()), address(validator));
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertTrue(securityPolicy.transferSecurityLevel == level);
-        assertEq(uint256(securityPolicy.operatorWhitelistId), operatorWhitelistId);
-        assertEq(uint256(securityPolicy.permittedContractReceiversId), operatorWhitelistId);
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertTrue(securityPolicy.transferSecurityLevel == level);
-        assertEq(uint256(securityPolicy.listId), operatorWhitelistId);
-    }
-
-    function testSetTransferSecurityLevelOfCollection(address creator, uint8 levelUint8) public {
-        vm.assume(creator != address(0));
-        vm.assume(levelUint8 >= 0 && levelUint8 <= 6);
-
-        TransferSecurityLevels level = TransferSecurityLevels(levelUint8);
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.startPrank(creator);
-        vm.expectEmit(true, false, false, true);
-        emit SetTransferSecurityLevel(address(token), level);
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        vm.stopPrank();
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertTrue(securityPolicy.transferSecurityLevel == level);
-    }
-
-    function testSetOperatorWhitelistOfCollection(address creator) public {
-        vm.assume(creator != address(0));
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-        vm.startPrank(creator);
-
-        uint120 listId = validator.createOperatorWhitelist("test");
-
-        vm.expectEmit(true, true, true, false);
-        emit AppliedListToCollection(address(token), listId);
-
-        validator.setOperatorWhitelistOfCollection(address(token), listId);
-        vm.stopPrank();
-
-        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
-        assertTrue(securityPolicy.operatorWhitelistId == listId);
-    }
-
-    function testRevertsWhenSettingOperatorWhitelistOfCollectionToInvalidListId(address creator, uint120 listId)
-        public
-    {
-        vm.assume(creator != address(0));
-        vm.assume(listId > 1);
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-        vm.prank(creator);
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ListDoesNotExist.selector);
-        validator.setOperatorWhitelistOfCollection(address(token), listId);
+        vm.prank(collection);
+        validator.applyListToCollection(collection, listId);
     }
 
-    function testRevertsWhenUnauthorizedUserSetsOperatorWhitelistOfCollection(address creator, address unauthorizedUser)
-        public
-    {
-        vm.assume(creator != address(0));
-        vm.assume(unauthorizedUser != address(0));
-        vm.assume(creator != unauthorizedUser);
+    function testRevertsWhenUnauthorizedUserAppliesListToCollection(
+        address collection,
+        address unauthorizedUser,
+        uint120 listId
+    ) public {
+        _sanitizeAddress(collection);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(collection != unauthorizedUser);
 
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
+        listId = uint120(bound(listId, 0, validator.lastListId()));
 
-        vm.assume(unauthorizedUser != address(token));
-
-        vm.startPrank(unauthorizedUser);
-        uint120 listId = validator.createOperatorWhitelist("naughty list");
-
-        vm.expectRevert(
-            CreatorTokenTransferValidator
-                .CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT
-                .selector
-        );
-        validator.setOperatorWhitelistOfCollection(address(token), listId);
-        vm.stopPrank();
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT.selector);
+        vm.prank(unauthorizedUser);
+        validator.applyListToCollection(collection, listId);
     }
+
+    function testFreezeAccountsForCollection(address collection, uint256 numAccountsToFreeze, address[10] memory accounts) public {
+        _sanitizeAddress(collection);
+        numAccountsToFreeze = bound(numAccountsToFreeze, 1, 10);
+
+        uint256 expectedNumAccountsFrozen = 0;
+        address[] memory accountsToFreeze = new address[](numAccountsToFreeze);
+        for (uint256 i = 0; i < numAccountsToFreeze; i++) {
+            bool firstTimeAccount = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (accountsToFreeze[j] == accounts[i]) {
+                    firstTimeAccount = false;
+                    break;
+                }
+            }
+
+            accountsToFreeze[i] = accounts[i];
+
+            if (firstTimeAccount) {
+                expectedNumAccountsFrozen++;
+                vm.expectEmit(true, true, true, true);
+                emit AccountFrozenForCollection(collection, accounts[i]);
+            }
+        }
+
+        vm.prank(collection);
+        validator.freezeAccountsForCollection(collection, accountsToFreeze);
+
+        for (uint256 i = 0; i < numAccountsToFreeze; i++) {
+            assertTrue(validator.isAccountFrozenForCollection(collection, accountsToFreeze[i]));
+        }
+
+        address[] memory frozenAccounts = validator.getFrozenAccountsByCollection(collection);
+        assertEq(frozenAccounts.length, expectedNumAccountsFrozen);
+    }
+
+    function testRevertsWhenUnauthorizedUserCallsFreezeAccountsForCollection(
+        address collection,
+        address unauthorizedUser,
+        uint256 numAccountsToFreeze,
+        address[10] memory accounts
+    ) public {
+        _sanitizeAddress(collection);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(collection != unauthorizedUser);
+
+        numAccountsToFreeze = bound(numAccountsToFreeze, 1, 10);
+
+        address[] memory accountsToFreeze = new address[](numAccountsToFreeze);
+        for (uint256 i = 0; i < numAccountsToFreeze; i++) {
+            accountsToFreeze[i] = accounts[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT.selector);
+        vm.prank(unauthorizedUser);
+        validator.freezeAccountsForCollection(collection, accountsToFreeze);
+    }
+
+    function testUnfreezeAccountsForCollection(address collection, uint256 numAccountsToUnfreeze, address[10] memory accounts) public {
+        _sanitizeAddress(collection);
+        numAccountsToUnfreeze = bound(numAccountsToUnfreeze, 1, 10);
+
+        address[] memory preFrozenAccounts = new address[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            preFrozenAccounts[i] = accounts[i];
+        }
+
+        vm.prank(collection);
+        validator.freezeAccountsForCollection(collection, preFrozenAccounts);
+
+        uint256 numPreFrozenAccounts = validator.getFrozenAccountsByCollection(collection).length;
+
+        uint256 expectedNumAccountsUnfrozen = 0;
+        address[] memory accountsToUnfreeze = new address[](numAccountsToUnfreeze);
+        for (uint256 i = 0; i < numAccountsToUnfreeze; i++) {
+            bool firstTimeAccount = true;
+            for (uint256 j = 0; j < i; j++) {
+                if (accountsToUnfreeze[j] == accounts[i]) {
+                    firstTimeAccount = false;
+                    break;
+                }
+            }
+
+            accountsToUnfreeze[i] = accounts[i];
+
+            if (firstTimeAccount) {
+                expectedNumAccountsUnfrozen++;
+                vm.expectEmit(true, true, true, true);
+                emit AccountUnfrozenForCollection(collection, accounts[i]);
+            }
+        }
+
+        vm.prank(collection);
+        validator.unfreezeAccountsForCollection(collection, accountsToUnfreeze);
+
+        for (uint256 i = 0; i < numAccountsToUnfreeze; i++) {
+            assertFalse(validator.isAccountFrozenForCollection(collection, accountsToUnfreeze[i]));
+        }
+
+        address[] memory frozenAccounts = validator.getFrozenAccountsByCollection(collection);
+        assertEq(frozenAccounts.length, numPreFrozenAccounts - expectedNumAccountsUnfrozen);
+    }
+
+    function testRevertsWhenUnauthorizedUserCallsUnfreezeAccountsForCollection(
+        address collection,
+        address unauthorizedUser,
+        uint256 numAccountsToUnfreeze,
+        address[10] memory accounts
+    ) public {
+        _sanitizeAddress(collection);
+        _sanitizeAddress(unauthorizedUser);
+        vm.assume(collection != unauthorizedUser);
+
+        numAccountsToUnfreeze = bound(numAccountsToUnfreeze, 1, 10);
+
+        address[] memory accountsToUnfreeze = new address[](numAccountsToUnfreeze);
+        for (uint256 i = 0; i < numAccountsToUnfreeze; i++) {
+            accountsToUnfreeze[i] = accounts[i];
+        }
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT.selector);
+        vm.prank(unauthorizedUser);
+        validator.unfreezeAccountsForCollection(collection, accountsToUnfreeze);
+    }
+
+
+    /*
 
     function testAddToOperatorWhitelist(address originalListOwner, address operator) public {
         vm.assume(originalListOwner != address(0));
@@ -2331,6 +2446,222 @@ contract TransferValidatorTest is Test {
         token.setApprovalForAll(address(validator), true);
 
         assertTrue(token.isApprovedForAll(owner, address(validator)));
+    }
+    */
+
+    /*
+// These Are Really Creator Token Tests
+
+    function testGetTransferValidatorReturnsTransferValidatorAddressBeforeValidatorIsSet(address creator) public {
+        vm.assume(creator != address(0));
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+        assertEq(address(token.getTransferValidator()), token.DEFAULT_TRANSFER_VALIDATOR());
+    }
+
+    function testRevertsWhenSetTransferValidatorCalledWithContractThatDoesNotImplementRequiredInterface(address creator)
+        public
+    {
+        vm.assume(creator != address(0));
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.startPrank(creator);
+        address invalidContract = address(new ContractMock());
+        vm.expectRevert(CreatorTokenBase.CreatorTokenBase__InvalidTransferValidatorContract.selector);
+        token.setTransferValidator(invalidContract);
+        vm.stopPrank();
+    }
+
+    function testAllowsAlternativeValidatorsToBeSetIfTheyImplementRequiredInterface(address creator) public {
+        vm.assume(creator != address(0));
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.startPrank(creator);
+        address alternativeValidator = address(new CreatorTokenTransferValidator(creator));
+        token.setTransferValidator(alternativeValidator);
+        vm.stopPrank();
+
+        assertEq(address(token.getTransferValidator()), alternativeValidator);
+    }
+
+    function testAllowsValidatorToBeSetBackToZeroAddress(address creator) public {
+        vm.assume(creator != address(0));
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.startPrank(creator);
+        address alternativeValidator = address(new CreatorTokenTransferValidator(creator));
+        token.setTransferValidator(alternativeValidator);
+        token.setTransferValidator(address(0));
+        vm.stopPrank();
+
+        assertEq(address(token.getTransferValidator()), address(0));
+    }
+
+    function testGetSecurityPolicyReturnsRecommendedPolicyWhenNoValidatorIsSet(address creator) public {
+        vm.assume(creator != address(0));
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
+        assertEq(uint256(securityPolicy.operatorWhitelistId), 0);
+        assertEq(uint256(securityPolicy.permittedContractReceiversId), 0);
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
+        assertEq(uint256(securityPolicy.listId), 0);
+    }
+
+    function testGetSecurityPolicyReturnsEmptyPolicyWhenValidatorIsSetToZeroAddress(address creator) public {
+        vm.assume(creator != address(0));
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.prank(creator);
+        token.setTransferValidator(address(0));
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
+        assertEq(uint256(securityPolicy.operatorWhitelistId), 0);
+        assertEq(uint256(securityPolicy.permittedContractReceiversId), 0);
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertEq(uint8(securityPolicy.transferSecurityLevel), uint8(TransferSecurityLevels.Recommended));
+        assertEq(uint256(securityPolicy.listId), 0);
+    }
+
+    function testGetSecurityPolicyReturnsExpectedSecurityPolicy(address creator, uint8 levelUint8) public {
+        vm.assume(creator != address(0));
+        vm.assume(levelUint8 >= 0 && levelUint8 <= 8);
+
+        TransferSecurityLevels level = TransferSecurityLevels(levelUint8);
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.startPrank(creator);
+        uint120 listId = validator.createList("");
+        token.setTransferValidator(address(validator));
+        validator.setTransferSecurityLevelOfCollection(address(token), level);
+        validator.applyListToCollection(address(token), listId);
+        vm.stopPrank();
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertTrue(securityPolicy.transferSecurityLevel == level);
+        assertEq(uint256(securityPolicy.operatorWhitelistId), listId);
+        assertEq(uint256(securityPolicy.permittedContractReceiversId), listId);
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertTrue(securityPolicy.transferSecurityLevel == level);
+        assertEq(uint256(securityPolicy.listId), listId);
+    }
+
+    function testSetCustomSecurityPolicy(address creator, uint8 levelUint8) public {
+        vm.assume(creator != address(0));
+        vm.assume(levelUint8 >= 0 && levelUint8 <= 8);
+
+        TransferSecurityLevels level = TransferSecurityLevels(levelUint8);
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.startPrank(creator);
+        uint120 operatorWhitelistId = validator.createOperatorWhitelist("");
+        token.setToCustomValidatorAndSecurityPolicy(address(validator), level, operatorWhitelistId);
+        vm.stopPrank();
+
+        assertEq(address(token.getTransferValidator()), address(validator));
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertTrue(securityPolicy.transferSecurityLevel == level);
+        assertEq(uint256(securityPolicy.operatorWhitelistId), operatorWhitelistId);
+        assertEq(uint256(securityPolicy.permittedContractReceiversId), operatorWhitelistId);
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertTrue(securityPolicy.transferSecurityLevel == level);
+        assertEq(uint256(securityPolicy.listId), operatorWhitelistId);
+    }
+
+    function testSetTransferSecurityLevelOfCollection(address creator, uint8 levelUint8) public {
+        vm.assume(creator != address(0));
+        vm.assume(levelUint8 >= 0 && levelUint8 <= 6);
+
+        TransferSecurityLevels level = TransferSecurityLevels(levelUint8);
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.startPrank(creator);
+        vm.expectEmit(true, false, false, true);
+        emit SetTransferSecurityLevel(address(token), level);
+        validator.setTransferSecurityLevelOfCollection(address(token), level);
+        vm.stopPrank();
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertTrue(securityPolicy.transferSecurityLevel == level);
+    }
+
+    function testSetOperatorWhitelistOfCollection(address creator) public {
+        vm.assume(creator != address(0));
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.startPrank(creator);
+
+        uint120 listId = validator.createOperatorWhitelist("test");
+
+        vm.expectEmit(true, true, true, false);
+        emit AppliedListToCollection(address(token), listId);
+
+        validator.setOperatorWhitelistOfCollection(address(token), listId);
+        vm.stopPrank();
+
+        CollectionSecurityPolicy memory securityPolicy = validator.getCollectionSecurityPolicy(address(token));
+        assertTrue(securityPolicy.operatorWhitelistId == listId);
+    }
+
+    function testRevertsWhenSettingOperatorWhitelistOfCollectionToInvalidListId(address creator, uint120 listId)
+        public
+    {
+        vm.assume(creator != address(0));
+        vm.assume(listId > 1);
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.prank(creator);
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ListDoesNotExist.selector);
+        validator.setOperatorWhitelistOfCollection(address(token), listId);
+    }
+
+    function testRevertsWhenUnauthorizedUserSetsOperatorWhitelistOfCollection(address creator, address unauthorizedUser)
+        public
+    {
+        vm.assume(creator != address(0));
+        vm.assume(unauthorizedUser != address(0));
+        vm.assume(creator != unauthorizedUser);
+
+        _sanitizeAddress(creator);
+        ITestCreatorToken token = _deployNewToken(creator);
+
+        vm.assume(unauthorizedUser != address(token));
+
+        vm.startPrank(unauthorizedUser);
+        uint120 listId = validator.createOperatorWhitelist("naughty list");
+
+        vm.expectRevert(
+            CreatorTokenTransferValidator
+                .CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT
+                .selector
+        );
+        validator.setOperatorWhitelistOfCollection(address(token), listId);
+        vm.stopPrank();
     }
     */
 }
