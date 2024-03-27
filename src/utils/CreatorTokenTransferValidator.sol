@@ -128,11 +128,8 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     /// @dev Thrown when validating a transfer for a collection that is in soulbound token mode.
     error CreatorTokenTransferValidator__TokenIsSoulbound();
 
-    /// @dev Thrown when attempting to add the zero address to a whitelist or blacklist.
-    error CreatorTokenTransferValidator__ZeroAddressNotAllowed();
-
-    /// @dev Thrown when attempting to add the zero code hash to a whitelist or blacklist.
-    error CreatorTokenTransferValidator__ZeroCodeHashNotAllowed();
+    /// @dev Thrown when an authorizer attempts to set a wildcard authorized operator on collections that don't allow wildcards
+    error CreatorTokenTransferValidator__WildcardOperatorsCannotBeAuthorizedForCollection();
 
     /// @dev Thrown when attempting to set a authorized operator when authorization mode is disabled.
     error CreatorTokenTransferValidator__AuthorizationDisabledForCollection();
@@ -147,7 +144,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     event RemovedAccountFromList(uint8 indexed kind, uint256 indexed id, address indexed account);
     event RemovedCodeHashFromList(uint8 indexed kind, uint256 indexed id, bytes32 indexed codehash);
     event SetTransferSecurityLevel(address indexed collection, uint8 level);
-    event SetAuthorizationModeEnabled(address indexed collection, bool enabled);
+    event SetAuthorizationModeEnabled(address indexed collection, bool enabled, bool authorizersCanSetWildcardOperators);
     event SetAccountFreezingModeEnabled(address indexed collection, bool enabled);
 
     // Structs
@@ -181,6 +178,8 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     bytes32 private constant DEFAULT_ACCESS_CONTROL_ADMIN_ROLE = 0x00;
     /// @dev Value representing a zero value code hash.
     bytes32 private constant BYTES32_ZERO = 0x0000000000000000000000000000000000000000000000000000000000000000;
+
+    address private constant WILDCARD_OPERATOR_ADDRESS = address(0x01);
 
     uint8 private AUTHORIZATION_TYPES_UNSET = 0;
     uint8 private AUTHORIZATION_TYPES_COLLECTION = 1;
@@ -273,11 +272,16 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     }
 
     /// Ensure that a transfer has been authorized for a specific tokenId
-    function validateTransfer(address caller, address from, address to, uint256 tokenId) external view {
+    function validateTransfer(address caller, address from, address to, uint256 tokenId) public view {
         bytes4 errorSelector = _validateTransfer(msg.sender, caller, from, to, tokenId);
         if (errorSelector != SELECTOR_NO_ERROR) {
             _revertCustomErrorSelectorAsm(errorSelector);
         }
+    }
+
+    /// Ensure that a transfer has been authorized for a specific tokenId and amount
+    function validateTransfer(address caller, address from, address to, uint256 tokenId, uint256 /*amount*/) external {
+        validateTransfer(caller, from, to, tokenId);
     }
 
     /**
@@ -319,12 +323,34 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         receiverConstraints = uint8((_receiverConstraintsLookup >> (level << 3)));
     }
 
-    function beforeAuthorizedTransfer(address operator, address token, uint256 tokenId) external {
-        _setOperatorInTransientStorage(bytes32(uint256(uint160(operator))), token, tokenId);
+    function beforeAuthorizedTransfer(address operator, address token, uint256 tokenId) public {
+        _setOperatorInTransientStorage(operator, token, tokenId);
     }
 
-    function afterAuthorizedTransfer(address token, uint256 tokenId) external {
-        _setOperatorInTransientStorage(BYTES32_ZERO, token, tokenId);
+    function afterAuthorizedTransfer(address token, uint256 tokenId) public {
+        _setOperatorInTransientStorage(address(uint160(uint256(BYTES32_ZERO))), token, tokenId);
+    }
+
+    // Shims
+
+    function beforeAuthorizedTransfer(address operator, address token) external {
+        beforeAuthorizedTransfer(operator, token, 0);
+    }
+
+    function afterAuthorizedTransfer(address token) external {
+        afterAuthorizedTransfer(token, 0);
+    }
+
+    function beforeAuthorizedTransfer(address token, uint256 tokenId) external {
+        beforeAuthorizedTransfer(WILDCARD_OPERATOR_ADDRESS, token, tokenId);
+    }
+
+    function beforeAuthorizedTransferWithAmount(address token, uint256 tokenId, uint256 /*amount*/) external {
+        beforeAuthorizedTransfer(WILDCARD_OPERATOR_ADDRESS, token, tokenId);
+    }
+
+    function afterAuthorizedTransferWithAmount(address token, uint256 tokenId) external {
+        afterAuthorizedTransfer(token, tokenId);
     }
 
     /*************************************************************************/
@@ -452,6 +478,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         address collection, 
         uint8 level,
         bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode) external {
 
         if (level > TRANSFER_SECURITY_LEVEL_NINE) {
@@ -461,9 +488,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
         collectionSecurityPolicies[collection].transferSecurityLevel = level;
         collectionSecurityPolicies[collection].enableAuthorizationMode = enableAuthorizationMode;
+        collectionSecurityPolicies[collection].authorizersCanSetWildcardOperators = authorizersCanSetWildcardOperators;
         collectionSecurityPolicies[collection].enableAccountFreezingMode = enableAccountFreezingMode;
         emit SetTransferSecurityLevel(collection, level);
-        emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode);
+        emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode, authorizersCanSetWildcardOperators);
         emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
     }
 
@@ -1443,11 +1471,21 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         }
     }
 
-    function _checkCollectionAllowsAuthorizer(address collection, address authorizer) internal view {
+    function _checkCollectionAllowsAuthorizerAndOperator(
+        address collection, 
+        address operator, 
+        address authorizer
+    ) internal view {
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
 
         if (!collectionSecurityPolicy.enableAuthorizationMode) {
             revert CreatorTokenTransferValidator__AuthorizationDisabledForCollection();
+        }
+
+        if (!collectionSecurityPolicy.authorizersCanSetWildcardOperators) {
+            if (operator == WILDCARD_OPERATOR_ADDRESS) {
+                revert CreatorTokenTransferValidator__WildcardOperatorsCannotBeAuthorizedForCollection();
+            }
         }
 
         if (!authorizers[collectionSecurityPolicy.listId].nonEnumerableAccounts[authorizer]) {
@@ -1455,28 +1493,37 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         }
     }
 
-    modifier whenAuthorizerEnabledForCollection(address collection, address authorizer) {
-        _checkCollectionAllowsAuthorizer(collection, authorizer);
+    modifier whenAuthorizerAndOperatorEnabledForCollection(
+        address collection, 
+        address operator, 
+        address authorizer
+    ) {
+        _checkCollectionAllowsAuthorizerAndOperator(collection, operator, authorizer);
         _;
     }
 
     function _setOperatorInTransientStorage(
-        bytes32 operator,
+        address operator,
         address collection, 
         uint256 tokenId
-    ) internal whenAuthorizerEnabledForCollection(collection, msg.sender) {
-        _tstore(_getTransientOperatorSlot(collection), operator);
-        _tstore(_getTransientOperatorSlot(collection, tokenId), operator);
+    ) internal whenAuthorizerAndOperatorEnabledForCollection(collection, operator, msg.sender) {
+        _tstore(_getTransientOperatorSlot(collection), bytes32(uint256(uint160(operator))));
+        _tstore(_getTransientOperatorSlot(collection, tokenId), bytes32(uint256(uint160(operator))));
     }
 
     function _callerAuthorized(
-        address collection,
+      address collection,
         address caller,
         uint256 tokenId
     ) internal view returns (bool) {
         return 
-            caller == address(uint160(uint256(_tload(_getTransientOperatorSlot(collection, tokenId))))) ||
-            caller == address(uint160(uint256(_tload(_getTransientOperatorSlot(collection)))));
+            _callerAuthorized(caller, _getTransientOperatorSlot(collection, tokenId)) ||
+            _callerAuthorized(caller, _getTransientOperatorSlot(collection));
+    }
+
+    function _callerAuthorized(address caller, bytes32 slot) internal view returns (bool isAuthorized) {
+        address authorizedOperator = address(uint160(uint256(_tload(slot))));
+        isAuthorized = authorizedOperator == WILDCARD_OPERATOR_ADDRESS || authorizedOperator == caller;
     }
 
     /**

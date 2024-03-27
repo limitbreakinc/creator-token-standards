@@ -300,6 +300,7 @@ contract TransferValidatorTest is Events, Helpers {
         address collection,
         uint8 level,
         bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         _sanitizeAddress(collection);
@@ -310,7 +311,7 @@ contract TransferValidatorTest is Events, Helpers {
         emit SetTransferSecurityLevel(collection, level);
 
         vm.expectEmit(true, true, true, true);
-        emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode);
+        emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode, authorizersCanSetWildcardOperators);
 
         vm.expectEmit(true, true, true, true);
         emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
@@ -320,12 +321,14 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             level, 
             enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators,
             enableAccountFreezingMode);
 
         CollectionSecurityPolicyV3 memory policy = validator.getCollectionSecurityPolicy(collection);
 
         assertEq(policy.transferSecurityLevel, level);
         assertEq(policy.enableAuthorizationMode, enableAuthorizationMode);
+        assertEq(policy.authorizersCanSetWildcardOperators, authorizersCanSetWildcardOperators);
         assertEq(policy.enableAccountFreezingMode, enableAccountFreezingMode);
     }
 
@@ -333,6 +336,7 @@ contract TransferValidatorTest is Events, Helpers {
         address collection,
         uint8 level,
         bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         _sanitizeAddress(collection);
@@ -341,7 +345,7 @@ contract TransferValidatorTest is Events, Helpers {
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__InvalidTransferSecurityLevel.selector);
         vm.prank(collection);
-        validator.setTransferSecurityLevelOfCollection(collection, level, enableAuthorizationMode, enableAccountFreezingMode);
+        validator.setTransferSecurityLevelOfCollection(collection, level, enableAuthorizationMode, authorizersCanSetWildcardOperators, enableAccountFreezingMode);
     }
 
     function testRevertsWhenUnauthorizedUserCallsSetTransferSecurityLevelOfCollection(
@@ -349,6 +353,7 @@ contract TransferValidatorTest is Events, Helpers {
         address unauthorizedUser,
         uint8 level,
         bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         _sanitizeAddress(collection);
@@ -359,7 +364,7 @@ contract TransferValidatorTest is Events, Helpers {
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT.selector);
         vm.prank(unauthorizedUser);
-        validator.setTransferSecurityLevelOfCollection(collection, level, enableAuthorizationMode, enableAccountFreezingMode);
+        validator.setTransferSecurityLevelOfCollection(collection, level, enableAuthorizationMode, authorizersCanSetWildcardOperators, enableAccountFreezingMode);
     }
 
     function testApplyListToCollection(address collection) public {

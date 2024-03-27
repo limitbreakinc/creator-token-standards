@@ -136,6 +136,7 @@ struct CollectionSecurityPolicyV2 {
  */
 struct CollectionSecurityPolicyV3 {
     bool enableAuthorizationMode;
+    bool authorizersCanSetWildcardOperators;
     uint8 transferSecurityLevel;
     uint120 listId;
     bool enableAccountFreezingMode;
