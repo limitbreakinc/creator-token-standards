@@ -894,7 +894,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      * @return         True if the codehash is blacklisted in the specified list, false otherwise.
      */
     function isCodeHashBlacklisted(uint120 id, bytes32 codehash) public view returns (bool) {
-        return codehash == BYTES32_ZERO ? false : blacklists[id].nonEnumerableCodehashes[codehash];
+        return blacklists[id].nonEnumerableCodehashes[codehash];
     }
 
     /**
@@ -904,7 +904,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      * @return         True if the codehash is whitelisted in the specified list, false otherwise.
      */
     function isCodeHashWhitelisted(uint120 id, bytes32 codehash) public view returns (bool) {
-        return codehash == BYTES32_ZERO ? false : whitelists[id].nonEnumerableCodehashes[codehash];
+        return whitelists[id].nonEnumerableCodehashes[codehash];
     }
 
     /**
@@ -1369,8 +1369,6 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
             return CreatorTokenTransferValidator__TokenIsSoulbound.selector;
         }
 
-        
-
         List storage whitelist = whitelists[listId];
 
         if (receiverConstraints == RECEIVER_CONSTRAINTS_NO_CODE) {
@@ -1573,7 +1571,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         assembly {
             function _callOwner(_tokenAddress) -> _owner, _isError {
                 mstore(0x00, 0x8da5cb5b)
-                if and(not(lt(returndatasize(), 0x20)), staticcall(gas(), _tokenAddress, 0x1C, 0x04, 0x00, 0x20)) {
+                if and(iszero(lt(returndatasize(), 0x20)), staticcall(gas(), _tokenAddress, 0x1C, 0x04, 0x00, 0x20)) {
                     _owner := mload(0x00)
                     leave
                 }
@@ -1600,7 +1598,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
                 mstore(ptr, 0x91d14854)
                 mstore(add(0x20, ptr), _role)
                 mstore(add(0x40, ptr), _account)
-                if and(not(lt(returndatasize(), 0x20)), staticcall(gas(), _tokenAddress, add(ptr, 0x1C), 0x44, 0x00, 0x20)) {
+                if and(iszero(lt(returndatasize(), 0x20)), staticcall(gas(), _tokenAddress, add(ptr, 0x1C), 0x44, 0x00, 0x20)) {
                     _hasRole := mload(0x00)
                     leave
                 }

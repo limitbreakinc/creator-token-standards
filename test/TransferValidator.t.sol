@@ -1403,1927 +1403,2027 @@ contract TransferValidatorTest is Events, Helpers {
         validator.removeCodeHashesFromWhitelist(listId, codeHashesToRemove);
     }
 
-    /*
+    // Validation of Transfers Level 1
 
-    function testAddToOperatorWhitelist(address originalListOwner, address operator) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(operator != address(0));
-
-        vm.startPrank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-
-        vm.expectEmit(true, true, true, false);
-        emit AddedAccountToList(ListTypes.Whitelist, listId, operator);
-
-        validator.addOperatorToWhitelist(listId, operator);
-        vm.stopPrank();
-
-        assertTrue(validator.isOperatorWhitelisted(listId, operator));
+    struct FuzzedList {
+        address whitelistedAddress;
+        address whitelistedToAddress;
+        address blacklistedAddress;
+        address authorizerAddress;
+        bytes32 whitelistedCode;
+        bytes32 blacklistedCode;
     }
 
-    function testWhitelistedOperatorsCanBeQueriedOnCreatorTokensDeprecated(
-        address creator,
-        address operator1,
-        address operator2,
-        address operator3
-    ) public {
-        vm.assume(creator != address(0));
-        vm.assume(operator1 != address(0));
-        vm.assume(operator2 != address(0));
-        vm.assume(operator3 != address(0));
-        vm.assume(operator1 != operator2);
-        vm.assume(operator1 != operator3);
-        vm.assume(operator2 != operator3);
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.startPrank(creator);
-        uint120 listId = validator.createOperatorWhitelist("");
-        token.setTransferValidator(address(validator));
-        validator.setOperatorWhitelistOfCollection(address(token), listId);
-        validator.addOperatorToWhitelist(listId, operator1);
-        validator.addOperatorToWhitelist(listId, operator2);
-        validator.addOperatorToWhitelist(listId, operator3);
-        vm.stopPrank();
-
-        vm.expectRevert(CreatorTokenBase.CreatorTokenBase__FunctionDeprecatedUseTransferValidatorInstead.selector);
-        address[] memory allowedAddresses = token.getWhitelistedOperators();
-    }
-
-    function testPermittedContractReceiversCanBeQueriedOnCreatorTokens(
-        address creator,
-        address receiver1,
-        address receiver2,
-        address receiver3
-    ) public {
-        vm.assume(creator != address(0));
-        vm.assume(receiver1 != address(0));
-        vm.assume(receiver2 != address(0));
-        vm.assume(receiver3 != address(0));
-        vm.assume(receiver1 != receiver2);
-        vm.assume(receiver1 != receiver3);
-        vm.assume(receiver2 != receiver3);
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        address[] memory receivers = new address[](3);
-        receivers[0] = receiver1;
-        receivers[1] = receiver2;
-        receivers[2] = receiver3;
-
-        vm.startPrank(creator);
-        uint120 listId = validator.createList("");
-        token.setTransferValidator(address(validator));
-        validator.applyListToCollection(address(token), listId);
-        validator.addAccountsToWhitelist(listId, receivers);
-        vm.stopPrank();
-
-        assertTrue(validator.isContractReceiverPermitted(listId, receiver1));
-        assertTrue(validator.isContractReceiverPermitted(listId, receiver2));
-        assertTrue(validator.isContractReceiverPermitted(listId, receiver3));
-    }
-
-    function testIsTransferAllowedReturnsTrueWhenTransferValidatorIsSetToZero(
-        address creator,
+    function testAllowsAllTransfersAtLevelOne(
+        FuzzedList memory fuzzedList,
+        address collection,
         address caller,
-        address from,
-        address to
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
     ) public {
-        vm.assume(caller != whitelistedOperator);
-        vm.assume(from != whitelistedOperator);
-        vm.assume(to != whitelistedOperator);
-        vm.assume(creator != address(0));
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-        
-        vm.prank(creator);
-        token.setTransferValidator(address(0));
+        _sanitizeAccounts(collection, caller, from, to);
 
-        assertTrue(token.isTransferAllowed(caller, from, to));
-    }
-
-    function testRevertsWhenNonOwnerAddsOperatorToWhitelist(
-        address originalListOwner,
-        address unauthorizedUser,
-        address operator
-    ) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(unauthorizedUser != address(0));
-        vm.assume(operator != address(0));
-        vm.assume(originalListOwner != unauthorizedUser);
-
-        vm.prank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.addOperatorToWhitelist(listId, operator);
-    }
-
-    function testWhenOperatorAddedToWhitelistAgainNoDuplicatesAreAdded(address originalListOwner, address operator) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(operator != address(0));
-
-        vm.startPrank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        validator.addOperatorToWhitelist(listId, operator);
-
-        validator.addOperatorToWhitelist(listId, operator);
-        
-        address[] memory whitelistedAddresses = validator.getWhitelistedAccounts(listId);
-        assertEq(whitelistedAddresses.length, 1);
-        assertTrue(whitelistedAddresses[0] == operator);
-    }
-
-    function testRemoveOperatorFromWhitelist(address originalListOwner, address operator) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(operator != address(0));
-
-        vm.startPrank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        validator.addOperatorToWhitelist(listId, operator);
-        assertTrue(validator.isOperatorWhitelisted(listId, operator));
-
-        vm.expectEmit(true, true, true, false);
-        emit RemovedAccountFromList(ListTypes.Whitelist, listId, operator);
-
-        validator.removeOperatorFromWhitelist(listId, operator);
-
-        assertFalse(validator.isOperatorWhitelisted(listId, operator));
-        vm.stopPrank();
-    }
-
-    function testRevertsWhenUnwhitelistedOperatorRemovedFromWhitelist(address originalListOwner, address operator)
-        public
-    {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(operator != address(0));
-
-        vm.startPrank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        assertFalse(validator.isOperatorWhitelisted(listId, operator));
-
-        validator.removeOperatorFromWhitelist(listId, operator);
-        vm.stopPrank();
-
-        assertFalse(validator.isAccountWhitelisted(listId, operator));
-    }
-
-    function testAddManyOperatorsToWhitelist(address originalListOwner) public {
-        vm.assume(originalListOwner != address(0));
-
-        vm.startPrank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-
-        for (uint256 i = 1; i <= 10; i++) {
-            validator.addOperatorToWhitelist(listId, vm.addr(i));
-        }
-        vm.stopPrank();
-
-        for (uint256 i = 1; i <= 10; i++) {
-            assertTrue(validator.isOperatorWhitelisted(listId, vm.addr(i)));
-        }
-
-        address[] memory whitelistedOperators = validator.getWhitelistedOperators(listId);
-        assertEq(whitelistedOperators.length, 10);
-
-        for (uint256 i = 0; i < whitelistedOperators.length; i++) {
-            assertEq(vm.addr(i + 1), whitelistedOperators[i]);
-        }
-    }
-
-    function testSupportedInterfaces() public {
-        assertEq(validator.supportsInterface(type(ITransferValidator).interfaceId), true);
-        // TODO: assertEq(validator.supportsInterface(type(ITransferSecurityRegistry).interfaceId), true);
-        // TODO: assertEq(validator.supportsInterface(type(ICreatorTokenTransferValidator).interfaceId), true);
-        assertEq(validator.supportsInterface(type(IEOARegistry).interfaceId), true);
-        assertEq(validator.supportsInterface(type(IERC165).interfaceId), true);
-    }
-
-    function testPolicyLevelOnePermitsAllTransfers(address creator, address caller, address from, address to) public {
-        vm.assume(creator != address(0));
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), TransferSecurityLevels.One);
-        vm.stopPrank();
-        assertTrue(token.isTransferAllowed(caller, from, to));
-    }
-
-    function testWhitelistPoliciesWithOTCEnabledBlockTransfersWhenCallerNotWhitelistedOrOwner(
-        address creator,
-        address caller,
-        address from,
-        uint160 toKey
-    ) public {
-        _sanitizeAddress(caller);
-        _sanitizeAddress(from);
-        address to = _verifyEOA(toKey);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Recommended, creator, caller, from, to);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Three, creator, caller, from, to);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Five, creator, caller, from, to);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Six, creator, caller, from, to);
-    }
-
-    function testWhitelistPoliciesWithOTCEnabledAllowTransfersWhenCalledByOwner(
-        address creator,
-        address tokenOwner,
-        uint160 toKey
-    ) public {
-        address to = _verifyEOA(toKey);
-        _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Recommended, creator, tokenOwner, to);
-        _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Three, creator, tokenOwner, to);
-        _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Five, creator, tokenOwner, to);
-        _testPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.Six, creator, tokenOwner, to);
-    }
-
-    function testWhitelistPoliciesWithOTCDisabledBlockTransfersWhenCallerNotWhitelistedOrOwner(
-        address creator,
-        address caller,
-        address from,
-        uint160 toKey
-    ) public {
-        address to = _verifyEOA(toKey);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Four, creator, caller, from, to);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Seven, creator, caller, from, to);
-        _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(TransferSecurityLevels.Eight, creator, caller, from, to);
-    }
-
-    function testWhitelistPoliciesWithOTCDisabledBlockTransfersWhenCalledByOwner(
-        address creator,
-        address tokenOwner,
-        uint160 toKey
-    ) public {
-        address to = _verifyEOA(toKey);
-        _testPolicyBlocksTransfersWhenCalledByOwner(TransferSecurityLevels.Four, creator, tokenOwner, to);
-        _testPolicyBlocksTransfersWhenCalledByOwner(TransferSecurityLevels.Seven, creator, tokenOwner, to);
-        _testPolicyBlocksTransfersWhenCalledByOwner(TransferSecurityLevels.Eight, creator, tokenOwner, to);
-    }
-
-    function testNoCodePoliciesBlockTransferWhenDestinationIsAContract(address creator, address caller, address from)
-        public
-    {
-        _sanitizeAddress(caller);
-        _sanitizeAddress(from);
-        _testPolicyBlocksTransfersToContractReceivers(TransferSecurityLevels.Five, creator, caller, from);
-        _testPolicyBlocksTransfersToContractReceivers(TransferSecurityLevels.Seven, creator, caller, from);
-    }
-
-    function testNoCodePoliciesAllowTransferToPermittedContractDestinations(
-        address creator,
-        address caller,
-        address from
-    ) public {
-        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Four, creator, caller, from);
-        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Six, creator, caller, from);
-    }
-
-    function testEOAPoliciesBlockTransferWhenDestinationHasNotVerifiedSignature(
-        address creator,
-        address caller,
-        address from,
-        address to
-    ) public {
-        _testPolicyBlocksTransfersToWalletsThatHaveNotVerifiedEOASignature(
-            TransferSecurityLevels.Six, creator, caller, from, to
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            TRANSFER_SECURITY_LEVEL_ONE, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
         );
-        _testPolicyBlocksTransfersToWalletsThatHaveNotVerifiedEOASignature(
-            TransferSecurityLevels.Eight, creator, caller, from, to
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
         );
     }
 
-    function testEOAPoliciesAllowTransferWhenDestinationHasVerifiedSignature(
-        address creator,
+    // Validation of Transfers Level 2
+
+    function testAllowsAllTransfersAtLevelTwoWhenCallerIsNotBlacklisted(
+        FuzzedList memory fuzzedList,
+        address collection,
         address caller,
-        address from,
-        uint160 toKey
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
     ) public {
-        address to = _verifyEOA(toKey);
-        _testPolicyAllowsTransfersToWalletsThatHaveVerifiedEOASignature(
-            TransferSecurityLevels.Five, creator, caller, from, to
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(fuzzedList.blacklistedAddress != caller);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            TRANSFER_SECURITY_LEVEL_TWO, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
         );
-        _testPolicyAllowsTransfersToWalletsThatHaveVerifiedEOASignature(
-            TransferSecurityLevels.Seven, creator, caller, from, to
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
         );
     }
 
-    function testEOAPoliciesAllowTransferToPermittedContractDestinations(address creator, address caller, address from)
-        public
-    {
-        _sanitizeAddress(caller);
-        _sanitizeAddress(creator);
-        _sanitizeAddress(from);
-        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Six, creator, caller, from);
-        _testPolicyAllowsTransfersToPermittedContractReceivers(TransferSecurityLevels.Eight, creator, caller, from);
-    }
-
-    function _testPolicyAllowsAllTransfersWhenOperatorWhitelistIsEmpty(
-        TransferSecurityLevels level,
-        address creator,
-        address caller,
-        address from,
-        address to
-    ) private {
-        vm.assume(creator != address(0));
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(caller != address(token));
-        vm.assume(caller != whitelistedOperator);
-        vm.assume(caller != address(0));
-        vm.assume(from != address(0));
-        vm.assume(from != caller);
-        vm.assume(from != address(token));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-
-        vm.startPrank(creator);
-
-        uint120 listId = validator.createList("");
-
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.setOperatorWhitelistOfCollection(address(token), listId);
-        vm.stopPrank();
-
-        assertTrue(token.isTransferAllowed(caller, from, to));
-
-        _mintToken(address(token), from, 1);
-
-        vm.prank(from);
-        token.setApprovalForAll(caller, true);
-
-        vm.prank(caller);
-        token.transferFrom(from, to, 1);
-        assertEq(token.ownerOf(1), to);
-    }
-
-    function _testPolicyBlocksTransfersWhenCallerNotWhitelistedOrOwner(
-        TransferSecurityLevels level,
-        address creator,
-        address caller,
-        address from,
-        address to
-    ) private {
-        vm.assume(creator != address(0));
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(caller != address(token));
-        vm.assume(caller != whitelistedOperator);
-        vm.assume(caller != address(0));
-        vm.assume(from != address(0));
-        vm.assume(from != caller);
-        vm.assume(from != address(token));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.setOperatorWhitelistOfCollection(address(token), 0);
-        vm.stopPrank();
-
-        assertFalse(token.isTransferAllowed(caller, from, to));
-
-        _mintToken(address(token), from, 1);
-
-        vm.prank(from);
-        token.setApprovalForAll(caller, true);
-
-        vm.prank(caller);
-        vm.expectRevert(
-            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
-        );
-        token.transferFrom(from, to, 1);
-    }
-
-    function _testPolicyAllowsTransfersWhenCalledByOwner(
-        TransferSecurityLevels level,
-        address creator,
-        address tokenOwner,
-        address to
-    ) private {
-        vm.assume(creator != address(0));
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(tokenOwner != address(token));
-        vm.assume(tokenOwner != whitelistedOperator);
-        vm.assume(tokenOwner != address(0));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.setOperatorWhitelistOfCollection(address(token), 0);
-        vm.stopPrank();
-
-        assertTrue(token.isTransferAllowed(tokenOwner, tokenOwner, to));
-
-        _mintToken(address(token), tokenOwner, 1);
-
-        vm.prank(tokenOwner);
-        token.transferFrom(tokenOwner, to, 1);
-
-        assertEq(token.ownerOf(1), to);
-    }
-
-    function _testPolicyBlocksTransfersWhenCalledByOwner(
-        TransferSecurityLevels level,
-        address creator,
-        address tokenOwner,
-        address to
-    ) private {
-        vm.assume(creator != address(0));
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(tokenOwner != address(token));
-        vm.assume(tokenOwner != whitelistedOperator);
-        vm.assume(tokenOwner != address(0));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.setOperatorWhitelistOfCollection(address(token), 0);
-        vm.stopPrank();
-
-        assertFalse(token.isTransferAllowed(tokenOwner, tokenOwner, to));
-
-        _mintToken(address(token), tokenOwner, 1);
-
-        vm.prank(tokenOwner);
-        vm.expectRevert(
-            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
-        );
-        token.transferFrom(tokenOwner, to, 1);
-    }
-
-    function _testPolicyBlocksTransfersToContractReceivers(
-        TransferSecurityLevels level,
-        address creator,
-        address caller,
-        address from
-    ) private {
-        vm.assume(creator != address(0));
-
-        if (!validator.isOperatorWhitelisted(0, caller)) {
-            vm.prank(validatorDeployer);
-            validator.addOperatorToWhitelist(0, caller);
-        }
-
-        vm.prank(creator);
-        address to = address(new ContractMock());
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(caller != address(token));
-        vm.assume(from != address(0));
-        vm.assume(from != address(token));
-
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.setOperatorWhitelistOfCollection(address(token), 0);
-        vm.stopPrank();
-
-        assertFalse(token.isTransferAllowed(caller, from, to));
-
-        _mintToken(address(token), from, 1);
-
-        if (caller != from) {
-            vm.prank(from);
-            token.setApprovalForAll(caller, true);
-        }
-
-        vm.prank(caller);
-        vm.expectRevert(
-            CreatorTokenTransferValidator.CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector
-        );
-        token.transferFrom(from, to, 1);
-    }
-
-    function _testPolicyBlocksTransfersToWalletsThatHaveNotVerifiedEOASignature(
-        TransferSecurityLevels level,
-        address creator,
-        address caller,
-        address from,
-        address to
-    ) private {
-        vm.assume(creator != address(0));
-
-        if (!validator.isOperatorWhitelisted(0, caller)) {
-            vm.prank(validatorDeployer);
-            validator.addOperatorToWhitelist(0, caller);
-        }
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(caller != address(token));
-        vm.assume(caller != address(0));
-        vm.assume(from != address(0));
-        vm.assume(from != address(token));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-        vm.assume(to != whitelistedOperator);
-
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.setOperatorWhitelistOfCollection(address(token), 0);
-        vm.stopPrank();
-
-        assertFalse(token.isTransferAllowed(caller, from, to));
-
-        _mintToken(address(token), from, 1);
-
-        if (caller != from) {
-            vm.prank(from);
-            token.setApprovalForAll(caller, true);
-        }
-
-        vm.prank(caller);
-        vm.expectRevert(
-            CreatorTokenTransferValidator.CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector
-        );
-        token.transferFrom(from, to, 1);
-    }
-
-    function _testPolicyAllowsTransfersToWalletsThatHaveVerifiedEOASignature(
-        TransferSecurityLevels level,
-        address creator,
-        address caller,
-        address from,
-        address to
-    ) private {
-        vm.assume(creator != address(0));
-
-        if (!validator.isOperatorWhitelisted(0, caller)) {
-            vm.prank(validatorDeployer);
-            validator.addOperatorToWhitelist(0, caller);
-        }
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(caller != address(token));
-        vm.assume(caller != address(0));
-        vm.assume(from != address(0));
-        vm.assume(from != address(token));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.setOperatorWhitelistOfCollection(address(token), 0);
-        vm.stopPrank();
-
-        assertTrue(token.isTransferAllowed(caller, from, to));
-
-        _mintToken(address(token), from, 1);
-
-        if (caller != from) {
-            vm.prank(from);
-            token.setApprovalForAll(caller, true);
-        }
-
-        vm.prank(caller);
-        token.transferFrom(from, to, 1);
-        assertEq(token.ownerOf(1), to);
-    }
-
-    function _testPolicyAllowsTransfersToPermittedContractReceivers(
-        TransferSecurityLevels level,
-        address creator,
-        address caller,
-        address from
-    ) private {
-        vm.assume(creator != address(0));
-
-        vm.prank(creator);
-        address to = address(new ContractMock());
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(caller != address(token));
-        vm.assume(from != address(0));
-        vm.assume(from != address(token));
-
-        vm.startPrank(creator);
-
-        uint120 listId = validator.createList("");
-        address[] memory permittedContractReceivers = new address[](1);
-        permittedContractReceivers[0] = to;
-        validator.addAccountsToWhitelist(listId, permittedContractReceivers);
-
-        if (!validator.isAccountWhitelisted(listId, caller)) {
-            validator.addOperatorToWhitelist(listId, caller);
-        }
-
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.applyListToCollection(address(token), listId);
-        vm.stopPrank();
-
-        assertTrue(token.isTransferAllowed(caller, from, to));
-
-        _mintToken(address(token), from, 1);
-
-        if (caller != from) {
-            vm.prank(from);
-            token.setApprovalForAll(caller, true);
-        }
-
-        vm.prank(caller);
-        token.transferFrom(from, to, 1);
-        assertEq(token.ownerOf(1), to);
-    }
-
-    function testCreateList(address listOwner, string memory name) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(bytes(name).length < 200);
-
-        uint120 firstListId = 1;
-        for (uint120 i = 0; i < 5; ++i) {
-            uint120 expectedId = firstListId + i;
-
-            vm.expectEmit(true, true, true, false);
-            emit CreatedList(expectedId, name);
-
-            vm.expectEmit(true, true, true, false);
-            emit ReassignedListOwnership(expectedId, listOwner);
-
-            vm.prank(listOwner);
-            uint120 actualId = validator.createList(name);
-            assertEq(actualId, expectedId);
-            assertEq(validator.listOwners(actualId), listOwner);
-        }
-    }
-
-    function testCreateListCopy(address listOwnerSource, address listOwnerTarget, string memory nameSource, string memory nameTarget) public {
-        _sanitizeAddress(listOwnerSource);
-        _sanitizeAddress(listOwnerTarget);
-        vm.assume(bytes(nameSource).length < 200);
-        vm.assume(bytes(nameTarget).length < 200);
-
-        address[] memory blAccounts = new address[](5);
-        address[] memory wlAccounts = new address[](5);
-        bytes32[] memory blCodehashes = new bytes32[](1);
-        bytes32[] memory wlCodehashes = new bytes32[](1);
-
-        for (uint256 a = 1; a <= 5; ++a) {
-            blAccounts[a - 1] = vm.addr(a);
-        }
-
-        for (uint256 a = 6; a <= 10; ++a) {
-            wlAccounts[a - 6] = vm.addr(a);
-        }
-
-        blCodehashes[0] = address(new ContractMock()).codehash;
-        wlCodehashes[0] = address(new ClonerMock()).codehash;
-
-        uint120 firstListId = 1;
-        for (uint120 i = 0; i < 5; ++i) {
-            uint120 expectedId = firstListId + i;
-
-            vm.expectEmit(true, true, true, false);
-            emit CreatedList(expectedId, nameSource);
-
-            vm.expectEmit(true, true, true, false);
-            emit ReassignedListOwnership(expectedId, listOwnerSource);
-
-            vm.prank(listOwnerSource);
-            uint120 actualId = validator.createList(nameSource);
-            assertEq(actualId, expectedId);
-            assertEq(validator.listOwners(actualId), listOwnerSource);
-
-            vm.startPrank(listOwnerSource);
-            validator.addAccountsToBlacklist(actualId, blAccounts);
-            validator.addAccountsToWhitelist(actualId, wlAccounts);
-            validator.addCodeHashesToBlacklist(actualId, blCodehashes);
-            validator.addCodeHashesToWhitelist(actualId, wlCodehashes);
-            vm.stopPrank();
-        }
-
-        for (uint120 i = 0; i < 5; ++i) {
-            uint120 sourceId = firstListId + i;
-            uint120 expectedId = firstListId + 5 + i;
-
-            vm.expectEmit(true, true, true, false);
-            emit CreatedList(expectedId, nameTarget);
-
-            vm.expectEmit(true, true, true, false);
-            emit ReassignedListOwnership(expectedId, listOwnerTarget);
-
-            vm.prank(listOwnerTarget);
-            uint120 actualId = validator.createListCopy(nameSource, sourceId);
-            assertEq(actualId, expectedId);
-            assertEq(validator.listOwners(actualId), listOwnerTarget);
-
-            address[] memory blAccountsTarget = validator.getBlacklistedAccounts(actualId);
-            address[] memory wlAccountsTarget = validator.getWhitelistedAccounts(actualId);
-            bytes32[] memory blCodehashesTarget = validator.getBlacklistedCodeHashes(actualId);
-            bytes32[] memory wlCodehashesTarget = validator.getWhitelistedCodeHashes(actualId);
-
-            assertEq(blAccountsTarget.length, blAccounts.length);
-            assertEq(wlAccountsTarget.length, wlAccounts.length);
-            assertEq(blCodehashesTarget.length, blCodehashes.length);
-            assertEq(wlCodehashesTarget.length, wlCodehashes.length);
-
-            for (uint256 index = 0; index < blAccounts.length; ++index) {
-                assertEq(blAccountsTarget[index], blAccounts[index]);
-            }
-
-            for (uint256 index = 0; index < wlAccounts.length; ++index) {
-                assertEq(wlAccountsTarget[index], wlAccounts[index]);
-            }
-
-            for (uint256 index = 0; index < blCodehashes.length; ++index) {
-                assertEq(blCodehashesTarget[index], blCodehashes[index]);
-            }
-
-            for (uint256 index = 0; index < wlCodehashes.length; ++index) {
-                assertEq(wlCodehashesTarget[index], wlCodehashes[index]);
-            }
-        }
-    }
-
-    function testListCopyRevertsWhenCopyingANonExistentList(uint120 sourceListId) public {
-        vm.assume(sourceListId > validator.lastListId());
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ListDoesNotExist.selector);
-        validator.createListCopy("", sourceListId);
-    }
-
-    function testReassignOwnershipOfList(address originalListOwner, address newListOwner) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(newListOwner != address(0));
-        vm.assume(originalListOwner != newListOwner);
-
-        vm.prank(originalListOwner);
-        uint120 listId = validator.createList("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
-
-        vm.expectEmit(true, true, true, false);
-        emit ReassignedListOwnership(listId, newListOwner);
-
-        vm.prank(originalListOwner);
-        validator.reassignOwnershipOfList(listId, newListOwner);
-        assertEq(validator.listOwners(listId), newListOwner);
-    }
-
-    function testRevertsWhenReassigningOwnershipOfListToZero(address originalListOwner) public {
-        vm.assume(originalListOwner != address(0));
-
-        vm.prank(originalListOwner);
-        uint120 listId = validator.createList("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ListOwnershipCannotBeTransferredToZeroAddress.selector);
-        validator.reassignOwnershipOfList(listId, address(0));
-    }
-
-    function testRenounceOwnershipOfList(address originalListOwner) public {
-        vm.assume(originalListOwner != address(0));
-
-        vm.prank(originalListOwner);
-        uint120 listId = validator.createOperatorWhitelist("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
-
-        vm.expectEmit(true, true, true, false);
-        emit ReassignedListOwnership(listId, address(0));
-
-        vm.prank(originalListOwner);
-        validator.renounceOwnershipOfList(listId);
-        assertEq(validator.listOwners(listId), address(0));
-    }
-
-    function testRevertsWhenNonOwnerRenouncesOwnershipOfList(
-        address originalListOwner,
-        address unauthorizedUser
+    function testRevertsAllTransfersAtLevelTwoWhenCallerIsBlacklistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
     ) public {
-        vm.assume(originalListOwner != address(0));
-        vm.assume(unauthorizedUser != address(0));
-        vm.assume(originalListOwner != unauthorizedUser);
-
-        vm.prank(originalListOwner);
-        uint120 listId = validator.createList("test");
-        assertEq(validator.listOwners(listId), originalListOwner);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.renounceOwnershipOfList(listId);
-    }
-
-    function testRevertsWhenNonOwnerAddsAccountToBlacklist(address listOwner, address unauthorizedUser, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(unauthorizedUser);
-        _sanitizeAddress(account);
-        vm.assume(listOwner != unauthorizedUser);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.addAccountsToBlacklist(listId, accounts);
-    }
-
-    function testRevertsWhenBlacklistingEmptyAccountArray(address listOwner) public {
-        _sanitizeAddress(listOwner);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
-        vm.prank(listOwner);
-        validator.addAccountsToBlacklist(listId, accounts);
-    }
-
-    function testRevertsWhenBlacklistingZeroAddress(address listOwner, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](2);
-        accounts[0] = account;
-        accounts[1] = address(0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ZeroAddressNotAllowed.selector);
-        vm.prank(listOwner);
-        validator.addAccountsToBlacklist(listId, accounts);
-    }
-
-    function testNoDuplicateAddressesInBlacklist(address listOwner, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](3);
-        accounts[0] = account;
-        accounts[1] = account;
-        accounts[2] = account;
-
-        vm.startPrank(listOwner);
-        validator.addAccountsToBlacklist(listId, accounts);
-        validator.addAccountsToBlacklist(listId, accounts);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedAccounts(listId).length, 1);
-        assertEq(validator.getBlacklistedAccounts(listId)[0], account);
-        assertTrue(validator.isAccountBlacklisted(listId, account));
-
-        ITestCreatorToken token = _deployNewToken(address(this));
-        validator.applyListToCollection(address(token), listId);
-
-        assertEq(validator.getBlacklistedAccountsByCollection(address(token)).length, 1);
-        assertEq(validator.getBlacklistedAccountsByCollection(address(token))[0], account);
-        assertTrue(validator.isAccountBlacklistedByCollection(address(token), account));
-
-        //assertEq(token.getBlacklistedAccounts().length, 1);
-        //assertEq(token.getBlacklistedAccounts()[0], account);
-        //assertTrue(token.isAccountBlacklisted(account));
-    }
-
-    function testAddAccountsToBlacklist(address listOwner, address account1, address account2, address account3) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account1);
-        _sanitizeAddress(account2);
-        _sanitizeAddress(account3);
-        vm.assume(account1 != account2);
-        vm.assume(account1 != account3);
-        vm.assume(account2 != account3);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](2);
-        accounts[0] = account1;
-        accounts[1] = account2;
-
-        address[] memory accountsBatch2 = new address[](1);
-        accountsBatch2[0] = account3;
-
-        vm.startPrank(listOwner);
-        validator.addAccountsToBlacklist(listId, accounts);
-        validator.addAccountsToBlacklist(listId, accountsBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedAccounts(listId).length, 3);
-        assertTrue(validator.isAccountBlacklisted(listId, account1));
-        assertTrue(validator.isAccountBlacklisted(listId, account2));
-        assertTrue(validator.isAccountBlacklisted(listId, account3));
-
-        ITestCreatorToken token = _deployNewToken(address(this));
-        validator.applyListToCollection(address(token), listId);
-
-        assertEq(validator.getBlacklistedAccountsByCollection(address(token)).length, 3);
-        assertTrue(validator.isAccountBlacklistedByCollection(address(token), account1));
-        assertTrue(validator.isAccountBlacklistedByCollection(address(token), account2));
-        assertTrue(validator.isAccountBlacklistedByCollection(address(token), account3));
-
-        //assertEq(token.getBlacklistedAccounts().length, 3);
-        //assertTrue(token.isAccountBlacklisted(account1));
-        //assertTrue(token.isAccountBlacklisted(account2));
-        //assertTrue(token.isAccountBlacklisted(account3));
-    }
-
-    function testRevertsWhenNonOwnerAddsAccountToWhitelist(address listOwner, address unauthorizedUser, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(unauthorizedUser);
-        _sanitizeAddress(account);
-        vm.assume(listOwner != unauthorizedUser);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.addAccountsToWhitelist(listId, accounts);
-    }
-
-    function testRevertsWhenWhitelistingEmptyAccountArray(address listOwner) public {
-        _sanitizeAddress(listOwner);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
-        vm.prank(listOwner);
-        validator.addAccountsToWhitelist(listId, accounts);
-    }
-
-    function testRevertsWhenWhitelistingZeroAddress(address listOwner, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](2);
-        accounts[0] = account;
-        accounts[1] = address(0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ZeroAddressNotAllowed.selector);
-        vm.prank(listOwner);
-        validator.addAccountsToWhitelist(listId, accounts);
-    }
-
-    function testNoDuplicateAddressesInWhitelist(address listOwner, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](3);
-        accounts[0] = account;
-        accounts[1] = account;
-        accounts[2] = account;
-
-        vm.startPrank(listOwner);
-        validator.addAccountsToWhitelist(listId, accounts);
-        validator.addAccountsToWhitelist(listId, accounts);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedAccounts(listId).length, 1);
-        assertEq(validator.getWhitelistedAccounts(listId)[0], account);
-        assertTrue(validator.isAccountWhitelisted(listId, account));
-
-        ITestCreatorToken token = _deployNewToken(address(this));
-        validator.applyListToCollection(address(token), listId);
-
-        assertEq(validator.getWhitelistedAccountsByCollection(address(token)).length, 1);
-        assertEq(validator.getWhitelistedAccountsByCollection(address(token))[0], account);
-        assertTrue(validator.isAccountWhitelistedByCollection(address(token), account));
-
-        //assertEq(token.getWhitelistedAccounts().length, 1);
-        //assertEq(token.getWhitelistedAccounts()[0], account);
-        //assertTrue(token.isAccountWhitelisted(account));
-    }
-
-    function testAddAccountsToWhitelist(address listOwner, address account1, address account2, address account3) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account1);
-        _sanitizeAddress(account2);
-        _sanitizeAddress(account3);
-        vm.assume(account1 != account2);
-        vm.assume(account1 != account3);
-        vm.assume(account2 != account3);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](2);
-        accounts[0] = account1;
-        accounts[1] = account2;
-
-        address[] memory accountsBatch2 = new address[](1);
-        accountsBatch2[0] = account3;
-
-        vm.startPrank(listOwner);
-        validator.addAccountsToWhitelist(listId, accounts);
-        validator.addAccountsToWhitelist(listId, accountsBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedAccounts(listId).length, 3);
-        assertTrue(validator.isAccountWhitelisted(listId, account1));
-        assertTrue(validator.isAccountWhitelisted(listId, account2));
-        assertTrue(validator.isAccountWhitelisted(listId, account3));
-
-        ITestCreatorToken token = _deployNewToken(address(this));
-        validator.applyListToCollection(address(token), listId);
-
-        assertEq(validator.getWhitelistedAccountsByCollection(address(token)).length, 3);
-        assertTrue(validator.isAccountWhitelistedByCollection(address(token), account1));
-        assertTrue(validator.isAccountWhitelistedByCollection(address(token), account2));
-        assertTrue(validator.isAccountWhitelistedByCollection(address(token), account3));
-
-        //assertEq(token.getWhitelistedAccounts().length, 3);
-        //assertTrue(token.isAccountWhitelisted(account1));
-        //assertTrue(token.isAccountWhitelisted(account2));
-        //assertTrue(token.isAccountWhitelisted(account3));
-    }
-
-    function testRevertsWhenNonOwnerAddsCodehashToBlacklist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(unauthorizedUser);
-        vm.assume(listOwner != unauthorizedUser);
-        
-        vm.assume(codehash != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](1);
-        codehashes[0] = codehash;
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.addCodeHashesToBlacklist(listId, codehashes);
-    }
-
-    function testRevertsWhenBlacklistingEmptyCodehashArray(address listOwner) public {
-        _sanitizeAddress(listOwner);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
-        vm.prank(listOwner);
-        validator.addCodeHashesToBlacklist(listId, codehashes);
-    }
-
-    function testRevertsWhenBlacklistingZeroHash(address listOwner, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](2);
-        codehashes[0] = codehash;
-        codehashes[1] = bytes32(0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ZeroCodeHashNotAllowed.selector);
-        vm.prank(listOwner);
-        validator.addCodeHashesToBlacklist(listId, codehashes);
-    }
-
-    function testNoDuplicateCodehashesInBlacklist(address listOwner, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](3);
-        codehashes[0] = codehash;
-        codehashes[1] = codehash;
-        codehashes[2] = codehash;
-
-        vm.startPrank(listOwner);
-        validator.addCodeHashesToBlacklist(listId, codehashes);
-        validator.addCodeHashesToBlacklist(listId, codehashes);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedCodeHashes(listId).length, 1);
-        assertEq(validator.getBlacklistedCodeHashes(listId)[0], codehash);
-        assertTrue(validator.isCodeHashBlacklisted(listId, codehash));
-
-        ITestCreatorToken token = _deployNewToken(address(this));
-        validator.applyListToCollection(address(token), listId);
-
-        assertEq(validator.getBlacklistedCodeHashesByCollection(address(token)).length, 1);
-        assertEq(validator.getBlacklistedCodeHashesByCollection(address(token))[0], codehash);
-        assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash));
-
-        //assertEq(token.getBlacklistedCodeHashes().length, 1);
-        //assertEq(token.getBlacklistedCodeHashes()[0], codehash);
-        //assertTrue(token.isCodeHashBlacklisted(codehash));
-    }
-
-    function testAddCodeHashesToBlacklist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash1 != bytes32(0));
-        vm.assume(codehash2 != bytes32(0));
-        vm.assume(codehash3 != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashesBatch1 = new bytes32[](2);
-        codehashesBatch1[0] = codehash1;
-        codehashesBatch1[1] = codehash2;
-
-        bytes32[] memory codehashesBatch2 = new bytes32[](1);
-        codehashesBatch2[0] = codehash3;
-
-        vm.startPrank(listOwner);
-        validator.addCodeHashesToBlacklist(listId, codehashesBatch1);
-        validator.addCodeHashesToBlacklist(listId, codehashesBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedCodeHashes(listId).length, 3);
-        assertTrue(validator.isCodeHashBlacklisted(listId, codehash1));
-        assertTrue(validator.isCodeHashBlacklisted(listId, codehash2));
-        assertTrue(validator.isCodeHashBlacklisted(listId, codehash3));
-
-        ITestCreatorToken token = _deployNewToken(address(this));
-        validator.applyListToCollection(address(token), listId);
-
-        assertEq(validator.getBlacklistedCodeHashesByCollection(address(token)).length, 3);
-        assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash1));
-        assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash2));
-        assertTrue(validator.isCodeHashBlacklistedByCollection(address(token), codehash3));
-
-        //assertEq(token.getBlacklistedCodeHashes().length, 3);
-        //assertTrue(token.isCodeHashBlacklisted(codehash1));
-        //assertTrue(token.isCodeHashBlacklisted(codehash2));
-        //assertTrue(token.isCodeHashBlacklisted(codehash3));
-    }
-
-    function testRevertsWhenNonOwnerAddsCodehashToWhitelist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(unauthorizedUser);
-        vm.assume(listOwner != unauthorizedUser);
-        
-        vm.assume(codehash != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](1);
-        codehashes[0] = codehash;
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.addCodeHashesToWhitelist(listId, codehashes);
-    }
-
-    function testRevertsWhenWhitelistingEmptyCodehashArray(address listOwner) public {
-        _sanitizeAddress(listOwner);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
-        vm.prank(listOwner);
-        validator.addCodeHashesToWhitelist(listId, codehashes);
-    }
-
-    function testRevertsWhenWhitelistingZeroHash(address listOwner, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](2);
-        codehashes[0] = codehash;
-        codehashes[1] = bytes32(0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ZeroCodeHashNotAllowed.selector);
-        vm.prank(listOwner);
-        validator.addCodeHashesToWhitelist(listId, codehashes);
-    }
-
-    function testNoDuplicateCodehashesInWhitelist(address listOwner, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](3);
-        codehashes[0] = codehash;
-        codehashes[1] = codehash;
-        codehashes[2] = codehash;
-
-        vm.startPrank(listOwner);
-        validator.addCodeHashesToWhitelist(listId, codehashes);
-        validator.addCodeHashesToWhitelist(listId, codehashes);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedCodeHashes(listId).length, 1);
-        assertEq(validator.getWhitelistedCodeHashes(listId)[0], codehash);
-        assertTrue(validator.isCodeHashWhitelisted(listId, codehash));
-
-        ITestCreatorToken token = _deployNewToken(address(this));
-        validator.applyListToCollection(address(token), listId);
-
-        assertEq(validator.getWhitelistedCodeHashesByCollection(address(token)).length, 1);
-        assertEq(validator.getWhitelistedCodeHashesByCollection(address(token))[0], codehash);
-        assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash));
-
-        //assertEq(token.getWhitelistedCodeHashes().length, 1);
-        //assertEq(token.getWhitelistedCodeHashes()[0], codehash);
-        //assertTrue(token.isCodeHashWhitelisted(codehash));
-    }
-
-    function testAddCodeHashesToWhitelist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash1 != bytes32(0));
-        vm.assume(codehash2 != bytes32(0));
-        vm.assume(codehash3 != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashesBatch1 = new bytes32[](2);
-        codehashesBatch1[0] = codehash1;
-        codehashesBatch1[1] = codehash2;
-
-        bytes32[] memory codehashesBatch2 = new bytes32[](1);
-        codehashesBatch2[0] = codehash3;
-
-        vm.startPrank(listOwner);
-        validator.addCodeHashesToWhitelist(listId, codehashesBatch1);
-        validator.addCodeHashesToWhitelist(listId, codehashesBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedCodeHashes(listId).length, 3);
-        assertTrue(validator.isCodeHashWhitelisted(listId, codehash1));
-        assertTrue(validator.isCodeHashWhitelisted(listId, codehash2));
-        assertTrue(validator.isCodeHashWhitelisted(listId, codehash3));
-
-        ITestCreatorToken token = _deployNewToken(address(this));
-        validator.applyListToCollection(address(token), listId);
-
-        assertEq(validator.getWhitelistedCodeHashesByCollection(address(token)).length, 3);
-        assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash1));
-        assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash2));
-        assertTrue(validator.isCodeHashWhitelistedByCollection(address(token), codehash3));
-
-        //assertEq(token.getWhitelistedCodeHashes().length, 3);
-        //assertTrue(token.isCodeHashWhitelisted(codehash1));
-        //assertTrue(token.isCodeHashWhitelisted(codehash2));
-        //assertTrue(token.isCodeHashWhitelisted(codehash3));
-    }
-
-    //
-
-    function testRevertsWhenNonOwnerRemovesAccountFromBlacklist(address listOwner, address unauthorizedUser, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(unauthorizedUser);
-        _sanitizeAddress(account);
-        vm.assume(listOwner != unauthorizedUser);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.removeAccountsFromBlacklist(listId, accounts);
-    }
-
-    function testRevertsWhenUnblacklistingEmptyAccountArray(address listOwner) public {
-        _sanitizeAddress(listOwner);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
-        vm.prank(listOwner);
-        validator.removeAccountsFromBlacklist(listId, accounts);
-    }
-
-    function testNoRevertWhenRemovingAddressesFromBlacklistIfTheyDoNotExist(address listOwner, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](3);
-        accounts[0] = account;
-        accounts[1] = account;
-        accounts[2] = account;
-
-        vm.startPrank(listOwner);
-        validator.addAccountsToBlacklist(listId, accounts);
-        validator.addAccountsToBlacklist(listId, accounts);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedAccounts(listId).length, 1);
-        assertEq(validator.getBlacklistedAccounts(listId)[0], account);
-        assertTrue(validator.isAccountBlacklisted(listId, account));
-
-        vm.startPrank(listOwner);
-        validator.removeAccountsFromBlacklist(listId, accounts);
-        validator.removeAccountsFromBlacklist(listId, accounts);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedAccounts(listId).length, 0);
-        assertFalse(validator.isAccountBlacklisted(listId, account));
-    }
-
-    function testRemoveAccountsFromBlacklist(address listOwner, address account1, address account2, address account3) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account1);
-        _sanitizeAddress(account2);
-        _sanitizeAddress(account3);
-        vm.assume(account1 != account2);
-        vm.assume(account2 != account3);
-        vm.assume(account1 != account3);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](2);
-        accounts[0] = account1;
-        accounts[1] = account2;
-
-        address[] memory accountsBatch2 = new address[](1);
-        accountsBatch2[0] = account3;
-
-        vm.startPrank(listOwner);
-        validator.addAccountsToBlacklist(listId, accounts);
-        validator.addAccountsToBlacklist(listId, accountsBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedAccounts(listId).length, 3);
-        assertTrue(validator.isAccountBlacklisted(listId, account1));
-        assertTrue(validator.isAccountBlacklisted(listId, account2));
-        assertTrue(validator.isAccountBlacklisted(listId, account3));
-
-        vm.startPrank(listOwner);
-        validator.removeAccountsFromBlacklist(listId, accounts);
-        validator.removeAccountsFromBlacklist(listId, accountsBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedAccounts(listId).length, 0);
-        assertFalse(validator.isAccountBlacklisted(listId, account1));
-        assertFalse(validator.isAccountBlacklisted(listId, account2));
-        assertFalse(validator.isAccountBlacklisted(listId, account3));
-    }
-
-    function testRevertsWhenNonOwnerRemovesAccountFromWhitelist(address listOwner, address unauthorizedUser, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(unauthorizedUser);
-        _sanitizeAddress(account);
-        vm.assume(listOwner != unauthorizedUser);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.removeAccountsFromWhitelist(listId, accounts);
-    }
-
-    function testRevertsWhenUnwhitelistingEmptyAccountArray(address listOwner) public {
-        _sanitizeAddress(listOwner);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
-        vm.prank(listOwner);
-        validator.removeAccountsFromWhitelist(listId, accounts);
-    }
-
-    function testNoRevertWhenRemovingAddressesFromWhitelistIfTheyDoNotExist(address listOwner, address account) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](3);
-        accounts[0] = account;
-        accounts[1] = account;
-        accounts[2] = account;
-
-        vm.startPrank(listOwner);
-        validator.addAccountsToWhitelist(listId, accounts);
-        validator.addAccountsToWhitelist(listId, accounts);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedAccounts(listId).length, 1);
-        assertEq(validator.getWhitelistedAccounts(listId)[0], account);
-        assertTrue(validator.isAccountWhitelisted(listId, account));
-
-        vm.startPrank(listOwner);
-        validator.removeAccountsFromWhitelist(listId, accounts);
-        validator.removeAccountsFromWhitelist(listId, accounts);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedAccounts(listId).length, 0);
-        assertFalse(validator.isAccountWhitelisted(listId, account));
-    }
-
-    function testRemoveAccountsFromWhitelist(address listOwner, address account1, address account2, address account3) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(account1);
-        _sanitizeAddress(account2);
-        _sanitizeAddress(account3);
-        vm.assume(account1 != account2);
-        vm.assume(account2 != account3);
-        vm.assume(account1 != account3);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        address[] memory accounts = new address[](2);
-        accounts[0] = account1;
-        accounts[1] = account2;
-
-        address[] memory accountsBatch2 = new address[](1);
-        accountsBatch2[0] = account3;
-
-        vm.startPrank(listOwner);
-        validator.addAccountsToWhitelist(listId, accounts);
-        validator.addAccountsToWhitelist(listId, accountsBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedAccounts(listId).length, 3);
-        assertTrue(validator.isAccountWhitelisted(listId, account1));
-        assertTrue(validator.isAccountWhitelisted(listId, account2));
-        assertTrue(validator.isAccountWhitelisted(listId, account3));
-
-        vm.startPrank(listOwner);
-        validator.removeAccountsFromWhitelist(listId, accounts);
-        validator.removeAccountsFromWhitelist(listId, accountsBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedAccounts(listId).length, 0);
-        assertFalse(validator.isAccountWhitelisted(listId, account1));
-        assertFalse(validator.isAccountWhitelisted(listId, account2));
-        assertFalse(validator.isAccountWhitelisted(listId, account3));
-    }
-
-    // 
-
-    function testRevertsWhenNonOwnerRemovesCodeHashFromBlacklist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(unauthorizedUser);
-        vm.assume(listOwner != unauthorizedUser);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](1);
-        codehashes[0] = codehash;
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.removeCodeHashesFromBlacklist(listId, codehashes);
-    }
-
-    function testRevertsWhenUnblacklistingEmptyCodeHashArray(address listOwner) public {
-        _sanitizeAddress(listOwner);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
-        vm.prank(listOwner);
-        validator.removeCodeHashesFromBlacklist(listId, codehashes);
-    }
-
-    function testNoRevertWhenRemovingCodeHashesFromBlacklistIfTheyDoNotExist(address listOwner, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](3);
-        codehashes[0] = codehash;
-        codehashes[1] = codehash;
-        codehashes[2] = codehash;
-
-        vm.startPrank(listOwner);
-        validator.addCodeHashesToBlacklist(listId, codehashes);
-        validator.addCodeHashesToBlacklist(listId, codehashes);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedCodeHashes(listId).length, 1);
-        assertEq(validator.getBlacklistedCodeHashes(listId)[0], codehash);
-        assertTrue(validator.isCodeHashBlacklisted(listId, codehash));
-
-        vm.startPrank(listOwner);
-        validator.removeCodeHashesFromBlacklist(listId, codehashes);
-        validator.removeCodeHashesFromBlacklist(listId, codehashes);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedCodeHashes(listId).length, 0);
-        assertFalse(validator.isCodeHashBlacklisted(listId, codehash));
-    }
-
-    function testRemoveCodeHashesFromBlacklist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash1 != bytes32(0));
-        vm.assume(codehash2 != bytes32(0));
-        vm.assume(codehash3 != bytes32(0));
-        vm.assume(codehash1 != codehash2);
-        vm.assume(codehash2 != codehash3);
-        vm.assume(codehash1 != codehash3);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashesBatch1 = new bytes32[](2);
-        codehashesBatch1[0] = codehash1;
-        codehashesBatch1[1] = codehash2;
-
-        bytes32[] memory codehashesBatch2 = new bytes32[](1);
-        codehashesBatch2[0] = codehash3;
-
-        vm.startPrank(listOwner);
-        validator.addCodeHashesToBlacklist(listId, codehashesBatch1);
-        validator.addCodeHashesToBlacklist(listId, codehashesBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedCodeHashes(listId).length, 3);
-        assertTrue(validator.isCodeHashBlacklisted(listId, codehash1));
-        assertTrue(validator.isCodeHashBlacklisted(listId, codehash2));
-        assertTrue(validator.isCodeHashBlacklisted(listId, codehash3));
-
-        vm.startPrank(listOwner);
-        validator.removeCodeHashesFromBlacklist(listId, codehashesBatch1);
-        validator.removeCodeHashesFromBlacklist(listId, codehashesBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getBlacklistedCodeHashes(listId).length, 0);
-        assertFalse(validator.isCodeHashBlacklisted(listId, codehash1));
-        assertFalse(validator.isCodeHashBlacklisted(listId, codehash2));
-        assertFalse(validator.isCodeHashBlacklisted(listId, codehash3));
-    }
-
-    function testRevertsWhenNonOwnerRemovesCodeHashFromWhitelist(address listOwner, address unauthorizedUser, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        _sanitizeAddress(unauthorizedUser);
-        vm.assume(listOwner != unauthorizedUser);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](1);
-        codehashes[0] = codehash;
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
-        vm.prank(unauthorizedUser);
-        validator.removeCodeHashesFromWhitelist(listId, codehashes);
-    }
-
-    function testRevertsWhenUnwhitelistingEmptyCodeHashArray(address listOwner) public {
-        _sanitizeAddress(listOwner);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](0);
-
-        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__ArrayLengthCannotBeZero.selector);
-        vm.prank(listOwner);
-        validator.removeCodeHashesFromWhitelist(listId, codehashes);
-    }
-
-    function testNoRevertWhenRemovingCodeHashesFromWhitelistIfTheyDoNotExist(address listOwner, bytes32 codehash) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash != bytes32(0));
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashes = new bytes32[](3);
-        codehashes[0] = codehash;
-        codehashes[1] = codehash;
-        codehashes[2] = codehash;
-
-        vm.startPrank(listOwner);
-        validator.addCodeHashesToWhitelist(listId, codehashes);
-        validator.addCodeHashesToWhitelist(listId, codehashes);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedCodeHashes(listId).length, 1);
-        assertEq(validator.getWhitelistedCodeHashes(listId)[0], codehash);
-        assertTrue(validator.isCodeHashWhitelisted(listId, codehash));
-
-        vm.startPrank(listOwner);
-        validator.removeCodeHashesFromWhitelist(listId, codehashes);
-        validator.removeCodeHashesFromWhitelist(listId, codehashes);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedCodeHashes(listId).length, 0);
-        assertFalse(validator.isCodeHashWhitelisted(listId, codehash));
-    }
-
-    function testRemoveCodeHashesFromWhitelist(address listOwner, bytes32 codehash1, bytes32 codehash2, bytes32 codehash3) public {
-        _sanitizeAddress(listOwner);
-        vm.assume(codehash1 != bytes32(0));
-        vm.assume(codehash2 != bytes32(0));
-        vm.assume(codehash3 != bytes32(0));
-        vm.assume(codehash1 != codehash2);
-        vm.assume(codehash2 != codehash3);
-        vm.assume(codehash1 != codehash3);
-        
-        vm.prank(listOwner);
-        uint120 listId = validator.createList("test");
-
-        bytes32[] memory codehashesBatch1 = new bytes32[](2);
-        codehashesBatch1[0] = codehash1;
-        codehashesBatch1[1] = codehash2;
-
-        bytes32[] memory codehashesBatch2 = new bytes32[](1);
-        codehashesBatch2[0] = codehash3;
-
-        vm.startPrank(listOwner);
-        validator.addCodeHashesToWhitelist(listId, codehashesBatch1);
-        validator.addCodeHashesToWhitelist(listId, codehashesBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedCodeHashes(listId).length, 3);
-        assertTrue(validator.isCodeHashWhitelisted(listId, codehash1));
-        assertTrue(validator.isCodeHashWhitelisted(listId, codehash2));
-        assertTrue(validator.isCodeHashWhitelisted(listId, codehash3));
-
-        vm.startPrank(listOwner);
-        validator.removeCodeHashesFromWhitelist(listId, codehashesBatch1);
-        validator.removeCodeHashesFromWhitelist(listId, codehashesBatch2);
-        vm.stopPrank();
-
-        assertEq(validator.getWhitelistedCodeHashes(listId).length, 0);
-        assertFalse(validator.isCodeHashWhitelisted(listId, codehash1));
-        assertFalse(validator.isCodeHashWhitelisted(listId, codehash2));
-        assertFalse(validator.isCodeHashWhitelisted(listId, codehash3));
-    }
-
-    function testBlacklistPoliciesWithOTCEnabledAllowTransfersWhenCalledByOwner(
-        address creator,
-        address tokenOwner,
-        uint160 toKey
-    ) public {
-        address to = _verifyEOA(toKey);
-        _testBlacklistPolicyAllowsTransfersWhenCalledByOwner(TransferSecurityLevels.One, creator, tokenOwner, to);
-    }
-
-    function testBlacklistPoliciesAllowAllTransfersWhenOperatorBlacklistIsEmpty(
-        address creator,
-        address caller,
-        address from,
-        uint160 toKey
-    ) public {
-        address to = _verifyEOA(toKey);
-        _testPolicyAllowsAllTransfersWhenOperatorBlacklistIsEmpty(TransferSecurityLevels.One, creator, caller, from, to);
-    }
-
-    function testBlacklistPoliciesWithOTCEnabledBlockTransfersWhenCallerAccountBlacklistedAndNotOwner(
-        address creator,
-        address caller,
-        address from,
-        uint160 toKey
-    ) public {
-        _sanitizeAddress(caller);
-        _sanitizeAddress(from);
-        address to = _verifyEOA(toKey);
-        _testPolicyBlocksTransfersWhenCallerAccountBlacklistedAndNotOwner(TransferSecurityLevels.Two, creator, caller, from, to);
-    }
-
-    function _testPolicyAllowsAllTransfersWhenOperatorBlacklistIsEmpty(
-        TransferSecurityLevels level,
-        address creator,
-        address caller,
-        address from,
-        address to
-    ) private {
-        vm.assume(creator != address(0));
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(caller != address(token));
-        vm.assume(caller != address(0));
-        vm.assume(from != address(0));
-        vm.assume(from != caller);
-        vm.assume(from != address(token));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-
-        vm.startPrank(creator);
-
-        uint120 listId = validator.createList("");
-
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.applyListToCollection(address(token), listId);
-        vm.stopPrank();
-
-        assertTrue(token.isTransferAllowed(caller, from, to));
-
-        _mintToken(address(token), from, 1);
-
-        vm.prank(from);
-        token.setApprovalForAll(caller, true);
-
-        vm.prank(caller);
-        token.transferFrom(from, to, 1);
-        assertEq(token.ownerOf(1), to);
-    }
-
-    function _testPolicyBlocksTransfersWhenCallerAccountBlacklistedAndNotOwner(
-        TransferSecurityLevels level,
-        address creator,
-        address caller,
-        address from,
-        address to
-    ) private {
-        vm.assume(creator != address(0));
-
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
-
-        vm.assume(caller != address(token));
-        vm.assume(caller != address(0));
-        vm.assume(from != address(0));
-        vm.assume(from != caller);
-        vm.assume(from != address(token));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-
-        address[] memory blacklistedAccounts = new address[](1);
-        blacklistedAccounts[0] = caller;
-
-        vm.startPrank(creator);
-        uint120 listId = validator.createList("");
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.applyListToCollection(address(token), listId);
-        validator.addAccountsToBlacklist(listId, blacklistedAccounts);
-        vm.stopPrank();
-
-        assertFalse(token.isTransferAllowed(caller, from, to));
-
-        _mintToken(address(token), from, 1);
-
-        vm.prank(from);
-        token.setApprovalForAll(caller, true);
-
-        vm.prank(caller);
-        vm.expectRevert(
+        address caller = fuzzedList.blacklistedAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            TRANSFER_SECURITY_LEVEL_TWO, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount, 
             CreatorTokenTransferValidator.CreatorTokenTransferValidator__OperatorIsBlacklisted.selector
         );
-        token.transferFrom(from, to, 1);
     }
 
-    function _testBlacklistPolicyAllowsTransfersWhenCalledByOwner(
-        TransferSecurityLevels level,
-        address creator,
-        address tokenOwner,
+    function testRevertsAllTransfersAtLevelTwoWhenCallerIsBlacklistedCodeHash(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+
+        _etchCodeToCaller(caller, fuzzedList.blacklistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            TRANSFER_SECURITY_LEVEL_TWO, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__OperatorIsBlacklisted.selector
+        );
+    }
+
+    // Validation of Transfers Level 3
+
+    function testAllowsAllTransfersAtLevelThreeWhenCallerIsWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_THREE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelThreeWhenCallerIsWhitelistedCodeHash(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_THREE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsOTCTransfersAtLevelThree(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_THREE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsAllTransfersAtLevelThreeWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_THREE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    // Validation of Transfers Level 4
+
+    function testAllowsAllTransfersAtLevelFourWhenCallerIsWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FOUR,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelFourWhenFromIsWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address from = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FOUR,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelFourWhenCallerIsWhitelistedCodeHash(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+
+        _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FOUR,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelFourWhenFromIsWhitelistedCodeHash(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+
+        _etchCodeToCaller(from, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FOUR,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsOTCTransfersAtLevelFour(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FOUR,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    function testRevertsAllTransfersAtLevelFourWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FOUR,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    // Validation of Transfers Level 5
+
+    function testAllowsAllTransfersAtLevelFiveWhenCallerIsWhitelistedAccountAndReceiverHasNoCode(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsTransfersAtLevelFiveWhenReceiverHashCodeButAccountIsWhitelisted(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _etchCodeToCaller(to, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsTransfersAtLevelFiveWhenReceiverHashCodeButCodeHashIsWhitelisted(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _etchCodeToCaller(to, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsTransfersAtLevelFiveWhenReceiverHasCode(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _etchCodeToCaller(to, fuzzedList.blacklistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelFiveWhenCallerIsWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelFiveWhenCallerIsWhitelistedCodeHash(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsOTCTransfersAtLevelFive(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsAllTransfersAtLevelFiveWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    // Validation of Transfers Level 6
+
+    function testAllowsAllTransfersAtLevelSixWhenCallerIsWhitelistedAccountAndReceiverIsVerifiedEOA(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint160 toKey,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = _verifyEOA(toKey);
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsTransfersAtLevelSixWhenReceiverIsNotAVerifiedEOAButAccountIsWhitelisted(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsTransfersAtLevelSixWhenReceiverIsNotVerifiedEOAButCodeHashIsWhitelisted(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _etchCodeToCaller(to, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsTransfersAtLevelSixWhenReceiverHasNotVerifiedThatTheyAreAnEOA(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelSixWhenCallerIsWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelSixWhenCallerIsWhitelistedCodeHash(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsOTCTransfersAtLevelSix(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsAllTransfersAtLevelSixWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    // Validation of Transfers Level 7
+
+    function testAllowsAllTransfersAtLevelSevenWhenCallerIsWhitelistedAccountAndReceiverHasNoCode(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsTransfersAtLevelSevenWhenReceiverHashCodeButAccountIsWhitelisted(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _etchCodeToCaller(to, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsTransfersAtLevelSevenWhenReceiverHashCodeButCodeHashIsWhitelisted(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _etchCodeToCaller(to, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsTransfersAtLevelSevenWhenReceiverHasCode(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _etchCodeToCaller(to, fuzzedList.blacklistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelSevenWhenCallerIsWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelSevenWhenCallerIsWhitelistedCodeHash(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsOTCTransfersAtLevelSeven(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    function testRevertsAllTransfersAtLevelSevenWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    // Validation of Transfers Level 8
+
+    function testAllowsAllTransfersAtLevelEightWhenCallerIsWhitelistedAccountAndReceiverIsVerifiedEOA(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint160 toKey,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = _verifyEOA(toKey);
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsTransfersAtLevelEightWhenReceiverIsNotAVerifiedEOAButAccountIsWhitelisted(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsTransfersAtLevelEightWhenReceiverIsNotVerifiedEOAButCodeHashIsWhitelisted(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _etchCodeToCaller(to, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsTransfersAtLevelEightWhenReceiverHasNotVerifiedThatTheyAreAnEOA(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelEightWhenCallerIsWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAllTransfersAtLevelEightWhenCallerIsWhitelistedCodeHash(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsOTCTransfersAtLevelEight(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    function testRevertsAllTransfersAtLevelEightWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            enableAuthorizationMode,
+            authorizersCanSetWildcardOperators,
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    // Validation of Transfers Level 9
+
+    function testRevertsAllTransfersAtLevelNine(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            TRANSFER_SECURITY_LEVEL_NINE, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__TokenIsSoulbound.selector
+        );
+    }
+
+    // All Security Levels
+
+    function testAllowsAllTransfersWhereCallerIsTransferValidator(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+
+        _freezeAccount(collection, from);
+        _freezeAccount(collection, to);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            address(validator),
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsTransfersFromFrozenAccountsAtAllSecurityLevels(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(from != to);
+
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_EIGHT));
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            true
+        );
+
+        _freezeAccount(collection, from);
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__SenderAccountIsFrozen.selector
+        );
+    }
+
+    function testRevertsTransfersToFrozenAccountsAtAllSecurityLevels(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators
+    ) public {
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(from != to);
+
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_EIGHT));
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            true
+        );
+
+        _freezeAccount(collection, to);
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__ReceiverAccountIsFrozen.selector
+        );
+    }
+
+    function _pickAWhitelistingSecurityLevel(uint8 number) internal view returns (uint8) {
+        number = uint8(bound(number, 0, 6));
+        if (number == 0) {
+            return TRANSFER_SECURITY_LEVEL_RECOMMENDED;
+        } else if (number == 1) {
+            return TRANSFER_SECURITY_LEVEL_THREE;
+        } else if (number == 2) {
+            return TRANSFER_SECURITY_LEVEL_FOUR;
+        } else if (number == 3) {
+            return TRANSFER_SECURITY_LEVEL_FIVE;
+        } else if (number == 4) {
+            return TRANSFER_SECURITY_LEVEL_SIX;
+        } else if (number == 5) {
+            return TRANSFER_SECURITY_LEVEL_SEVEN;
+        } else if (number == 6) {
+            return TRANSFER_SECURITY_LEVEL_EIGHT;
+        }
+    }
+
+    function _verifyEOA(uint160 toKey) internal returns (address to) {
+        toKey = uint160(bound(toKey, 1, type(uint160).max));
+        to = vm.addr(toKey);
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(toKey, ECDSA.toEthSignedMessageHash(bytes(validator.MESSAGE_TO_SIGN())));
+        vm.prank(to);
+        validator.verifySignatureVRS(v, r, s);
+    }
+
+    function _sanitizeAccounts(
+        address collection,
+        address caller,
+        address from,
         address to
-    ) private {
-        vm.assume(creator != address(0));
+    ) internal {
+        _sanitizeAddress(collection);
+        _sanitizeAddress(caller);
+        _sanitizeAddress(from);
+        _sanitizeAddress(to);
+    }
 
-        _sanitizeAddress(creator);
-        ITestCreatorToken token = _deployNewToken(creator);
+    function _freezeAccount(
+        address collection,
+        address account
+    ) internal {
+        address[] memory accountsToFreeze = new address[](1);
+        accountsToFreeze[0] = account;
 
-        vm.assume(tokenOwner != address(token));
-        vm.assume(tokenOwner != address(0));
-        vm.assume(to != address(0));
-        vm.assume(to != address(token));
-
-        address[] memory blacklistedAccounts = new address[](1);
-        blacklistedAccounts[0] = tokenOwner;
-
-        vm.startPrank(creator);
-        uint120 listId = validator.createList("");
-        token.setTransferValidator(address(validator));
-        validator.setTransferSecurityLevelOfCollection(address(token), level);
-        validator.applyListToCollection(address(token), listId);
-        validator.addAccountsToBlacklist(listId, blacklistedAccounts);
+        vm.startPrank(collection);
+        validator.freezeAccountsForCollection(collection, accountsToFreeze);
         vm.stopPrank();
-
-        assertTrue(token.isTransferAllowed(tokenOwner, tokenOwner, to));
-
-        _mintToken(address(token), tokenOwner, 1);
-
-        vm.prank(tokenOwner);
-        token.transferFrom(tokenOwner, to, 1);
-
-        assertEq(token.ownerOf(1), to);
     }
 
-    function testIsApprovedForAllDefaultsToFalseForTransferValidator(address creator, address owner) public {
-        _sanitizeAddress(creator);
-        _sanitizeAddress(owner);
-        vm.assume(creator != owner);
-
-        ITestCreatorToken token = _deployNewToken(creator);
-        vm.prank(creator);
-        token.setTransferValidator(address(validator));
-
-        assertFalse(token.isApprovedForAll(owner, address(validator)));
+    function _etchCodeToCaller(
+        address caller,
+        bytes32 code
+    ) internal {
+        bytes memory bytecode = abi.encode(code);
+        vm.etch(caller, bytecode);
     }
 
-    function testIsApprovedForAllReturnsTrueForTransferValidatorIfAutoApproveEnabledByCreator(address creator, address owner) public {
-        _sanitizeAddress(creator);
-        _sanitizeAddress(owner);
-        vm.assume(creator != owner);
+    function _configureCollectionSecurity(
+        address collection,
+        FuzzedList memory fuzzedList,
+        uint8 transferSecurityLevel,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) internal {
+        vm.assume(fuzzedList.whitelistedCode != fuzzedList.blacklistedCode);
+        vm.assume(fuzzedList.whitelistedAddress != fuzzedList.blacklistedAddress);
+        vm.assume(fuzzedList.whitelistedToAddress != fuzzedList.blacklistedAddress);
+        vm.assume(fuzzedList.whitelistedAddress != fuzzedList.whitelistedToAddress);
+        vm.assume(fuzzedList.authorizerAddress != fuzzedList.whitelistedAddress);
+        vm.assume(fuzzedList.authorizerAddress != fuzzedList.whitelistedToAddress);
+        vm.assume(fuzzedList.authorizerAddress != fuzzedList.blacklistedAddress);
 
-        ITestCreatorToken token = _deployNewToken(creator);
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        token.setAutomaticApprovalOfTransfersFromValidator(true);
+        vm.startPrank(collection);
+
+        uint120 listId = validator.createList("test");
+
+        validator.addAccountToWhitelist(listId, fuzzedList.whitelistedAddress);
+        validator.addAccountToWhitelist(listId, fuzzedList.whitelistedToAddress);
+        validator.addAccountToBlacklist(listId, fuzzedList.blacklistedAddress);
+        validator.addAccountToAuthorizers(listId, fuzzedList.authorizerAddress);
+
+        bytes memory whitelistedCode = abi.encode(fuzzedList.whitelistedCode);
+        bytes memory blacklistedCode = abi.encode(fuzzedList.blacklistedCode);
+
+        bytes32[] memory codeHashes = new bytes32[](1);
+        codeHashes[0] = keccak256(whitelistedCode);
+        validator.addCodeHashesToWhitelist(listId, codeHashes);
+        codeHashes[0] = keccak256(blacklistedCode);
+        validator.addCodeHashesToBlacklist(listId, codeHashes);
+
+        validator.setTransferSecurityLevelOfCollection(
+            collection, 
+            transferSecurityLevel, 
+            enableAuthorizationMode, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode);
+
+        validator.applyListToCollection(collection, listId);
+
         vm.stopPrank();
-
-        assertTrue(token.isApprovedForAll(owner, address(validator)));
     }
 
-    function testIsApprovedForAllReturnsTrueForDefaultTransferValidatorIfAutoApproveEnabledByCreatorAndValidatorUninitialized(address creator, address owner) public {
-        _sanitizeAddress(creator);
-        _sanitizeAddress(owner);
-        vm.assume(creator != owner);
+    function _validateTransfersWithExpectedRevert(
+        address collection,
+        address caller,
+        address origin,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bytes4 expectedRevertSelector
+    ) internal {
+        vm.startPrank(collection, origin);
 
-        ITestCreatorToken token = _deployNewToken(creator);
-        vm.startPrank(creator);
-        token.setAutomaticApprovalOfTransfersFromValidator(true);
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.applyCollectionTransferPolicy(caller, from, to);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.validateTransfer(caller, from, to);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.validateTransfer(caller, from, to, tokenId);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.validateTransfer(caller, from, to, tokenId, amount);
+
         vm.stopPrank();
-
-        assertTrue(token.isApprovedForAll(owner, token.DEFAULT_TRANSFER_VALIDATOR()));
     }
-
-    function testIsApprovedForAllReturnsTrueWhenUserExplicitlyApprovesTransferValidator(address creator, address owner) public {
-        _sanitizeAddress(creator);
-        _sanitizeAddress(owner);
-        vm.assume(creator != owner);
-
-        ITestCreatorToken token = _deployNewToken(creator);
-        vm.prank(creator);
-        token.setTransferValidator(address(validator));
-
-        vm.prank(owner);
-        token.setApprovalForAll(address(validator), true);
-
-        assertTrue(token.isApprovedForAll(owner, address(validator)));
-    }
-    */
 
     /*
 // These Are Really Creator Token Tests
@@ -3538,6 +3638,60 @@ contract TransferValidatorTest is Events, Helpers {
         );
         validator.setOperatorWhitelistOfCollection(address(token), listId);
         vm.stopPrank();
+    }
+
+    function testIsApprovedForAllDefaultsToFalseForTransferValidator(address creator, address owner) public {
+        _sanitizeAddress(creator);
+        _sanitizeAddress(owner);
+        vm.assume(creator != owner);
+
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.prank(creator);
+        token.setTransferValidator(address(validator));
+
+        assertFalse(token.isApprovedForAll(owner, address(validator)));
+    }
+
+    function testIsApprovedForAllReturnsTrueForTransferValidatorIfAutoApproveEnabledByCreator(address creator, address owner) public {
+        _sanitizeAddress(creator);
+        _sanitizeAddress(owner);
+        vm.assume(creator != owner);
+
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.startPrank(creator);
+        token.setTransferValidator(address(validator));
+        token.setAutomaticApprovalOfTransfersFromValidator(true);
+        vm.stopPrank();
+
+        assertTrue(token.isApprovedForAll(owner, address(validator)));
+    }
+
+    function testIsApprovedForAllReturnsTrueForDefaultTransferValidatorIfAutoApproveEnabledByCreatorAndValidatorUninitialized(address creator, address owner) public {
+        _sanitizeAddress(creator);
+        _sanitizeAddress(owner);
+        vm.assume(creator != owner);
+
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.startPrank(creator);
+        token.setAutomaticApprovalOfTransfersFromValidator(true);
+        vm.stopPrank();
+
+        assertTrue(token.isApprovedForAll(owner, token.DEFAULT_TRANSFER_VALIDATOR()));
+    }
+
+    function testIsApprovedForAllReturnsTrueWhenUserExplicitlyApprovesTransferValidator(address creator, address owner) public {
+        _sanitizeAddress(creator);
+        _sanitizeAddress(owner);
+        vm.assume(creator != owner);
+
+        ITestCreatorToken token = _deployNewToken(creator);
+        vm.prank(creator);
+        token.setTransferValidator(address(validator));
+
+        vm.prank(owner);
+        token.setApprovalForAll(address(validator), true);
+
+        assertTrue(token.isApprovedForAll(owner, address(validator)));
     }
     */
 }

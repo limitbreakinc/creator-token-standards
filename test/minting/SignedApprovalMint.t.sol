@@ -80,11 +80,9 @@ contract SignedApprovalMintConstructableTest is MaxSupplyTest {
         vm.stopPrank();
     }
 
-    function testInvalidSigner(uint256 invalidSignerKey, uint256 nonce, bytes32 sample) public {
-        vm.assume(
-            invalidSignerKey > 0
-                && invalidSignerKey < 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
-        );
+    function testInvalidSigner(uint160 invalidSignerKey, uint256 nonce, bytes32 sample) public {
+        invalidSignerKey = uint160(bound(invalidSignerKey, 1, type(uint160).max));
+
         nonce = bound(nonce, 1, 999999999999999999);
 
         address claimer = address(uint160(uint256(keccak256(abi.encodePacked(nonce, sample)))));
@@ -94,6 +92,8 @@ contract SignedApprovalMintConstructableTest is MaxSupplyTest {
             DOMAIN_SEPARATOR,
             keccak256(abi.encode(keccak256("Approved(address wallet,uint256 quantity)"), claimer, amount))
         );
+
+        vm.assume(claimer != vm.addr(invalidSignerKey));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(invalidSignerKey, sigHash);
         vm.startPrank(claimer);
@@ -401,11 +401,9 @@ contract SignedApprovalMintInitializableTest is MaxSupplyInitializableTest {
         vm.stopPrank();
     }
 
-    function testInvalidSigner(uint256 invalidSignerKey, uint256 nonce, bytes32 sample) public {
-        vm.assume(
-            invalidSignerKey > 0
-                && invalidSignerKey < 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
-        );
+    function testInvalidSigner(uint160 invalidSignerKey, uint256 nonce, bytes32 sample) public {
+        invalidSignerKey = uint160(bound(invalidSignerKey, 1, type(uint160).max));
+
         nonce = bound(nonce, 1, 999999999999999999);
 
         address claimer = address(uint160(uint256(keccak256(abi.encodePacked(nonce, sample)))));
@@ -416,6 +414,7 @@ contract SignedApprovalMintInitializableTest is MaxSupplyInitializableTest {
             keccak256(abi.encode(keccak256("Approved(address wallet,uint256 quantity)"), claimer, amount))
         );
 
+        vm.assume(claimer != vm.addr(invalidSignerKey));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(invalidSignerKey, sigHash);
         vm.startPrank(claimer);
         bytes memory sig = abi.encodePacked(r, s, v);
