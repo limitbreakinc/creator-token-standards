@@ -13,3 +13,6 @@
 [submodule "lib/PermitC"]
 	path = lib/PermitC
 	url = https://github.com/limit-break-inc/PermitC
+[submodule "lib/tstorish"]
+	path = lib/tstorish
+	url = https://github.com/ProjectOpenSea/tstorish

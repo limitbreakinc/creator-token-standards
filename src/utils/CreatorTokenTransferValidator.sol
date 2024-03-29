@@ -9,6 +9,7 @@ import "@limitbreak/permit-c/PermitC.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@opensea/tstorish/Tstorish.sol";
 
 /**
  * @title  CreatorTokenTransferValidator
@@ -84,7 +85,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
  *            - Caller Constraints: OperatorWhitelistDisableOTC
  *            - Receiver Constraints: EOA
  */
-contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC165, PermitC {
+contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC165, Tstorish, PermitC {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
@@ -222,6 +223,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         string memory name,
         string memory version
     ) 
+    Tstorish()
     PermitC(name, version) {
         if (defaultOwner == address(0) || eoaRegistry_ == address(0)) {
             revert CreatorTokenTransferValidator__InvalidConstructorArgs();
@@ -1524,8 +1526,8 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         address collection, 
         uint256 tokenId
     ) internal whenAuthorizerAndOperatorEnabledForCollection(collection, operator, msg.sender) {
-        _tstore(_getTransientOperatorSlot(collection), bytes32(uint256(uint160(operator))));
-        _tstore(_getTransientOperatorSlot(collection, tokenId), bytes32(uint256(uint160(operator))));
+        _setTstorish(_getTransientOperatorSlot(collection), uint256(uint160(operator)));
+        _setTstorish(_getTransientOperatorSlot(collection, tokenId), uint256(uint160(operator)));
     }
 
     function _callerAuthorized(
@@ -1538,8 +1540,8 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             _callerAuthorized(caller, _getTransientOperatorSlot(collection));
     }
 
-    function _callerAuthorized(address caller, bytes32 slot) internal view returns (bool isAuthorized) {
-        address authorizedOperator = address(uint160(uint256(_tload(slot))));
+    function _callerAuthorized(address caller, uint256 slot) internal view returns (bool isAuthorized) {
+        address authorizedOperator = address(uint160(_getTstorish(slot)));
         isAuthorized = authorizedOperator == WILDCARD_OPERATOR_ADDRESS || authorizedOperator == caller;
     }
 
@@ -1549,34 +1551,16 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     function _getTransientOperatorSlot(
         address collection, 
         uint256 tokenId
-    ) internal pure returns (bytes32 operatorSlot) {
+    ) internal pure returns (uint256 operatorSlot) {
         assembly {
             mstore(0x00, collection)
             mstore(0x20, tokenId)
-            operatorSlot := keccak256(0x00, 0x40)
+            operatorSlot := shr(4, keccak256(0x00, 0x40))
        }
     }
 
-    function _getTransientOperatorSlot(address collection) internal pure returns (bytes32 operatorSlot) {
-        return bytes32(uint256(uint160(collection)));
-    }
-
-    /**
-     * @dev Internal function used to store a value in the specified transient storage slot.
-     */
-    function _tstore(bytes32 slot, bytes32 value) internal {
-        assembly {
-            tstore(slot, value)
-        }
-    }
-
-    /**
-     * @dev Internal function used to load a value from the specified transient storage slot.
-     */
-    function _tload(bytes32 slot) internal view returns (bytes32 value) {
-        assembly {
-            value := tload(slot)
-        }
+    function _getTransientOperatorSlot(address collection) internal pure returns (uint256 operatorSlot) {
+        return uint256(uint160(collection));
     }
 
     /**
