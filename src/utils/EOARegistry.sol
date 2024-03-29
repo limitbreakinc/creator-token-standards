@@ -3,15 +3,8 @@
 pragma solidity ^0.8.4;
 
 import "../interfaces/IEOARegistry.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-
-/// @dev Thrown when the caller does not match the recovered address for the signature.
-error CallerDidNotSignTheMessage();
-
-/// @dev Thrown when the caller has already been verified.
-error SignatureAlreadyVerified();
 
 /**
  * @title EOARegistry
@@ -21,7 +14,7 @@ error SignatureAlreadyVerified();
  * so if Defi composability is an objective, this is not a good option.  Be advised that in the future, EOA accounts might not be a thing
  * but this is yet to be determined.  See https://eips.ethereum.org/EIPS/eip-4337 for more information.
  */
-contract EOARegistry is Context, ERC165, IEOARegistry {
+contract EOARegistry is ERC165, IEOARegistry {
 
     /// @dev A pre-cached signed message hash used for gas-efficient signature recovery
     bytes32 immutable private signedMessageHash;

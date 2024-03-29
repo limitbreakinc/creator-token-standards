@@ -9,6 +9,7 @@ import "../mocks/ERC721CMock.sol";
 import "../interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
 import "src/utils/CreatorTokenTransferValidator.sol";
+import "src/utils/EOARegistry.sol";
 
 // Overall Gas Efficiency:
 // | Function Name                    | min             | avg   | median | max   |
@@ -18,6 +19,7 @@ contract BenchmarkValidator is Test {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
+    EOARegistry public eoaRegistry;
     CreatorTokenTransferValidator public validator;
 
     address validatorDeployer;
@@ -47,9 +49,11 @@ contract BenchmarkValidator is Test {
     OperatorMock whitelistedOperatorMock2;
 
     function setUp() public virtual {
+        eoaRegistry = new EOARegistry();
+
         validatorDeployer = vm.addr(1);
         vm.startPrank(validatorDeployer);
-        validator = new CreatorTokenTransferValidator(validatorDeployer, "", "");
+        validator = new CreatorTokenTransferValidator(validatorDeployer, address(eoaRegistry), "", "");
         vm.stopPrank();
 
         tokenLevelOne = _deployNewToken(address(this));
@@ -73,28 +77,28 @@ contract BenchmarkValidator is Test {
         listIdBlacklist = validator.createList("blacklist");
         listIdWhitelist = validator.createList("whitelist");
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelOne), TRANSFER_SECURITY_LEVEL_ONE, false, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelOne), TRANSFER_SECURITY_LEVEL_ONE, false, false, false);
         validator.applyListToCollection(address(tokenLevelOne), 0);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelTwo), TRANSFER_SECURITY_LEVEL_TWO, false, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelTwo), TRANSFER_SECURITY_LEVEL_TWO, false, false, false);
         validator.applyListToCollection(address(tokenLevelTwo), listIdBlacklist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelThree), TRANSFER_SECURITY_LEVEL_THREE, false, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelThree), TRANSFER_SECURITY_LEVEL_THREE, false, false, false);
         validator.applyListToCollection(address(tokenLevelThree), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFour), TRANSFER_SECURITY_LEVEL_FOUR, false, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFour), TRANSFER_SECURITY_LEVEL_FOUR, false, false, false);
         validator.applyListToCollection(address(tokenLevelFour), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFive), TRANSFER_SECURITY_LEVEL_FIVE, false, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelFive), TRANSFER_SECURITY_LEVEL_FIVE, false, false, false);
         validator.applyListToCollection(address(tokenLevelFive), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSix), TRANSFER_SECURITY_LEVEL_SIX, false, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSix), TRANSFER_SECURITY_LEVEL_SIX, false, false, false);
         validator.applyListToCollection(address(tokenLevelSix), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSeven), TRANSFER_SECURITY_LEVEL_SEVEN, false, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelSeven), TRANSFER_SECURITY_LEVEL_SEVEN, false, false, false);
         validator.applyListToCollection(address(tokenLevelSeven), listIdWhitelist);
 
-        validator.setTransferSecurityLevelOfCollection(address(tokenLevelEight), TRANSFER_SECURITY_LEVEL_EIGHT, false, false);
+        validator.setTransferSecurityLevelOfCollection(address(tokenLevelEight), TRANSFER_SECURITY_LEVEL_EIGHT, false, false, false);
         validator.applyListToCollection(address(tokenLevelEight), listIdWhitelist);
 
         blacklistedOperatorMock = new OperatorMock(1);
@@ -958,13 +962,11 @@ contract BenchmarkValidator is Test {
 
 
     function _verifyEOA(uint160 toKey) internal returns (address to) {
-        vm.assume(toKey > 0 && toKey < type(uint160).max);
+        toKey = uint160(bound(toKey, 1, type(uint160).max));
         to = vm.addr(toKey);
         (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(toKey, ECDSA.toEthSignedMessageHash(bytes(validator.MESSAGE_TO_SIGN())));
+            vm.sign(toKey, ECDSA.toEthSignedMessageHash(bytes(eoaRegistry.MESSAGE_TO_SIGN())));
         vm.prank(to);
-        validator.verifySignatureVRS(v, r, s);
+        eoaRegistry.verifySignatureVRS(v, r, s);
     }
 }
-
-//| applyCollectionTransferPolicy  | 3262            | 9487  | 9287   | 17636 | 30
