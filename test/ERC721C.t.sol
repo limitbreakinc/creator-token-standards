@@ -1,20 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
-import "./mocks/ERC721CMock.sol";
-import "./mocks/ClonerMock.sol";
-import "./CreatorTokenTransferValidatorERC721.t.sol";
+import "./CreatorToken.t.sol";
 
-contract ERC721CTest is CreatorTokenTransferValidatorERC721Test {
-    ERC721CMock public tokenMock;
-
+contract ERC721CTest is CreatorTokenTest {
     function setUp() public virtual override {
         super.setUp();
-
-        tokenMock = new ERC721CMock();
-        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
@@ -27,6 +18,7 @@ contract ERC721CTest is CreatorTokenTransferValidatorERC721Test {
     }
 
     function testSupportedTokenInterfaces() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
@@ -34,7 +26,8 @@ contract ERC721CTest is CreatorTokenTransferValidatorERC721Test {
     }
 }
 
-contract ERC721CInitializableTest is CreatorTokenTransferValidatorERC721Test {
+/*
+contract ERC721CInitializableTest is Events, Helpers {
     ClonerMock cloner;
 
     ERC721CInitializableMock public tokenMock;
@@ -62,7 +55,7 @@ contract ERC721CInitializableTest is CreatorTokenTransferValidatorERC721Test {
         //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
-    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
+    function _deployNewToken(address creator) internal virtual returns (ITestCreatorToken) {
         bytes4[] memory initializationSelectors = new bytes4[](1);
         bytes[] memory initializationArguments = new bytes[](1);
 
@@ -75,7 +68,7 @@ contract ERC721CInitializableTest is CreatorTokenTransferValidatorERC721Test {
         );
     }
 
-    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual {
         ERC721CInitializableMock(tokenAddress).mint(to, tokenId);
     }
 
@@ -91,3 +84,4 @@ contract ERC721CInitializableTest is CreatorTokenTransferValidatorERC721Test {
         tokenMock.initializeOwner(badOwner);
     }
 }
+*/

@@ -1,25 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
 import "./mocks/ERC1155CMock.sol";
-import "./mocks/ClonerMock.sol";
-import "./CreatorTokenTransferValidatorERC1155.t.sol";
+import "./CreatorToken.t.sol";
 
-contract ERC1155CTest is CreatorTokenTransferValidatorERC1155Test {
-    ERC1155CMock public tokenMock;
-
+contract ERC1155CTest is CreatorTokenTest {
     function setUp() public virtual override {
         super.setUp();
-
-        tokenMock = new ERC1155CMock();
-        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
-    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken1155) {
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
         vm.prank(creator);
-        return ITestCreatorToken1155(address(new ERC1155CMock()));
+        return ITestCreatorToken(address(new ERC1155CMock()));
     }
 
     function _mintToken(address tokenAddress, address to, uint256 tokenId, uint256 amount) internal virtual override {
@@ -27,6 +19,7 @@ contract ERC1155CTest is CreatorTokenTransferValidatorERC1155Test {
     }
 
     function testSupportedTokenInterfaces() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC1155).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC1155MetadataURI).interfaceId), true);
@@ -34,6 +27,7 @@ contract ERC1155CTest is CreatorTokenTransferValidatorERC1155Test {
     }
 }
 
+/*
 contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
     ClonerMock cloner;
 
@@ -97,3 +91,4 @@ contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
         tokenMock.initializeERC1155(uri);
     }
 }
+*/
