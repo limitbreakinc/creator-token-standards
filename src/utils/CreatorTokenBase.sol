@@ -39,7 +39,8 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
 
     address public constant DEFAULT_TRANSFER_VALIDATOR = address(0x721C00182a990771244d7A71B9FA2ea789A3b433);
 
-    TransferValidatorReference private transferValidatorReference;
+    bool private isValidatorInitialized;
+    address private transferValidator;
 
     /**
      * @notice Sets the transfer validator for the token contract.
@@ -58,7 +59,6 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
         _requireCallerIsContractOwner();
 
         bool isValidTransferValidator = transferValidator_.code.length > 0;
-        uint16 version = 0;
 
         if(transferValidator_ != address(0) && !isValidTransferValidator) {
             revert CreatorTokenBase__InvalidTransferValidatorContract();
@@ -66,21 +66,18 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
 
         emit TransferValidatorUpdated(address(getTransferValidator()), transferValidator_);
 
-        transferValidatorReference = TransferValidatorReference({
-            isInitialized: true,
-            version: version,
-            transferValidator: transferValidator_
-        });
+        isValidatorInitialized = true;
+        transferValidator = transferValidator_;
     }
 
     /**
      * @notice Returns the transfer validator contract address for this token contract.
      */
     function getTransferValidator() public view override returns (address validator) {
-        validator = transferValidatorReference.transferValidator;
+        validator = transferValidator;
 
         if (validator == address(0)) {
-            if (!transferValidatorReference.isInitialized) {
+            if (!isValidatorInitialized) {
                 validator = DEFAULT_TRANSFER_VALIDATOR;
             }
         }
@@ -100,16 +97,7 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
      * @return       True if the transfer is allowed, false otherwise.
      */
     function isTransferAllowed(address caller, address from, address to) public view returns (bool) {
-        address validator = getTransferValidator();
-
-        if (validator != address(0)) {
-            try ITransferValidator(validator).validateTransfer(caller, from, to) {
-                return true;
-            } catch {
-                return false;
-            }
-        }
-        return true;
+        return isTransferAllowed(caller, from, to, 0);
     }
 
     function isTransferAllowed(address caller, address from, address to, uint256 tokenId) public view returns (bool) {
