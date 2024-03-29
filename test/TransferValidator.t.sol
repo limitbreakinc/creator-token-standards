@@ -1562,6 +1562,53 @@ contract TransferValidatorTest is Events, Helpers {
         );
     }
 
+    function testAllowsAuthorizedTransfersAtLevelTwoWhenCallerIsBlacklistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.blacklistedAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+        vm.assume(caller != from);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            TRANSFER_SECURITY_LEVEL_TWO, 
+            true, 
+            true, 
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+    }
+
     // Validation of Transfers Level 3
 
     function testAllowsAllTransfersAtLevelThreeWhenCallerIsWhitelistedAccount(
@@ -1708,6 +1755,56 @@ contract TransferValidatorTest is Events, Helpers {
             tokenId, 
             amount,
             CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    function testAllowsAuthorizedTransfersAtLevelThreeWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address authorizer = fuzzedList.authorizerAddress;
+        
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(caller != from);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_THREE,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
         );
     }
 
@@ -1932,6 +2029,102 @@ contract TransferValidatorTest is Events, Helpers {
             tokenId, 
             amount,
             CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    function testAllowsAuthorizedOTCTransfersAtLevelFour(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FOUR,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAuthorizedTransfersAtLevelFourWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FOUR,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
         );
     }
 
@@ -2234,6 +2427,107 @@ contract TransferValidatorTest is Events, Helpers {
         );
     }
 
+    function testAllowsAuthorizedTransfersAtLevelFiveWhenReceiverHasCode(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+        
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _etchCodeToCaller(to, fuzzedList.blacklistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAuthorizedTransfersAtLevelFiveWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(caller != from);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_FIVE,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
     // Validation of Transfers Level 6
 
     function testAllowsAllTransfersAtLevelSixWhenCallerIsWhitelistedAccountAndReceiverIsVerifiedEOA(
@@ -2527,6 +2821,105 @@ contract TransferValidatorTest is Events, Helpers {
             tokenId, 
             amount,
             CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector
+        );
+    }
+
+    function testAllowsAuthorizedTransfersAtLevelSixWhenReceiverHasNotVerifiedThatTheyAreAnEOA(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAuthorizationMode,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAuthorizedTransfersAtLevelSixWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        vm.assume(caller != from);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SIX,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
         );
     }
 
@@ -2829,6 +3222,156 @@ contract TransferValidatorTest is Events, Helpers {
         );
     }
 
+    function testAllowsAuthorizedTransfersAtLevelSevenWhenReceiverHasCode(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _etchCodeToCaller(to, fuzzedList.blacklistedCode);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAuthorizedOTCTransfersAtLevelSeven(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        address to = fuzzedList.whitelistedToAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAuthorizedTransfersAtLevelSevenWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(caller != from);
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_SEVEN,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
     // Validation of Transfers Level 8
 
     function testAllowsAllTransfersAtLevelEightWhenCallerIsWhitelistedAccountAndReceiverIsVerifiedEOA(
@@ -3124,6 +3667,153 @@ contract TransferValidatorTest is Events, Helpers {
         );
     }
 
+    function testAllowsAuthorizedTransfersAtLevelEightWhenReceiverHasNotVerifiedThatTheyAreAnEOA(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        address to,
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = fuzzedList.whitelistedAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(to != fuzzedList.whitelistedAddress);
+        vm.assume(to != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAuthorizedOTCTransfersAtLevelEight(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address caller = from;
+        address to = fuzzedList.whitelistedToAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testAllowsAuthorizedTransfersAtLevelEightWhenCallerIsNotWhitelistedAccount(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address caller,
+        address from, 
+        uint256 tokenId,
+        uint256 amount,
+        bool enableAccountFreezingMode
+    ) public {
+        address to = fuzzedList.whitelistedToAddress;
+        address authorizer = fuzzedList.authorizerAddress;
+
+        _sanitizeAccounts(collection, caller, from, to);
+        _sanitizeAddress(authorizer);
+
+        vm.assume(caller != fuzzedList.whitelistedAddress);
+        vm.assume(caller != fuzzedList.whitelistedToAddress);
+
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList,
+            TRANSFER_SECURITY_LEVEL_EIGHT,
+            true,
+            true,
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer, 
+            caller, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+
+        _validateTransfersWithExpectedRevert(
+            collection, 
+            caller, 
+            caller,
+            from, 
+            to, 
+            tokenId, 
+            amount,
+            SELECTOR_NO_ERROR
+        );
+    }
+
     // Validation of Transfers Level 9
 
     function testRevertsAllTransfersAtLevelNine(
@@ -3284,6 +3974,239 @@ contract TransferValidatorTest is Events, Helpers {
         );
     }
 
+    // Authorization Mode
+
+    function testAllowsBeforeAuthorizedTransferWhenAuthorizationModeIsEnabledAndAuthorizerIsAllowed(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address operator,
+        uint256 tokenId, 
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool enableAccountFreezingMode
+    ) public {
+        address authorizer = fuzzedList.authorizerAddress;
+        _sanitizeAccounts(collection, authorizer, operator, operator);
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            true, 
+            true, 
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer,
+            operator, 
+            collection, 
+            tokenId, 
+            amount, 
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsBeforeAuthorizedTransferWhenAuthorizationModeIsDisabled(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address operator,
+        uint256 tokenId, 
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address authorizer = fuzzedList.authorizerAddress;
+        _sanitizeAccounts(collection, authorizer, operator, operator);
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            false, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer,
+            operator, 
+            collection, 
+            tokenId, 
+            amount, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__AuthorizationDisabledForCollection.selector
+        );
+    }
+
+    function testRevertsBeforeAuthorizedTransferWhenAuthorizationModeIsEnabledButWildcardOperatorIsUsedAndWildcardOperatorsAreDisabled(
+        FuzzedList memory fuzzedList,
+        address collection,
+        uint256 tokenId, 
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool enableAccountFreezingMode
+    ) public {
+        address authorizer = fuzzedList.authorizerAddress;
+        address operator = address(0x01);
+        _sanitizeAccounts(collection, authorizer, authorizer, authorizer);
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            true, 
+            false, 
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer,
+            operator, 
+            collection, 
+            tokenId, 
+            amount, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__WildcardOperatorsCannotBeAuthorizedForCollection.selector
+        );
+    }
+
+    function testRevertsBeforeAuthorizedTransferWhenAuthorizationModeIsEnabledButTheCallerIsNotInTheAuthorizerList(
+        FuzzedList memory fuzzedList,
+        address authorizer,
+        address collection,
+        address operator,
+        uint256 tokenId, 
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, authorizer, operator, operator);
+        vm.assume(authorizer != fuzzedList.authorizerAddress);
+
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            true, 
+            true, 
+            enableAccountFreezingMode
+        );
+
+        _beforeAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer,
+            operator, 
+            collection, 
+            tokenId, 
+            amount, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeAnAuthorizer.selector
+        );
+    }
+
+    function testAllowsAfterAuthorizedTransferWhenAuthorizationModeIsEnabledAndAuthorizerIsAllowed(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address operator,
+        uint256 tokenId, 
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool enableAccountFreezingMode
+    ) public {
+        address authorizer = fuzzedList.authorizerAddress;
+        _sanitizeAccounts(collection, authorizer, operator, operator);
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            true, 
+            true, 
+            enableAccountFreezingMode
+        );
+
+        _afterAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer,
+            operator, 
+            collection, 
+            tokenId, 
+            SELECTOR_NO_ERROR
+        );
+    }
+
+    function testRevertsAfterAuthorizedTransferWhenAuthorizationModeIsDisabled(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address operator,
+        uint256 tokenId, 
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address authorizer = fuzzedList.authorizerAddress;
+        _sanitizeAccounts(collection, authorizer, operator, operator);
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            false, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
+        );
+
+        _afterAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer,
+            operator, 
+            collection, 
+            tokenId, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__AuthorizationDisabledForCollection.selector
+        );
+    }
+
+    function testRevertsAfterAuthorizedTransferWhenAuthorizationModeIsEnabledButTheCallerIsNotInTheAuthorizerList(
+        FuzzedList memory fuzzedList,
+        address authorizer,
+        address collection,
+        address operator,
+        uint256 tokenId, 
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        _sanitizeAccounts(collection, authorizer, operator, operator);
+        vm.assume(authorizer != fuzzedList.authorizerAddress);
+
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            true, 
+            true, 
+            enableAccountFreezingMode
+        );
+
+        _afterAuthorizedTransferCallsWithExpectedRevert(
+            authorizer, 
+            authorizer,
+            operator, 
+            collection, 
+            tokenId, 
+            CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeAnAuthorizer.selector
+        );
+    }
+
+    // Helpers
+
     function _pickAWhitelistingSecurityLevel(uint8 number) internal view returns (uint8) {
         number = uint8(bound(number, 0, 6));
         if (number == 0) {
@@ -3421,6 +4344,68 @@ contract TransferValidatorTest is Events, Helpers {
             vm.expectRevert(expectedRevertSelector);
         }
         validator.validateTransfer(caller, from, to, tokenId, amount);
+
+        vm.stopPrank();
+    }
+
+    function _beforeAuthorizedTransferCallsWithExpectedRevert(
+        address authorizer,
+        address origin,
+        address operator,
+        address collection,
+        uint256 tokenId,
+        uint256 amount,
+        bytes4 expectedRevertSelector
+    ) internal {
+        vm.startPrank(authorizer, origin);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.beforeAuthorizedTransfer(operator, collection, tokenId);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.beforeAuthorizedTransfer(operator, collection);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.beforeAuthorizedTransfer(collection, tokenId);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.beforeAuthorizedTransferWithAmount(collection, tokenId, amount);
+
+        vm.stopPrank();
+    }
+
+    function _afterAuthorizedTransferCallsWithExpectedRevert(
+        address authorizer,
+        address origin,
+        address operator,
+        address collection,
+        uint256 tokenId,
+        bytes4 expectedRevertSelector
+    ) internal {
+        vm.startPrank(authorizer, origin);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.afterAuthorizedTransfer(collection, tokenId);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.afterAuthorizedTransfer(collection);
+
+        if (expectedRevertSelector != bytes4(0x00000000)) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        validator.afterAuthorizedTransferWithAmount(collection, tokenId);
 
         vm.stopPrank();
     }
