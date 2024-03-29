@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./EOARegistry.sol";
 import "../Constants.sol";
+import "../interfaces/IEOARegistry.sol";
 import "../interfaces/IOwnable.sol";
 import "../interfaces/ITransferValidator.sol";
 import "@limitbreak/permit-c/PermitC.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
@@ -83,7 +84,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
  *            - Caller Constraints: OperatorWhitelistDisableOTC
  *            - Receiver Constraints: EOA
  */
-contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, PermitC {
+contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC165, PermitC {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
@@ -106,6 +107,9 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
 
     /// @dev Thrown when attempting to call a function that requires owner or default admin role for a collection that the caller does not have.
     error CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
+
+    /// @dev Thrown when constructor args are not valid
+    error CreatorTokenTransferValidator__InvalidConstructorArgs();
 
     /// @dev Thrown when setting the transfer security level to an invalid value.
     error CreatorTokenTransferValidator__InvalidTransferSecurityLevel();
@@ -172,8 +176,13 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     // Immutable lookup tables
     uint256 private immutable _callerConstraintsLookup;
     uint256 private immutable _receiverConstraintsLookup;
+    address private immutable _eoaRegistry;
     
     // Constants
+
+    /// @dev The legacy Creator Token Transfer Validator Interface
+    bytes4 private constant LEGACY_TRANSFER_VALIDATOR_INTERFACE_ID = 0x00000000;
+
     /// @dev The default admin role value for contracts that implement access control.
     bytes32 private constant DEFAULT_ACCESS_CONTROL_ADMIN_ROLE = 0x00;
     /// @dev Value representing a zero value code hash.
@@ -209,11 +218,15 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
 
     constructor(
         address defaultOwner,
+        address eoaRegistry_,
         string memory name,
         string memory version
     ) 
-    EOARegistry() 
     PermitC(name, version) {
+        if (defaultOwner == address(0) || eoaRegistry_ == address(0)) {
+            revert CreatorTokenTransferValidator__InvalidConstructorArgs();
+        }
+
         uint120 id = 0;
 
         listOwners[id] = defaultOwner;
@@ -244,6 +257,8 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
             | (RECEIVER_CONSTRAINTS_NO_CODE << (TRANSFER_SECURITY_LEVEL_SEVEN << 3))
             | (RECEIVER_CONSTRAINTS_EOA << (TRANSFER_SECURITY_LEVEL_EIGHT << 3))
             | (RECEIVER_CONSTRAINTS_SBT << (TRANSFER_SECURITY_LEVEL_NINE << 3));
+
+        _eoaRegistry = eoaRegistry_;
     }
 
     /*************************************************************************/
@@ -373,10 +388,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function createList(string calldata name) public returns (uint120 id) {
         id = ++lastListId;
 
-        listOwners[id] = _msgSender();
+        listOwners[id] = msg.sender;
 
         emit CreatedList(id, name);
-        emit ReassignedListOwnership(id, _msgSender());
+        emit ReassignedListOwnership(id, msg.sender);
     }
 
     /**
@@ -406,10 +421,10 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
             }
         }
 
-        listOwners[id] = _msgSender();
+        listOwners[id] = msg.sender;
 
         emit CreatedList(id, name);
-        emit ReassignedListOwnership(id, _msgSender());
+        emit ReassignedListOwnership(id, msg.sender);
 
         List storage sourceBlacklist = blacklists[sourceListId];
         List storage sourceWhitelist = whitelists[sourceListId];
@@ -1010,17 +1025,21 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
         return isCodeHashWhitelisted(collectionSecurityPolicies[collection].listId, codehash);
     }
 
+    /// @notice Returns true if the specified account has verified a signature on the registry, false otherwise.
+    function isVerifiedEOA(address account) public view returns (bool) {
+        return IEOARegistry(_eoaRegistry).isVerifiedEOA(account);
+    }
+
     /// @notice ERC-165 Interface Support
     /// @dev    Do not remove ITransferSecurityRegistry, ITransferSecurityRegistryV2, ICreatorTokenTransferValidator,
     ///         or ICreatorTokenTransferValidatorV2 from this contract or future contracts.  
     ///         Doing so will break backwards compatibility with V1 and V2 creator tokens.
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
         return
+            interfaceId == LEGACY_TRANSFER_VALIDATOR_INTERFACE_ID ||
             interfaceId == type(ITransferValidator).interfaceId ||
-            //interfaceId == type(ITransferSecurityRegistryV2).interfaceId ||
-            //interfaceId == type(ITransferSecurityRegistryV3).interfaceId ||
-            //interfaceId == type(ICreatorTokenTransferValidatorV2).interfaceId ||
-            //interfaceId == type(ICreatorTokenTransferValidatorV3).interfaceId ||
+            interfaceId == type(IPermitC).interfaceId ||
+            interfaceId == type(IEOARegistry).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -1039,7 +1058,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
     function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
         bool callerHasPermissions = false;
 
-        address caller = _msgSender();
+        address caller = msg.sender;
         
         callerHasPermissions = caller == tokenAddress;
         if(!callerHasPermissions) {
@@ -1262,7 +1281,7 @@ contract CreatorTokenTransferValidator is ITransferValidator, EOARegistry, Permi
      * @dev    Throws when the caller is not the owner of the list.
      */
     function _requireCallerOwnsList(uint120 id) private view {
-        if (_msgSender() != listOwners[id]) {
+        if (msg.sender != listOwners[id]) {
             revert CreatorTokenTransferValidator__CallerDoesNotOwnList();
         }
     }

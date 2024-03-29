@@ -11,24 +11,25 @@ import "src/utils/CreatorTokenTransferValidator.sol";
 import "src/Constants.sol";
 import "./utils/Events.sol";
 import "./utils/Helpers.sol";
+import "src/utils/EOARegistry.sol";
 
 contract TransferValidatorTest is Events, Helpers {
-    //using EnumerableSet for EnumerableSet.AddressSet;
-    //using EnumerableSet for EnumerableSet.Bytes32Set;
-
+    EOARegistry public eoaRegistry;
     CreatorTokenTransferValidator public validator;
-
-    address whitelistedOperator;
 
     function setUp() public virtual override {
         super.setUp();
 
-        validator = new CreatorTokenTransferValidator(address(this), "", "");
+        eoaRegistry = new EOARegistry();
+        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "");
+    }
 
-        whitelistedOperator = vm.addr(2);
-
-        // TODO: vm.prank(validatorDeployer);
-        // TODO: validator.addOperatorToWhitelist(0, whitelistedOperator);
+    function testSupportedInterfaces() public {
+        assertEq(validator.supportsInterface(bytes4(0x00000000)), true);
+        assertEq(validator.supportsInterface(type(ITransferValidator).interfaceId), true);
+        assertEq(validator.supportsInterface(type(IPermitC).interfaceId), true);
+        assertEq(validator.supportsInterface(type(IEOARegistry).interfaceId), true);
+        assertEq(validator.supportsInterface(type(IERC165).interfaceId), true);
     }
 
     function testTransferSecurityLevelRecommended() public {
@@ -4230,9 +4231,9 @@ contract TransferValidatorTest is Events, Helpers {
         toKey = uint160(bound(toKey, 1, type(uint160).max));
         to = vm.addr(toKey);
         (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(toKey, ECDSA.toEthSignedMessageHash(bytes(validator.MESSAGE_TO_SIGN())));
+            vm.sign(toKey, ECDSA.toEthSignedMessageHash(bytes(eoaRegistry.MESSAGE_TO_SIGN())));
         vm.prank(to);
-        validator.verifySignatureVRS(v, r, s);
+        eoaRegistry.verifySignatureVRS(v, r, s);
     }
 
     function _sanitizeAccounts(

@@ -40,49 +40,28 @@ contract EOARegistry is Context, ERC165, IEOARegistry {
     }
 
     /// @notice Allows a user to verify an ECDSA signature to definitively prove they are an EOA account.
-    ///
-    /// Throws when the caller has already verified their signature.
-    /// Throws when the caller did not sign the message.
+    //          Any user can submit a signature for any other user.
     ///
     /// Postconditions:
     /// ---------------
     /// The verified signature mapping has been updated to `true` for the caller.
     function verifySignature(bytes calldata signature) external {
-        if(eoaSignatureVerified[_msgSender()]) {
-            revert SignatureAlreadyVerified();
-        }
-
-        if(_msgSender() != ECDSA.recover(signedMessageHash, signature)) {
-            revert CallerDidNotSignTheMessage();
-        }
-
-        eoaSignatureVerified[_msgSender()] = true;
-
-        emit VerifiedEOASignature(_msgSender());
+        address signer = ECDSA.recover(signedMessageHash, signature);
+        eoaSignatureVerified[signer] = true;
+        emit VerifiedEOASignature(signer);
     }
 
     /// @notice Allows a user to verify an ECDSA signature to definitively prove they are an EOA account.
     /// This version is passed the v, r, s components of the signature, and is slightly more gas efficient than
-    /// calculating the v, r, s components on-chain.
-    ///
-    /// Throws when the caller has already verified their signature.
-    /// Throws when the caller did not sign the message.
+    /// calculating the v, r, s components on-chain.  Any user can submit a signature for any other user.
     ///
     /// Postconditions:
     /// ---------------
     /// The verified signature mapping has been updated to `true` for the caller.
     function verifySignatureVRS(uint8 v, bytes32 r, bytes32 s) external {
-        if(eoaSignatureVerified[msg.sender]) {
-            revert SignatureAlreadyVerified();
-        }
-
-        if(msg.sender != ECDSA.recover(signedMessageHash, v, r, s)) {
-            revert CallerDidNotSignTheMessage();
-        }
-
-        eoaSignatureVerified[msg.sender] = true;
-
-        emit VerifiedEOASignature(msg.sender);
+        address signer = ECDSA.recover(signedMessageHash, v, r, s);
+        eoaSignatureVerified[signer] = true;
+        emit VerifiedEOASignature(signer);
     }
 
     /// @notice Returns true if the specified account has verified a signature on this registry, false otherwise.
