@@ -5,9 +5,9 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ERC721Mock.sol";
 import "../mocks/ERC721CWPermanentMock.sol";
-import "../CreatorTokenTransferValidatorERC721.t.sol";
+import "../CreatorToken.t.sol";
 
-contract ERC721CWPermanentTest is CreatorTokenTransferValidatorERC721Test {
+contract ERC721CWPermanentTest is CreatorTokenTest {
     event Staked(uint256 indexed tokenId, address indexed account);
     event Unstaked(uint256 indexed tokenId, address indexed account);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
@@ -20,7 +20,6 @@ contract ERC721CWPermanentTest is CreatorTokenTransferValidatorERC721Test {
 
         wrappedTokenMock = new ERC721Mock();
         tokenMock = new ERC721CWPermanentMock(address(wrappedTokenMock));
-        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {

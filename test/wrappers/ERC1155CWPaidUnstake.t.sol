@@ -5,9 +5,9 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ERC1155Mock.sol";
 import "../mocks/ERC1155CWPaidUnstakeMock.sol";
-import "../CreatorTokenTransferValidatorERC1155.t.sol";
+import "../CreatorToken.t.sol";
 
-contract ERC1155CWPaidUnstakeTest is CreatorTokenTransferValidatorERC1155Test {
+contract ERC1155CWPaidUnstakeTest is CreatorTokenTest {
     event Staked(uint256 indexed tokenId, address indexed account, uint256 amount);
     event Unstaked(uint256 indexed tokenId, address indexed account, uint256 amount);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
@@ -20,14 +20,13 @@ contract ERC1155CWPaidUnstakeTest is CreatorTokenTransferValidatorERC1155Test {
 
         wrappedTokenMock = new ERC1155Mock();
         tokenMock = new ERC1155CWPaidUnstakeMock(1 ether, address(wrappedTokenMock));
-        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
-    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken1155) {
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
         vm.startPrank(creator);
         address wrappedToken = address(new ERC1155Mock());
-        ITestCreatorToken1155 token =
-            ITestCreatorToken1155(address(new ERC1155CWPaidUnstakeMock(1 ether, wrappedToken)));
+        ITestCreatorToken token =
+            ITestCreatorToken(address(new ERC1155CWPaidUnstakeMock(1 ether, wrappedToken)));
         vm.stopPrank();
         return token;
     }

@@ -7,9 +7,9 @@ import "../mocks/ERC721Mock.sol";
 import "../mocks/ERC1155Mock.sol";
 import "../mocks/ERC721CWMock.sol";
 import "../mocks/ClonerMock.sol";
-import "../CreatorTokenTransferValidatorERC721.t.sol";
+import "../CreatorToken.t.sol";
 
-contract ERC721CWTest is CreatorTokenTransferValidatorERC721Test {
+contract ERC721CWTest is CreatorTokenTest {
     event Staked(uint256 indexed tokenId, address indexed account);
     event Unstaked(uint256 indexed tokenId, address indexed account);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
@@ -702,7 +702,7 @@ contract ERC721CWTest is CreatorTokenTransferValidatorERC721Test {
     }
 }
 
-contract ERC721CWInitializableTest is CreatorTokenTransferValidatorERC721Test {
+contract ERC721CWInitializableTest is CreatorTokenTest {
     event Staked(uint256 indexed tokenId, address indexed account);
     event Unstaked(uint256 indexed tokenId, address indexed account);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
