@@ -229,15 +229,26 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             revert CreatorTokenTransferValidator__InvalidConstructorArgs();
         }
 
+        _createDefaultList(defaultOwner);
+        _eoaRegistry = eoaRegistry_;
+
+        _callerConstraintsLookup = _constructCallerConstraintsTable();
+
+        _receiverConstraintsLookup = _constructReceiverConstraintsTable();
+    }
+
+    function _createDefaultList(address defaultOwner) internal {
         uint120 id = 0;
 
         listOwners[id] = defaultOwner;
 
         emit CreatedList(id, "DEFAULT LIST");
         emit ReassignedListOwnership(id, defaultOwner);
+    }
 
-        _callerConstraintsLookup =
-            (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_RECOMMENDED << 3))
+    function _constructCallerConstraintsTable() internal pure returns (uint256) {
+        return 
+        (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_RECOMMENDED << 3))
             | (CALLER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_ONE << 3))
             | (CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_TWO << 3))
             | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_THREE << 3))
@@ -247,9 +258,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC << (TRANSFER_SECURITY_LEVEL_SEVEN << 3))
             | (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC << (TRANSFER_SECURITY_LEVEL_EIGHT << 3))
             | (CALLER_CONSTRAINTS_SBT << (TRANSFER_SECURITY_LEVEL_NINE << 3));
+    }
 
-        _receiverConstraintsLookup = 
-            (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_RECOMMENDED << 3))
+    function _constructReceiverConstraintsTable() internal pure returns (uint256) {
+        return 
+        (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_RECOMMENDED << 3))
             | (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_ONE << 3))
             | (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_TWO << 3))
             | (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_THREE << 3))
@@ -259,8 +272,6 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             | (RECEIVER_CONSTRAINTS_NO_CODE << (TRANSFER_SECURITY_LEVEL_SEVEN << 3))
             | (RECEIVER_CONSTRAINTS_EOA << (TRANSFER_SECURITY_LEVEL_EIGHT << 3))
             | (RECEIVER_CONSTRAINTS_SBT << (TRANSFER_SECURITY_LEVEL_NINE << 3));
-
-        _eoaRegistry = eoaRegistry_;
     }
 
     /*************************************************************************/
