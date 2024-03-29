@@ -14,8 +14,23 @@ import "./utils/Helpers.sol";
 import "src/utils/EOARegistry.sol";
 
 abstract contract CreatorTokenTest is Events, Helpers {
+    EOARegistry public eoaRegistry;
+    CreatorTokenTransferValidator public validator;
+
     function setUp() public virtual override {
         super.setUp();
+
+        eoaRegistry = new EOARegistry();
+        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "");
+    }
+
+    function _verifyEOA(uint160 toKey) internal returns (address to) {
+        toKey = uint160(bound(toKey, 1, type(uint160).max));
+        to = vm.addr(toKey);
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(toKey, ECDSA.toEthSignedMessageHash(bytes(eoaRegistry.MESSAGE_TO_SIGN())));
+        vm.prank(to);
+        eoaRegistry.verifySignatureVRS(v, r, s);
     }
 
     function _deployNewToken(address creator) internal virtual returns (ITestCreatorToken);
