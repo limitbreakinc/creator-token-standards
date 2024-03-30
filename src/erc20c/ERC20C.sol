@@ -26,16 +26,16 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase {
     function _beforeTokenTransfer(
         address from,
         address to,
-        uint256 /*amount*/) internal virtual override {
-        _validateBeforeTransfer(from, to, 0);
+        uint256 amount) internal virtual override {
+        _validateBeforeTransfer(from, to, 0, amount);
     }
 
     /// @dev Ties the open-zeppelin _afterTokenTransfer hook to more granular transfer validation logic
     function _afterTokenTransfer(
         address from,
         address to,
-        uint256 /*amount*/) internal virtual override {
-        _validateAfterTransfer(from, to, 0);
+        uint256 amount) internal virtual override {
+        _validateAfterTransfer(from, to, 0, amount);
     }
 }
 
@@ -58,15 +58,15 @@ abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable,
     function _beforeTokenTransfer(
         address from,
         address to,
-        uint256 /*amount*/) internal virtual override {
-        _validateBeforeTransfer(from, to, 0);
+        uint256 amount) internal virtual override {
+        _validateBeforeTransfer(from, to, 0, amount);
     }
 
     /// @dev Ties the open-zeppelin _afterTokenTransfer hook to more granular transfer validation logic
     function _afterTokenTransfer(
         address from,
         address to,
-        uint256 /*amount*/) internal virtual override {
-        _validateAfterTransfer(from, to, 0);
+        uint256 amount) internal virtual override {
+        _validateAfterTransfer(from, to, 0, amount);
     }
 }

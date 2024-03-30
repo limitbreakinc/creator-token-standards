@@ -144,4 +144,37 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
             ITransferValidator(validator).validateTransfer(caller, from, to, tokenId);
         }
     }
+
+    /**
+     * @dev Pre-validates a token transfer, reverting if the transfer is not allowed by this token's security policy.
+     *      Inheriting contracts are responsible for overriding the _beforeTokenTransfer function, or its equivalent
+     *      and calling _validateBeforeTransfer so that checks can be properly applied during token transfers.
+     *
+     * @dev Be aware that if the msg.sender is the transfer validator, the transfer is automatically permitted, as the
+     *      transfer validator will have pre-validated the transfer.
+     *
+     * @dev Throws when the transfer doesn't comply with the collection's transfer policy, if the transferValidator is
+     *      set to a non-zero address.
+     *
+     * @param caller  The address of the caller.
+     * @param from    The address of the sender.
+     * @param to      The address of the receiver.
+     */
+    function _preValidateTransfer(
+        address caller, 
+        address from, 
+        address to, 
+        uint256 tokenId, 
+        uint256 amount,
+        uint256 /*value*/) internal virtual override {
+        address validator = getTransferValidator();
+
+        if (validator != address(0)) {
+            if (msg.sender == validator) {
+                return;
+            }
+
+            ITransferValidator(validator).validateTransfer(caller, from, to, tokenId, amount);
+        }
+    }
 }

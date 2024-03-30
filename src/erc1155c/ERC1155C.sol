@@ -40,12 +40,12 @@ abstract contract ERC1155C is ERC1155OpenZeppelin, CreatorTokenBase, AutomaticVa
         address from,
         address to,
         uint256[] memory ids,
-        uint256[] memory /*amounts*/,
+        uint256[] memory amounts,
         bytes memory /*data*/
     ) internal virtual override {
         uint256 idsArrayLength = ids.length;
         for (uint256 i = 0; i < idsArrayLength;) {
-            _validateBeforeTransfer(from, to, ids[i]);
+            _validateBeforeTransfer(from, to, ids[i], amounts[i]);
 
             unchecked {
                 ++i;
@@ -59,12 +59,12 @@ abstract contract ERC1155C is ERC1155OpenZeppelin, CreatorTokenBase, AutomaticVa
         address from,
         address to,
         uint256[] memory ids,
-        uint256[] memory /*amounts*/,
+        uint256[] memory amounts,
         bytes memory /*data*/
     ) internal virtual override {
         uint256 idsArrayLength = ids.length;
         for (uint256 i = 0; i < idsArrayLength;) {
-            _validateAfterTransfer(from, to, ids[i]);
+            _validateAfterTransfer(from, to, ids[i], amounts[i]);
 
             unchecked {
                 ++i;
@@ -106,12 +106,12 @@ abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, Cre
         address from,
         address to,
         uint256[] memory ids,
-        uint256[] memory /*amounts*/,
+        uint256[] memory amounts,
         bytes memory /*data*/
     ) internal virtual override {
         uint256 idsArrayLength = ids.length;
         for (uint256 i = 0; i < idsArrayLength;) {
-            _validateBeforeTransfer(from, to, ids[i]);
+            _validateBeforeTransfer(from, to, ids[i], amounts[i]);
 
             unchecked {
                 ++i;
@@ -125,12 +125,12 @@ abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, Cre
         address from,
         address to,
         uint256[] memory ids,
-        uint256[] memory /*amounts*/,
+        uint256[] memory amounts,
         bytes memory /*data*/
     ) internal virtual override {
         uint256 idsArrayLength = ids.length;
         for (uint256 i = 0; i < idsArrayLength;) {
-            _validateAfterTransfer(from, to, ids[i]);
+            _validateAfterTransfer(from, to, ids[i], amounts[i]);
 
             unchecked {
                 ++i;

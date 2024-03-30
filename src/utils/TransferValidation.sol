@@ -15,6 +15,10 @@ abstract contract TransferValidation is Context {
     /// @dev Thrown when the from and to address are both the zero address.
     error ShouldNotMintToBurnAddress();
 
+    /*************************************************************************/
+    /*                      Transfers Without Amounts                        */
+    /*************************************************************************/
+
     /// @dev Inheriting contracts should call this function in the _beforeTokenTransfer function to get more granular hooks.
     function _validateBeforeTransfer(address from, address to, uint256 tokenId) internal virtual {
         bool fromZeroAddress = from == address(0);
@@ -64,4 +68,58 @@ abstract contract TransferValidation is Context {
 
     /// @dev Optional validation hook that fires after a transfer
     function _postValidateTransfer(address caller, address from, address to, uint256 tokenId, uint256 value) internal virtual {}
+
+    /*************************************************************************/
+    /*                         Transfers With Amounts                        */
+    /*************************************************************************/
+
+    /// @dev Inheriting contracts should call this function in the _beforeTokenTransfer function to get more granular hooks.
+    function _validateBeforeTransfer(address from, address to, uint256 tokenId, uint256 amount) internal virtual {
+        bool fromZeroAddress = from == address(0);
+        bool toZeroAddress = to == address(0);
+
+        if(fromZeroAddress && toZeroAddress) {
+            revert ShouldNotMintToBurnAddress();
+        } else if(fromZeroAddress) {
+            _preValidateMint(_msgSender(), to, tokenId, amount, msg.value);
+        } else if(toZeroAddress) {
+            _preValidateBurn(_msgSender(), from, tokenId, amount, msg.value);
+        } else {
+            _preValidateTransfer(_msgSender(), from, to, tokenId, amount, msg.value);
+        }
+    }
+
+    /// @dev Inheriting contracts should call this function in the _afterTokenTransfer function to get more granular hooks.
+    function _validateAfterTransfer(address from, address to, uint256 tokenId, uint256 amount) internal virtual {
+        bool fromZeroAddress = from == address(0);
+        bool toZeroAddress = to == address(0);
+
+        if(fromZeroAddress && toZeroAddress) {
+            revert ShouldNotMintToBurnAddress();
+        } else if(fromZeroAddress) {
+            _postValidateMint(_msgSender(), to, tokenId, amount, msg.value);
+        } else if(toZeroAddress) {
+            _postValidateBurn(_msgSender(), from, tokenId, amount, msg.value);
+        } else {
+            _postValidateTransfer(_msgSender(), from, to, tokenId, amount, msg.value);
+        }
+    }
+
+    /// @dev Optional validation hook that fires before a mint
+    function _preValidateMint(address caller, address to, uint256 tokenId, uint256 amount, uint256 value) internal virtual {}
+
+    /// @dev Optional validation hook that fires after a mint
+    function _postValidateMint(address caller, address to, uint256 tokenId, uint256 amount, uint256 value) internal virtual {}
+
+    /// @dev Optional validation hook that fires before a burn
+    function _preValidateBurn(address caller, address from, uint256 tokenId, uint256 amount, uint256 value) internal virtual {}
+
+    /// @dev Optional validation hook that fires after a burn
+    function _postValidateBurn(address caller, address from, uint256 tokenId, uint256 amount, uint256 value) internal virtual {}
+
+    /// @dev Optional validation hook that fires before a transfer
+    function _preValidateTransfer(address caller, address from, address to, uint256 tokenId, uint256 amount, uint256 value) internal virtual {}
+
+    /// @dev Optional validation hook that fires after a transfer
+    function _postValidateTransfer(address caller, address from, address to, uint256 tokenId, uint256 amount, uint256 value) internal virtual {}
 }
