@@ -1427,7 +1427,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -1442,6 +1443,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey,
             from, 
             to, 
             tokenId, 
@@ -1464,7 +1466,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(fuzzedList.blacklistedAddress != caller);
 
         _configureCollectionSecurity(
@@ -1480,6 +1483,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1501,7 +1505,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.blacklistedAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
 
         _configureCollectionSecurity(
@@ -1517,6 +1522,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1537,9 +1543,11 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, true);
         _etchCodeToCaller(caller, fuzzedList.blacklistedCode);
 
         _configureCollectionSecurity(
@@ -1555,6 +1563,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1575,7 +1584,8 @@ contract TransferValidatorTest is Events, Helpers {
         address caller = fuzzedList.blacklistedAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
         vm.assume(caller != from);
 
@@ -1602,6 +1612,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1624,7 +1635,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -1639,6 +1651,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1659,8 +1672,10 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -1676,6 +1691,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1695,10 +1711,10 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        address caller = from;
-        _sanitizeAccounts(collection, caller, from, to);
-        vm.assume(caller != fuzzedList.whitelistedAddress);
-        vm.assume(caller != fuzzedList.whitelistedToAddress);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, from, from, to);
+        vm.assume(from != fuzzedList.whitelistedAddress);
+        vm.assume(from != fuzzedList.whitelistedToAddress);
 
         _configureCollectionSecurity(
             collection, 
@@ -1711,8 +1727,9 @@ contract TransferValidatorTest is Events, Helpers {
 
         _validateTransfersWithExpectedRevert(
             collection, 
-            caller, 
-            caller,
+            from, 
+            from,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1733,7 +1750,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
@@ -1751,6 +1769,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1771,7 +1790,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
         
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(caller != from);
@@ -1801,6 +1821,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1823,7 +1844,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
 
         _configureCollectionSecurity(
@@ -1839,6 +1861,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1859,7 +1882,9 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address from = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
+        fuzzedList.whitelistedAddress = from;
         vm.assume(caller != from);
 
         _configureCollectionSecurity(
@@ -1875,6 +1900,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1895,9 +1921,11 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -1913,6 +1941,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1933,9 +1962,11 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(from, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -1951,6 +1982,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -1971,7 +2003,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = from;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
 
@@ -1988,6 +2021,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2008,7 +2042,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
 
@@ -2025,6 +2060,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2045,7 +2081,8 @@ contract TransferValidatorTest is Events, Helpers {
         address caller = from;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
@@ -2073,6 +2110,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2093,7 +2131,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
@@ -2121,6 +2160,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2143,7 +2183,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -2158,6 +2199,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2178,8 +2220,10 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.whitelistedAddress;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(to, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -2195,6 +2239,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2215,10 +2260,12 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(to, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -2234,6 +2281,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2254,10 +2302,12 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, true);
         _etchCodeToCaller(to, fuzzedList.blacklistedCode);
 
         _configureCollectionSecurity(
@@ -2273,6 +2323,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2293,7 +2344,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.whitelistedAddress;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -2308,6 +2360,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2328,8 +2381,10 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -2345,6 +2400,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2363,11 +2419,11 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        address caller = from;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
-        vm.assume(caller != fuzzedList.whitelistedAddress);
-        vm.assume(caller != fuzzedList.whitelistedToAddress);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, from, from, to);
+        vm.assume(from != fuzzedList.whitelistedAddress);
+        vm.assume(from != fuzzedList.whitelistedToAddress);
 
         _configureCollectionSecurity(
             collection, 
@@ -2380,8 +2436,9 @@ contract TransferValidatorTest is Events, Helpers {
 
         _validateTransfersWithExpectedRevert(
             collection, 
-            caller, 
-            caller,
+            from, 
+            from,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2402,7 +2459,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
@@ -2420,6 +2478,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2440,13 +2499,15 @@ contract TransferValidatorTest is Events, Helpers {
         address caller = fuzzedList.whitelistedAddress;
         address authorizer = fuzzedList.authorizerAddress;
         
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
-        _etchCodeToCaller(to, fuzzedList.blacklistedCode);
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
+        _etchCodeToCaller(to, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
             collection, 
@@ -2471,6 +2532,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2491,7 +2553,8 @@ contract TransferValidatorTest is Events, Helpers {
         address to = fuzzedList.whitelistedToAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(caller != from);
@@ -2521,6 +2584,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2544,7 +2608,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address to = _verifyEOA(toKey);
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -2559,6 +2624,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2579,7 +2645,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.whitelistedAddress;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -2594,6 +2661,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2614,10 +2682,12 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(to, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -2633,6 +2703,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2653,7 +2724,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
@@ -2670,6 +2742,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2690,7 +2763,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.whitelistedAddress;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -2705,6 +2779,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2725,8 +2800,10 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -2742,6 +2819,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2760,11 +2838,11 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        address caller = from;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
-        vm.assume(caller != fuzzedList.whitelistedAddress);
-        vm.assume(caller != fuzzedList.whitelistedToAddress);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, from, from, to);
+        vm.assume(from != fuzzedList.whitelistedAddress);
+        vm.assume(from != fuzzedList.whitelistedToAddress);
 
         _configureCollectionSecurity(
             collection, 
@@ -2777,8 +2855,9 @@ contract TransferValidatorTest is Events, Helpers {
 
         _validateTransfersWithExpectedRevert(
             collection, 
-            caller, 
-            caller,
+            from, 
+            from,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2799,7 +2878,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
@@ -2817,6 +2897,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2839,7 +2920,8 @@ contract TransferValidatorTest is Events, Helpers {
         address caller = fuzzedList.whitelistedAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(to != fuzzedList.whitelistedAddress);
@@ -2868,6 +2950,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2888,7 +2971,8 @@ contract TransferValidatorTest is Events, Helpers {
         address to = fuzzedList.whitelistedToAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
@@ -2916,6 +3000,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2938,7 +3023,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -2953,6 +3039,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -2973,8 +3060,10 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.whitelistedAddress;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(to, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -2990,6 +3079,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3010,10 +3100,12 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(to, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -3029,6 +3121,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3049,10 +3142,12 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, true);
         _etchCodeToCaller(to, fuzzedList.blacklistedCode);
 
         _configureCollectionSecurity(
@@ -3068,6 +3163,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3088,7 +3184,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.whitelistedAddress;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -3103,6 +3200,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3123,8 +3221,10 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -3140,6 +3240,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3160,7 +3261,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = from;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
 
@@ -3177,6 +3279,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3197,7 +3300,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != from);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
@@ -3215,6 +3319,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3235,13 +3340,15 @@ contract TransferValidatorTest is Events, Helpers {
         address caller = fuzzedList.whitelistedAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
-        _etchCodeToCaller(to, fuzzedList.blacklistedCode);
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
+        _etchCodeToCaller(to, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
             collection, 
@@ -3266,6 +3373,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3286,7 +3394,8 @@ contract TransferValidatorTest is Events, Helpers {
         address to = fuzzedList.whitelistedToAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(caller != fuzzedList.whitelistedAddress);
@@ -3315,6 +3424,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3335,7 +3445,8 @@ contract TransferValidatorTest is Events, Helpers {
         address to = fuzzedList.whitelistedToAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(caller != from);
@@ -3365,6 +3476,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3388,7 +3500,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address to = _verifyEOA(toKey);
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -3403,6 +3516,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3423,7 +3537,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.whitelistedAddress;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -3438,6 +3553,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3458,10 +3574,12 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(to, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -3477,6 +3595,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3497,7 +3616,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(to != fuzzedList.whitelistedAddress);
         vm.assume(to != fuzzedList.whitelistedToAddress);
 
@@ -3514,6 +3634,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3534,7 +3655,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = fuzzedList.whitelistedAddress;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -3549,6 +3671,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3569,8 +3692,10 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
+        (fuzzedList.whitelistedCode, fuzzedList.blacklistedCode) = _sanitizeCode(fuzzedList.whitelistedCode, fuzzedList.blacklistedCode, false);
         _etchCodeToCaller(caller, fuzzedList.whitelistedCode);
 
         _configureCollectionSecurity(
@@ -3586,6 +3711,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3606,7 +3732,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address caller = from;
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
 
@@ -3623,6 +3750,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3643,7 +3771,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
 
@@ -3660,6 +3789,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3680,7 +3810,8 @@ contract TransferValidatorTest is Events, Helpers {
         address caller = fuzzedList.whitelistedAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(to != fuzzedList.whitelistedAddress);
@@ -3709,6 +3840,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3729,7 +3861,8 @@ contract TransferValidatorTest is Events, Helpers {
         address to = fuzzedList.whitelistedToAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(caller != fuzzedList.whitelistedAddress);
@@ -3758,6 +3891,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3778,7 +3912,8 @@ contract TransferValidatorTest is Events, Helpers {
         address to = fuzzedList.whitelistedToAddress;
         address authorizer = fuzzedList.authorizerAddress;
 
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         _sanitizeAddress(authorizer);
 
         vm.assume(caller != fuzzedList.whitelistedAddress);
@@ -3807,6 +3942,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3829,7 +3965,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         _configureCollectionSecurity(
             collection, 
@@ -3844,6 +3981,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3867,7 +4005,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
 
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
 
@@ -3886,7 +4025,8 @@ contract TransferValidatorTest is Events, Helpers {
         _validateTransfersWithExpectedRevert(
             collection, 
             address(validator),
-            caller,
+            address(validator),
+            fromKey,
             from, 
             to, 
             tokenId, 
@@ -3907,7 +4047,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAuthorizationMode,
         bool authorizersCanSetWildcardOperators
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(from != to);
 
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_EIGHT));
@@ -3927,6 +4068,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3947,7 +4089,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAuthorizationMode,
         bool authorizersCanSetWildcardOperators
     ) public {
-        _sanitizeAccounts(collection, caller, from, to);
+        uint256 fromKey;
+        (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(from != to);
 
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_EIGHT));
@@ -3967,6 +4110,7 @@ contract TransferValidatorTest is Events, Helpers {
             collection, 
             caller, 
             caller,
+            fromKey, 
             from, 
             to, 
             tokenId, 
@@ -3987,7 +4131,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
-        _sanitizeAccounts(collection, authorizer, operator, operator);
+        uint256 fromKey;
+        (collection, operator, fromKey) = _sanitizeAccounts(collection, authorizer, operator, operator);
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
         _configureCollectionSecurity(
             collection, 
@@ -4020,7 +4165,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
-        _sanitizeAccounts(collection, authorizer, operator, operator);
+        uint256 fromKey;
+        (collection, operator, fromKey) = _sanitizeAccounts(collection, authorizer, operator, operator);
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
         _configureCollectionSecurity(
             collection, 
@@ -4052,7 +4198,8 @@ contract TransferValidatorTest is Events, Helpers {
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
         address operator = address(0x01);
-        _sanitizeAccounts(collection, authorizer, authorizer, authorizer);
+        uint256 fromKey;
+        (collection, authorizer, fromKey) = _sanitizeAccounts(collection, authorizer, authorizer, authorizer);
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
         _configureCollectionSecurity(
             collection, 
@@ -4085,7 +4232,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, authorizer, operator, operator);
+        uint256 fromKey;
+        (collection, operator, fromKey) = _sanitizeAccounts(collection, authorizer, operator, operator);
         vm.assume(authorizer != fuzzedList.authorizerAddress);
 
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
@@ -4119,7 +4267,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
-        _sanitizeAccounts(collection, authorizer, operator, operator);
+        uint256 fromKey;
+        (collection, operator, fromKey) = _sanitizeAccounts(collection, authorizer, operator, operator);
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
         _configureCollectionSecurity(
             collection, 
@@ -4151,7 +4300,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool enableAccountFreezingMode
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
-        _sanitizeAccounts(collection, authorizer, operator, operator);
+        uint256 fromKey;
+        (collection, operator, fromKey) = _sanitizeAccounts(collection, authorizer, operator, operator);
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
         _configureCollectionSecurity(
             collection, 
@@ -4183,7 +4333,8 @@ contract TransferValidatorTest is Events, Helpers {
         bool authorizersCanSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
-        _sanitizeAccounts(collection, authorizer, operator, operator);
+        uint256 fromKey;
+        (collection, operator, fromKey) = _sanitizeAccounts(collection, authorizer, operator, operator);
         vm.assume(authorizer != fuzzedList.authorizerAddress);
 
         transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
@@ -4241,11 +4392,14 @@ contract TransferValidatorTest is Events, Helpers {
         address caller,
         address from,
         address to
-    ) internal {
+    ) internal virtual returns(address sanitizedCollection, address sanitizedFrom, uint256 sanitizedFromKey) {
         _sanitizeAddress(collection);
         _sanitizeAddress(caller);
         _sanitizeAddress(from);
         _sanitizeAddress(to);
+
+        sanitizedCollection = collection;
+        sanitizedFrom = from;
     }
 
     function _freezeAccount(
@@ -4263,9 +4417,18 @@ contract TransferValidatorTest is Events, Helpers {
     function _etchCodeToCaller(
         address caller,
         bytes32 code
-    ) internal {
+    ) internal virtual {
         bytes memory bytecode = abi.encode(code);
         vm.etch(caller, bytecode);
+    }
+
+    function _sanitizeCode(
+        bytes32 whitelistedCode,
+        bytes32 blacklistedCode,
+        bool expectRevert
+    ) internal virtual returns (bytes32 sanitizedWhitelistedCode, bytes32 sanitizedBlacklistedCode) {
+        sanitizedWhitelistedCode = whitelistedCode;
+        sanitizedBlacklistedCode = blacklistedCode;
     }
 
     function _configureCollectionSecurity(
@@ -4318,12 +4481,13 @@ contract TransferValidatorTest is Events, Helpers {
         address collection,
         address caller,
         address origin,
+        uint256 fromKey,
         address from, 
         address to,
         uint256 tokenId,
         uint256 amount,
         bytes4 expectedRevertSelector
-    ) internal {
+    ) internal virtual {
         vm.startPrank(collection, origin);
 
         if (expectedRevertSelector != bytes4(0x00000000)) {
@@ -4357,7 +4521,7 @@ contract TransferValidatorTest is Events, Helpers {
         uint256 tokenId,
         uint256 amount,
         bytes4 expectedRevertSelector
-    ) internal {
+    ) internal virtual {
         vm.startPrank(authorizer, origin);
 
         if (expectedRevertSelector != bytes4(0x00000000)) {
@@ -4390,7 +4554,7 @@ contract TransferValidatorTest is Events, Helpers {
         address collection,
         uint256 tokenId,
         bytes4 expectedRevertSelector
-    ) internal {
+    ) internal virtual {
         vm.startPrank(authorizer, origin);
 
         if (expectedRevertSelector != bytes4(0x00000000)) {
