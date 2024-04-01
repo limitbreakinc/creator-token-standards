@@ -164,8 +164,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelOne.isTransferAllowed(caller, from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelOne));
+        vm.prank(address(tokenLevelOne));
+        validator.validateTransfer(caller, from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -195,8 +196,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelTwo.isTransferAllowed(tokenOwner, tokenOwner, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelTwo));
+        vm.prank(address(tokenLevelTwo));
+        validator.validateTransfer(tokenOwner, tokenOwner, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -223,8 +225,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
 
         vm.record();
-        tokenLevelTwo.isTransferAllowed(caller, from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelTwo));
+        vm.prank(address(tokenLevelTwo));
+        validator.validateTransfer(caller, from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -254,8 +257,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelThree.isTransferAllowed(tokenOwner, tokenOwner, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelThree));
+        vm.prank(address(tokenLevelThree));
+        validator.validateTransfer(tokenOwner, tokenOwner, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -278,8 +282,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelThree.isTransferAllowed(address(whitelistedOperatorMock2), from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelThree));
+        vm.prank(address(tokenLevelThree));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -302,8 +307,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelThree.isTransferAllowed(address(whitelistedOperatorMock1), from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelThree));
+        vm.prank(address(tokenLevelThree));
+        validator.validateTransfer(address(whitelistedOperatorMock1), from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -329,8 +335,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelFour.isTransferAllowed(address(whitelistedOperatorMock2), address(whitelistedOperatorMock2), to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFour));
+        vm.prank(address(tokenLevelFour));
+        validator.validateTransfer(address(whitelistedOperatorMock2), address(whitelistedOperatorMock2), to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -352,8 +359,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelFour.isTransferAllowed(address(whitelistedOperatorMock1), address(whitelistedOperatorMock1), to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFour));
+        vm.prank(address(tokenLevelFour));
+        validator.validateTransfer(address(whitelistedOperatorMock1), address(whitelistedOperatorMock1), to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -376,8 +384,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelFour.isTransferAllowed(address(whitelistedOperatorMock2), from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFour));
+        vm.prank(address(tokenLevelFour));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -400,8 +409,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelFour.isTransferAllowed(caller, address(whitelistedOperatorMock2), to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFour));
+        vm.prank(address(tokenLevelFour));
+        validator.validateTransfer(caller, address(whitelistedOperatorMock2), to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -424,8 +434,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelFour.isTransferAllowed(address(whitelistedOperatorMock1), from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFour));
+        vm.prank(address(tokenLevelFour));
+        validator.validateTransfer(address(whitelistedOperatorMock1), from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -448,8 +459,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelFour.isTransferAllowed(caller, address(whitelistedOperatorMock1), to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFour));
+        vm.prank(address(tokenLevelFour));
+        validator.validateTransfer(caller, address(whitelistedOperatorMock1), to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -477,8 +489,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelFive.isTransferAllowed(tokenOwner, tokenOwner, address(whitelistedOperatorMock2));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFive));
+        vm.prank(address(tokenLevelFive));
+        validator.validateTransfer(tokenOwner, tokenOwner, address(whitelistedOperatorMock2));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -502,8 +515,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelFive.isTransferAllowed(tokenOwner, tokenOwner, address(whitelistedOperatorMock1));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFive));
+        vm.prank(address(tokenLevelFive));
+        validator.validateTransfer(tokenOwner, tokenOwner, address(whitelistedOperatorMock1));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -529,8 +543,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelFive.isTransferAllowed(tokenOwner, tokenOwner, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFive));
+        vm.prank(address(tokenLevelFive));
+        validator.validateTransfer(tokenOwner, tokenOwner, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -553,8 +568,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(from != address(whitelistedOperatorMock2));
         
         vm.record();
-        tokenLevelFive.isTransferAllowed(address(whitelistedOperatorMock1), from, address(whitelistedOperatorMock2));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFive));
+        vm.prank(address(tokenLevelFive));
+        validator.validateTransfer(address(whitelistedOperatorMock1), from, address(whitelistedOperatorMock2));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -577,8 +593,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(from != address(whitelistedOperatorMock2));
         
         vm.record();
-        tokenLevelFive.isTransferAllowed(address(whitelistedOperatorMock2), from, address(whitelistedOperatorMock1));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFive));
+        vm.prank(address(tokenLevelFive));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, address(whitelistedOperatorMock1));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -603,8 +620,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelFive.isTransferAllowed(address(whitelistedOperatorMock2), from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelFive));
+        vm.prank(address(tokenLevelFive));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -632,8 +650,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelSix.isTransferAllowed(tokenOwner, tokenOwner, address(whitelistedOperatorMock2));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSix));
+        vm.prank(address(tokenLevelSix));
+        validator.validateTransfer(tokenOwner, tokenOwner, address(whitelistedOperatorMock2));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -657,8 +676,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelSix.isTransferAllowed(tokenOwner, tokenOwner, address(whitelistedOperatorMock1));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSix));
+        vm.prank(address(tokenLevelSix));
+        validator.validateTransfer(tokenOwner, tokenOwner, address(whitelistedOperatorMock1));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -686,8 +706,9 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         
         vm.record();
-        tokenLevelSix.isTransferAllowed(tokenOwner, tokenOwner, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSix));
+        vm.prank(address(tokenLevelSix));
+        validator.validateTransfer(tokenOwner, tokenOwner, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -710,8 +731,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(from != address(whitelistedOperatorMock2));
         
         vm.record();
-        tokenLevelSix.isTransferAllowed(address(whitelistedOperatorMock1), from, address(whitelistedOperatorMock2));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSix));
+        vm.prank(address(tokenLevelSix));
+        validator.validateTransfer(address(whitelistedOperatorMock1), from, address(whitelistedOperatorMock2));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -734,8 +756,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(from != address(whitelistedOperatorMock2));
         
         vm.record();
-        tokenLevelSix.isTransferAllowed(address(whitelistedOperatorMock2), from, address(whitelistedOperatorMock1));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSix));
+        vm.prank(address(tokenLevelSix));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, address(whitelistedOperatorMock1));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -762,8 +785,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelSix.isTransferAllowed(address(whitelistedOperatorMock2), from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSix));
+        vm.prank(address(tokenLevelSix));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -790,8 +814,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(from != address(whitelistedOperatorMock2));
         
         vm.record();
-        tokenLevelSeven.isTransferAllowed(address(whitelistedOperatorMock1), from, address(whitelistedOperatorMock2));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSeven));
+        vm.prank(address(tokenLevelSeven));
+        validator.validateTransfer(address(whitelistedOperatorMock1), from, address(whitelistedOperatorMock2));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -814,8 +839,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(from != address(whitelistedOperatorMock2));
         
         vm.record();
-        tokenLevelSeven.isTransferAllowed(address(whitelistedOperatorMock2), from, address(whitelistedOperatorMock1));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSeven));
+        vm.prank(address(tokenLevelSeven));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, address(whitelistedOperatorMock1));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -840,8 +866,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelSeven.isTransferAllowed(address(whitelistedOperatorMock2), from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelSeven));
+        vm.prank(address(tokenLevelSeven));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -868,8 +895,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(from != address(whitelistedOperatorMock2));
         
         vm.record();
-        tokenLevelEight.isTransferAllowed(address(whitelistedOperatorMock1), from, address(whitelistedOperatorMock2));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelEight));
+        vm.prank(address(tokenLevelEight));
+        validator.validateTransfer(address(whitelistedOperatorMock1), from, address(whitelistedOperatorMock2));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -892,8 +920,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(from != address(whitelistedOperatorMock2));
         
         vm.record();
-        tokenLevelEight.isTransferAllowed(address(whitelistedOperatorMock2), from, address(whitelistedOperatorMock1));
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelEight));
+        vm.prank(address(tokenLevelEight));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, address(whitelistedOperatorMock1));
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");
@@ -920,8 +949,9 @@ contract BenchmarkCreatorTokenContracts is Test {
         vm.assume(to.code.length == 0);
         
         vm.record();
-        tokenLevelEight.isTransferAllowed(address(whitelistedOperatorMock2), from, to);
-        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(tokenLevelEight));
+        vm.prank(address(tokenLevelEight));
+        validator.validateTransfer(address(whitelistedOperatorMock2), from, to);
+        (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(validator));
 
         console.log("Reads:");
         console.log("------");

@@ -84,36 +84,6 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
     }
 
     /**
-     * @notice Determines if a transfer is allowed based on the token contract's security policy.  Use this function
-     *         to simulate whether or not a transfer made by the specified `caller` from the `from` address to the `to`
-     *         address would be allowed by this token's security policy.
-     *
-     * @notice This function only checks the security policy restrictions and does not check whether token ownership
-     *         or approvals are in place. 
-     *
-     * @param caller The address of the simulated caller.
-     * @param from   The address of the sender.
-     * @param to     The address of the receiver.
-     * @return       True if the transfer is allowed, false otherwise.
-     */
-    function isTransferAllowed(address caller, address from, address to) public view returns (bool) {
-        return isTransferAllowed(caller, from, to, 0);
-    }
-
-    function isTransferAllowed(address caller, address from, address to, uint256 tokenId) public view returns (bool) {
-        address validator = getTransferValidator();
-
-        if (validator != address(0)) {
-            try ITransferValidator(validator).validateTransfer(caller, from, to, tokenId) {
-                return true;
-            } catch {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
      * @dev Pre-validates a token transfer, reverting if the transfer is not allowed by this token's security policy.
      *      Inheriting contracts are responsible for overriding the _beforeTokenTransfer function, or its equivalent
      *      and calling _validateBeforeTransfer so that checks can be properly applied during token transfers.
