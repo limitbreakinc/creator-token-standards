@@ -14,36 +14,15 @@ import "./utils/Events.sol";
 import "./utils/Helpers.sol";
 import "src/utils/EOARegistry.sol";
 import "./TransferValidator.t.sol";
-import "lib/PermitC/src/Constants.sol";
 
-contract PermitTransferValidatorTestERC1155 is TransferValidatorTest {
-    
-    struct PermitSignatureDetails {
-        // Collection Address
-        address token;
-        // Token ID
-        uint256 id;
-        // An random value that can be used to invalidate the permit
-        uint256 nonce;
-        // Address permitted to transfer the tokens
-        address operator;
-        // Amount of tokens - For ERC721 this is always 1
-        uint200 amount;
-        // Expiration time of the permit
-        uint48 expiration;
-    }
+contract TransferValidatorTestERC1155 is TransferValidatorTest {
 
     ERC1155CMock erc1155C;
-    mapping(address => uint256) internal _accountPermitNonces;
 
     function setUp() public virtual override {
         super.setUp();
 
         erc1155C = new ERC1155CMock();
-    }
-
-    function _getAndIncrementAccountPermitNonce(address addr) internal returns(uint256 nextNonce) {
-        nextNonce = _accountPermitNonces[addr]++;
     }
 
     function _mint1155(address to, uint256 tokenId, uint256 amount) internal virtual {
@@ -71,7 +50,7 @@ contract PermitTransferValidatorTestERC1155 is TransferValidatorTest {
         uint256 amount,
         bytes4 expectedRevertSelector
     ) internal override {
-        vm.assume(amount > 0 && amount < type(uint200).max);
+        vm.assume(amount > 0);
 
         vm.startPrank(authorizer, origin);
 
@@ -109,22 +88,24 @@ contract PermitTransferValidatorTestERC1155 is TransferValidatorTest {
         uint256 amount,
         bytes4 expectedRevertSelector
     ) internal override {
-        vm.assume(amount > 0 && amount < type(uint200).max);
+        vm.assume(amount > 0);
         _mint1155(from, tokenId, amount);
         erc1155C.setTransferValidator(address(validator));
 
-        vm.prank(from);
-        erc1155C.setApprovalForAll(address(validator), true);
-
-        (PermitSignatureDetails memory permit, bytes memory signedPermit) = _getPermitAndSignature(fromKey, from, origin, tokenId, amount);
+        if (caller != from) {
+            vm.prank(from);
+            erc1155C.setApprovalForAll(caller, true);
+        }
 
         uint256 balanceOfFromBefore = erc1155C.balanceOf(from, tokenId);
         uint256 balanceOfToBefore = erc1155C.balanceOf(to, tokenId);
 
         vm.startPrank(caller, origin);
-
-        bool isError = _permitTransfer(permit, from, to, signedPermit);
-        assertEq(isError, expectedRevertSelector != 0x00000000);
+        
+        if (expectedRevertSelector != 0x00000000) {
+            vm.expectRevert(expectedRevertSelector);
+        }
+        erc1155C.safeTransferFrom(from, to, tokenId, amount, "");
         vm.stopPrank();
 
         if (expectedRevertSelector == bytes4(0x00000000)) {
@@ -134,44 +115,6 @@ contract PermitTransferValidatorTestERC1155 is TransferValidatorTest {
             assertEq(erc1155C.balanceOf(from, tokenId), balanceOfFromBefore);
             assertEq(erc1155C.balanceOf(to, tokenId), balanceOfToBefore);
         }
-    }
-
-    function _getPermitAndSignature(
-        uint256 fromKey, address from, address operator, uint256 tokenId, uint256 amount
-    ) internal returns (PermitSignatureDetails memory permit, bytes memory signedPermit) {
-        permit = PermitSignatureDetails({
-            token: address(erc1155C),
-            id: tokenId,
-            amount: uint200(amount),
-            nonce: _getAndIncrementAccountPermitNonce(from),
-            operator: operator,
-            expiration: uint48(block.timestamp + 1000)
-        });
-
-        uint256 masterNonce = validator.masterNonce(from);
-
-        bytes32 permitDigest = ECDSA.toTypedDataHash(
-            validator.domainSeparatorV4(),
-            keccak256(
-                abi.encode(
-                    SINGLE_USE_PERMIT_TYPEHASH,
-                    permit.token,
-                    permit.id,
-                    permit.amount,
-                    permit.nonce,
-                    permit.operator,
-                    permit.expiration,
-                    masterNonce
-                )
-            )
-        );
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(fromKey, permitDigest);
-        signedPermit = abi.encodePacked(r, s, v);
-    }
-
-    function _permitTransfer(PermitSignatureDetails memory permit, address from, address to, bytes memory signedPermit) internal returns(bool isError) {
-        isError = validator.permitTransferFromERC1155(permit.token, permit.id, permit.nonce, permit.amount, permit.expiration, from, to, permit.amount, signedPermit);
     }
 
     function _sanitizeCode(

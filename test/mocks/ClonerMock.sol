@@ -15,7 +15,21 @@ contract ClonerMock {
         bytes4[] calldata initializationSelectors,
         bytes[] calldata initializationArgs
     ) external returns (address) {
-        address clone = Clones.clone(referenceContract);
+        bytes32 salt;
+        address clone = Clones.predictDeterministicAddress(referenceContract, salt, address(this));
+        bool codeEmpty;
+        while (true) {
+            assembly {
+                codeEmpty := iszero(extcodesize(clone))
+            }
+            if (!codeEmpty) {
+                salt = keccak256(abi.encode(salt));
+                clone = Clones.predictDeterministicAddress(referenceContract, salt, address(this));
+                continue;
+            }
+            break;
+        }
+        Clones.cloneDeterministic(referenceContract, salt);
 
         IOwnableInitializer(clone).initializeOwner(address(this));
 

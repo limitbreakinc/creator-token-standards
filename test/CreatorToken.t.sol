@@ -22,6 +22,17 @@ abstract contract CreatorTokenTest is Events, Helpers {
 
         eoaRegistry = new EOARegistry();
         validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "");
+
+        uint256 validatorCodeSize;
+        assembly {
+            validatorCodeSize := extcodesize(sload(validator.slot))
+        }
+        bytes memory validatorDeployedBytecode = new bytes(validatorCodeSize);
+        assembly {
+            extcodecopy(sload(validator.slot), add(validatorDeployedBytecode, 0x20), 0x00, validatorCodeSize)
+        }
+        vm.etch(0x721C00182a990771244d7A71B9FA2ea789A3b433, validatorDeployedBytecode);
+        validator = CreatorTokenTransferValidator(0x721C00182a990771244d7A71B9FA2ea789A3b433);
     }
 
     function _verifyEOA(uint160 toKey) internal returns (address to) {
@@ -53,9 +64,11 @@ abstract contract CreatorTokenTest is Events, Helpers {
 
     function testRevertsWhenSetTransferValidatorCalledWithContractThatHasCodeLengthZero(address creator, address validator) public {
         _sanitizeAddress(creator);
-        _sanitizeAddress(validator);
 
         ITestCreatorToken token = _deployNewToken(creator);
+        address[] memory exclusionList = new address[](1);
+        exclusionList[0] = address(token);
+        _sanitizeAddress(validator, exclusionList);
 
         vm.startPrank(creator);
         vm.expectRevert(CreatorTokenBase.CreatorTokenBase__InvalidTransferValidatorContract.selector);
@@ -65,9 +78,11 @@ abstract contract CreatorTokenTest is Events, Helpers {
 
     function testAllowsAnyAddressToBeSetAsValidatorIfItHasCode(address creator, address validator, bytes32 code) public {
         _sanitizeAddress(creator);
-        _sanitizeAddress(validator);
 
         ITestCreatorToken token = _deployNewToken(creator);
+        address[] memory exclusionList = new address[](1);
+        exclusionList[0] = address(token);
+        _sanitizeAddress(validator, exclusionList);
 
         vm.etch(validator, abi.encode(code));
 
@@ -80,9 +95,11 @@ abstract contract CreatorTokenTest is Events, Helpers {
 
     function testAllowsValidatorToBeSetBackToZeroAddress(address creator, address validator, bytes32 code) public {
         _sanitizeAddress(creator);
-        _sanitizeAddress(validator);
 
         ITestCreatorToken token = _deployNewToken(creator);
+        address[] memory exclusionList = new address[](1);
+        exclusionList[0] = address(token);
+        _sanitizeAddress(validator, exclusionList);
 
         vm.etch(validator, abi.encode(code));
 
@@ -95,13 +112,16 @@ abstract contract CreatorTokenTest is Events, Helpers {
     }
 
     function testIsApprovedForAllDefaultsToFalseForTransferValidator(address validator, address creator, address owner, bytes32 code) public {
-        _sanitizeAddress(validator);
         _sanitizeAddress(creator);
         _sanitizeAddress(owner);
 
-        vm.etch(validator, abi.encode(code));
-
         ITestCreatorToken token = _deployNewToken(creator);
+        address[] memory exclusionList = new address[](1);
+        exclusionList[0] = address(token);
+        _sanitizeAddress(validator, exclusionList);
+
+        vm.etch(validator, abi.encode(code));
+        
         vm.prank(creator);
         token.setTransferValidator(address(validator));
 
@@ -109,13 +129,16 @@ abstract contract CreatorTokenTest is Events, Helpers {
     }
 
     function testIsApprovedForAllReturnsTrueForTransferValidatorIfAutoApproveEnabledByCreator(address validator, address creator, address owner, bytes32 code) public {
-        _sanitizeAddress(validator);
         _sanitizeAddress(creator);
         _sanitizeAddress(owner);
 
+        ITestCreatorToken token = _deployNewToken(creator);
+        address[] memory exclusionList = new address[](1);
+        exclusionList[0] = address(token);
+        _sanitizeAddress(validator, exclusionList);
+
         vm.etch(validator, abi.encode(code));
 
-        ITestCreatorToken token = _deployNewToken(creator);
         vm.startPrank(creator);
         token.setTransferValidator(address(validator));
         token.setAutomaticApprovalOfTransfersFromValidator(true);
@@ -137,14 +160,17 @@ abstract contract CreatorTokenTest is Events, Helpers {
     }
 
     function testIsApprovedForAllReturnsTrueWhenUserExplicitlyApprovesTransferValidator(address validator, address creator, address owner, bytes32 code) public {
-        _sanitizeAddress(validator);
         _sanitizeAddress(creator);
         _sanitizeAddress(owner);
         vm.assume(validator != owner);
 
+        ITestCreatorToken token = _deployNewToken(creator);
+        address[] memory exclusionList = new address[](1);
+        exclusionList[0] = address(token);
+        _sanitizeAddress(validator, exclusionList);
+
         vm.etch(validator, abi.encode(code));
 
-        ITestCreatorToken token = _deployNewToken(creator);
         vm.prank(creator);
         token.setTransferValidator(address(validator));
 
