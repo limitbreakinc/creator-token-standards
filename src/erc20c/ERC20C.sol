@@ -22,9 +22,11 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase, Automat
     function allowance(address owner, address spender) public view virtual override returns (uint256 _allowance) {
         _allowance = super.allowance(owner, spender);
 
-        if (_allowance < type(uint256).max) {
+        if (_allowance == 0) {
             if (autoApproveTransfersFromValidator) {
-                _allowance = spender == address(getTransferValidator()) ? type(uint256).max : _allowance;
+                if (spender == address(getTransferValidator())) {
+                    _allowance = type(uint256).max;
+                }
             }
         }
     }
@@ -68,9 +70,11 @@ abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable,
     function allowance(address owner, address spender) public view virtual override returns (uint256 _allowance) {
         _allowance = super.allowance(owner, spender);
 
-        if (_allowance < type(uint256).max) {
+        if (_allowance == 0) {
             if (autoApproveTransfersFromValidator) {
-                _allowance = spender == address(getTransferValidator()) ? type(uint256).max : _allowance;
+                if (spender == address(getTransferValidator())) {
+                    _allowance = type(uint256).max;
+                }
             }
         }
     }
