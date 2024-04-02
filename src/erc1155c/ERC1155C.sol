@@ -34,6 +34,15 @@ abstract contract ERC1155C is ERC1155OpenZeppelin, CreatorTokenBase, AutomaticVa
         super.supportsInterface(interfaceId);
     }
 
+    /**
+     * @notice Returns the function selector for the transfer validator's validation function to be called 
+     * @notice for transaction simulation. 
+     */
+    function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
+        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256)"));
+        isViewFunction = true;
+    }
+
     /// @dev Ties the open-zeppelin _beforeTokenTransfer hook to more granular transfer validation logic
     function _beforeTokenTransfer(
         address /*operator*/,
@@ -98,6 +107,15 @@ abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, Cre
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
         super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @notice Returns the function selector for the transfer validator's validation function to be called 
+     * @notice for transaction simulation. 
+     */
+    function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
+        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256)"));
+        isViewFunction = true;
     }
 
     /// @dev Ties the open-zeppelin _beforeTokenTransfer hook to more granular transfer validation logic
