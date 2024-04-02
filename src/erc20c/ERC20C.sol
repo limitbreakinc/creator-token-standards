@@ -19,6 +19,7 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase {
         interfaceId == type(IERC20).interfaceId || 
         interfaceId == type(IERC20Metadata).interfaceId || 
         interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -27,8 +28,8 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase {
      * @notice for transaction simulation. 
      */
     function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
-        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256)"));
-        isViewFunction = true;
+        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)"));
+        isViewFunction = false;
     }
 
     /// @dev Ties the open-zeppelin _beforeTokenTransfer hook to more granular transfer validation logic
@@ -60,6 +61,7 @@ abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable,
         interfaceId == type(IERC20).interfaceId || 
         interfaceId == type(IERC20Metadata).interfaceId || 
         interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -68,8 +70,8 @@ abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable,
      * @notice for transaction simulation. 
      */
     function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
-        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256)"));
-        isViewFunction = true;
+        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)"));
+        isViewFunction = false;
     }
 
     /// @dev Ties the open-zeppelin _beforeTokenTransfer hook to more granular transfer validation logic

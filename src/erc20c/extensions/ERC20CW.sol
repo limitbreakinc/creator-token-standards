@@ -233,6 +233,8 @@ abstract contract ERC20CW is ERC20WrapperBase, ERC20C {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC20).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -289,6 +291,8 @@ abstract contract ERC20CWInitializable is ERC20WrapperBase, ERC20CInitializable 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC20).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 

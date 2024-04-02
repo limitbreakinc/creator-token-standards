@@ -31,6 +31,7 @@ abstract contract AdventureERC721C is AdventureERC721, CreatorTokenBase, Automat
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -107,6 +108,7 @@ abstract contract AdventureERC721CInitializable is AdventureERC721Initializable,
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
