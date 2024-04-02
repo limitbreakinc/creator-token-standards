@@ -3,10 +3,10 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "src/examples/erc721ac/ERC721ACWithBasicRoyalties.sol";
 
-contract ERC721ACWithBasicRoyaltiesTest is CreatorTokenTest {
+contract ERC721ACWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
     ERC721ACWithBasicRoyalties public tokenMock;
     uint96 public constant DEFAULT_ROYALTY_FEE_NUMERATOR = 1000;
     address public constant DEFAULT_ROYALTY_FEE_RECEIVER = address(0x0b0b);

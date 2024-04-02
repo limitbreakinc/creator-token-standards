@@ -6,9 +6,9 @@ import "forge-std/console.sol";
 import "../mocks/ERC721Mock.sol";
 import "../mocks/AdventureERC721CWMock.sol";
 import "../mocks/ClonerMock.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 
-contract AdventureERC721CWTest is CreatorTokenTest {
+contract AdventureERC721CWTest is CreatorTokenNonfungibleTest {
     event Staked(uint256 indexed tokenId, address indexed account);
     event Unstaked(uint256 indexed tokenId, address indexed account);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
@@ -381,7 +381,7 @@ contract AdventureERC721CWTest is CreatorTokenTest {
     }
 }
 
-contract AdventureERC721CWInitializableTest is CreatorTokenTest {
+contract AdventureERC721CWInitializableTest is CreatorTokenNonfungibleTest {
     event Staked(uint256 indexed tokenId, address indexed account);
     event Unstaked(uint256 indexed tokenId, address indexed account);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);

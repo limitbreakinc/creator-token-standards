@@ -5,9 +5,9 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ERC721Mock.sol";
 import "../mocks/ERC721CWTimeLockedUnstakeMock.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 
-contract ERC721CWTimeLockedUnstakeTest is CreatorTokenTest {
+contract ERC721CWTimeLockedUnstakeTest is CreatorTokenNonfungibleTest {
     event Staked(uint256 indexed tokenId, address indexed account);
     event Unstaked(uint256 indexed tokenId, address indexed account);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import "../utils/AutomaticValidatorTransferApproval.sol";
 import "../utils/CreatorTokenBase.sol";
 import "../token/erc20/ERC20OpenZeppelin.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
@@ -12,7 +13,21 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  *         allows the contract owner to update the transfer validation logic by managing a security policy in
  *         an external transfer validation security policy registry.  See {CreatorTokenTransferValidator}.
  */
-abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase {
+abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase, AutomaticValidatorTransferApproval {
+
+    /**
+     * @notice Overrides behavior of allowance such that if a spender is not explicitly approved,
+     *         the contract owner can optionally auto-approve the 20-C transfer validator for transfers.
+     */
+    function allowance(address owner, address spender) public view virtual override returns (uint256 _allowance) {
+        _allowance = super.allowance(owner, spender);
+
+        if (_allowance < type(uint256).max) {
+            if (autoApproveTransfersFromValidator) {
+                _allowance = spender == address(getTransferValidator()) ? type(uint256).max : _allowance;
+            }
+        }
+    }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
@@ -44,7 +59,21 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase {
  * @author Limit Break, Inc.
  * @notice Initializable implementation of ERC20C to allow for EIP-1167 proxy clones.
  */
-abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable, CreatorTokenBase {
+abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable, CreatorTokenBase, AutomaticValidatorTransferApproval {
+
+    /**
+     * @notice Overrides behavior of allowance such that if a spender is not explicitly approved,
+     *         the contract owner can optionally auto-approve the 20-C transfer validator for transfers.
+     */
+    function allowance(address owner, address spender) public view virtual override returns (uint256 _allowance) {
+        _allowance = super.allowance(owner, spender);
+
+        if (_allowance < type(uint256).max) {
+            if (autoApproveTransfersFromValidator) {
+                _allowance = spender == address(getTransferValidator()) ? type(uint256).max : _allowance;
+            }
+        }
+    }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 

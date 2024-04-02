@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "./mocks/ERC1155CMock.sol";
-import "./CreatorToken.t.sol";
+import "./CreatorTokenNonfungible.t.sol";
 
-contract ERC1155CTest is CreatorTokenTest {
+contract ERC1155CTest is CreatorTokenNonfungibleTest {
     function setUp() public virtual override {
         super.setUp();
     }

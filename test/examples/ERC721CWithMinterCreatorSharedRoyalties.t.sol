@@ -3,13 +3,13 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "../mocks/ERC20Mock.sol";
 import "../mocks/ClonerMock.sol";
 import "src/examples/erc721c/ERC721CWithMinterCreatorSharedRoyalties.sol";
 import "src/programmable-royalties/helpers/PaymentSplitterInitializable.sol";
 
-contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorTokenTest {
+contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorTokenNonfungibleTest {
     ERC20Mock public coinMock;
     ERC721CWithMinterCreatorSharedRoyalties public tokenMock;
     uint256 public constant DEFAULT_ROYALTY_FEE_NUMERATOR = 1000;
@@ -564,7 +564,7 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
     }
 }
 
-contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorTokenTest {
+contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorTokenNonfungibleTest {
 
     ClonerMock cloner;
 

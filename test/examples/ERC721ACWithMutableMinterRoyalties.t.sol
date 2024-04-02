@@ -3,10 +3,10 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "src/examples/erc721ac/ERC721ACWithMutableMinterRoyalties.sol";
 
-contract ERC721ACWithMutableMinterRoyaltiesTest is CreatorTokenTest {
+contract ERC721ACWithMutableMinterRoyaltiesTest is CreatorTokenNonfungibleTest {
     event RoyaltySet(uint256 indexed tokenId, address indexed receiver, uint96 feeNumerator);
 
     ERC721ACWithMutableMinterRoyalties public tokenMock;

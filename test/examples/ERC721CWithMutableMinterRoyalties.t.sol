@@ -4,10 +4,10 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ClonerMock.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "src/examples/erc721c/ERC721CWithMutableMinterRoyalties.sol";
 
-contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenTest {
+contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenNonfungibleTest {
     event RoyaltySet(uint256 indexed tokenId, address indexed receiver, uint96 feeNumerator);
 
     ERC721CWithMutableMinterRoyalties public tokenMock;
@@ -267,7 +267,7 @@ contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenTest {
     }
 }
 
-contract ERC721CWithMutableMinterRoyaltiesInitializableTest is CreatorTokenTest {
+contract ERC721CWithMutableMinterRoyaltiesInitializableTest is CreatorTokenNonfungibleTest {
     event RoyaltySet(uint256 indexed tokenId, address indexed receiver, uint96 feeNumerator);
 
     ClonerMock cloner;

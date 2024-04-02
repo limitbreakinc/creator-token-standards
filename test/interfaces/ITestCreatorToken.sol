@@ -16,6 +16,8 @@ interface ITestCreatorToken is IERC721, ICreatorToken {
 
     function setApprovalForAll(address operator, bool _approved) external;
     function isApprovedForAll(address owner, address operator) external view returns (bool);
+    function approve(address operator, uint256 _allowance) external;
+    function allowance(address owner, address spender) external view returns (uint256);
 
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 

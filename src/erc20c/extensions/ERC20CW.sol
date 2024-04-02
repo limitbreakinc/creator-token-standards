@@ -168,7 +168,7 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
         _onUnstake(amount, msg.value);
         emit Unstaked(_msgSender(), amount);
         _doTokenBurn(_msgSender(), amount);
-        SafeERC20.safeTransferFrom(IERC20(getWrappedCollectionAddress()), address(this), _msgSender(), amount);
+        SafeERC20.safeTransfer(IERC20(getWrappedCollectionAddress()), _msgSender(), amount);
     }
 
     /// @notice Returns true if the specified token id and amount is available to be unstaked, false otherwise.
@@ -204,6 +204,10 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
     }
 
     function _setWrappedCollectionAddress(address wrappedCollectionAddress_) internal {
+        if(wrappedCollectionAddress_ == address(0) || wrappedCollectionAddress_.code.length == 0) {
+            revert ERC20WrapperBase__InvalidERC20Collection();
+        }
+
         wrappedCollection = IERC20(wrappedCollectionAddress_);
     }
 

@@ -13,6 +13,9 @@ abstract contract ERC20OpenZeppelinBase is ERC20 {
     // Token symbol
     string internal _contractSymbol;
 
+    // Token decimals
+    uint8 internal _decimals;
+
     function name() public view virtual override returns (string memory) {
         return _contractName;
     }
@@ -21,19 +24,25 @@ abstract contract ERC20OpenZeppelinBase is ERC20 {
         return _contractSymbol;
     }
 
-    function _setNameAndSymbol(string memory name_, string memory symbol_) internal {
+    function decimals() public view virtual override returns (uint8) {
+        return _decimals;
+    }
+
+    function _setNameSymbolAndDecimals(string memory name_, string memory symbol_, uint8 decimals_) internal {
         _contractName = name_;
         _contractSymbol = symbol_;
+        _decimals = decimals_;
     }
 }
 
 abstract contract ERC20OpenZeppelin is ERC20OpenZeppelinBase {
-    constructor(string memory name_, string memory symbol_) ERC20("", "") {
-        _setNameAndSymbol(name_, symbol_);
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20("", "") {
+        _setNameSymbolAndDecimals(name_, symbol_, decimals_);
     }
 }
 
 abstract contract ERC20OpenZeppelinInitializable is OwnablePermissions, ERC20OpenZeppelinBase {
+    constructor() ERC20("", "") { }
 
     error ERC20OpenZeppelinInitializable__AlreadyInitializedERC20();
 
@@ -42,7 +51,7 @@ abstract contract ERC20OpenZeppelinInitializable is OwnablePermissions, ERC20Ope
 
     /// @dev Initializes parameters of ERC721 tokens.
     /// These cannot be set in the constructor because this contract is optionally compatible with EIP-1167.
-    function initializeERC20(string memory name_, string memory symbol_) public {
+    function initializeERC20(string memory name_, string memory symbol_, uint8 decimals_) public {
         _requireCallerIsContractOwner();
 
         if(_erc20Initialized) {
@@ -51,6 +60,6 @@ abstract contract ERC20OpenZeppelinInitializable is OwnablePermissions, ERC20Ope
 
         _erc20Initialized = true;
 
-        _setNameAndSymbol(name_, symbol_);
+        _setNameSymbolAndDecimals(name_, symbol_, decimals_);
     }
 }

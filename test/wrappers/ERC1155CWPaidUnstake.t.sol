@@ -5,9 +5,9 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ERC1155Mock.sol";
 import "../mocks/ERC1155CWPaidUnstakeMock.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 
-contract ERC1155CWPaidUnstakeTest is CreatorTokenTest {
+contract ERC1155CWPaidUnstakeTest is CreatorTokenNonfungibleTest {
     event Staked(uint256 indexed tokenId, address indexed account, uint256 amount);
     event Unstaked(uint256 indexed tokenId, address indexed account, uint256 amount);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);

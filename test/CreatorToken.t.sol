@@ -46,14 +46,6 @@ abstract contract CreatorTokenTest is Events, Helpers {
 
     function _deployNewToken(address creator) internal virtual returns (ITestCreatorToken);
 
-    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual {
-        ITestCreatorToken(tokenAddress).mint(to, tokenId);
-    }
-
-    function _mintToken(address tokenAddress, address to, uint256 tokenId, uint256 amount) internal virtual {
-        ITestCreatorToken(tokenAddress).mint(to, tokenId, amount);
-    }
-
     function testGetTransferValidatorReturnsTransferValidatorAddressBeforeValidatorIsSet(address creator) public {
         vm.assume(creator != address(0));
 
@@ -109,74 +101,5 @@ abstract contract CreatorTokenTest is Events, Helpers {
         vm.stopPrank();
 
         assertEq(address(token.getTransferValidator()), address(0));
-    }
-
-    function testIsApprovedForAllDefaultsToFalseForTransferValidator(address validator, address creator, address owner, bytes32 code) public {
-        _sanitizeAddress(creator);
-        _sanitizeAddress(owner);
-
-        ITestCreatorToken token = _deployNewToken(creator);
-        address[] memory exclusionList = new address[](1);
-        exclusionList[0] = address(token);
-        _sanitizeAddress(validator, exclusionList);
-
-        vm.etch(validator, abi.encode(code));
-        
-        vm.prank(creator);
-        token.setTransferValidator(address(validator));
-
-        assertFalse(token.isApprovedForAll(owner, address(validator)));
-    }
-
-    function testIsApprovedForAllReturnsTrueForTransferValidatorIfAutoApproveEnabledByCreator(address validator, address creator, address owner, bytes32 code) public {
-        _sanitizeAddress(creator);
-        _sanitizeAddress(owner);
-
-        ITestCreatorToken token = _deployNewToken(creator);
-        address[] memory exclusionList = new address[](1);
-        exclusionList[0] = address(token);
-        _sanitizeAddress(validator, exclusionList);
-
-        vm.etch(validator, abi.encode(code));
-
-        vm.startPrank(creator);
-        token.setTransferValidator(address(validator));
-        token.setAutomaticApprovalOfTransfersFromValidator(true);
-        vm.stopPrank();
-
-        assertTrue(token.isApprovedForAll(owner, address(validator)));
-    }
-
-    function testIsApprovedForAllReturnsTrueForDefaultTransferValidatorIfAutoApproveEnabledByCreatorAndValidatorUninitialized(address creator, address owner) public {
-        _sanitizeAddress(creator);
-        _sanitizeAddress(owner);
-
-        ITestCreatorToken token = _deployNewToken(creator);
-        vm.startPrank(creator);
-        token.setAutomaticApprovalOfTransfersFromValidator(true);
-        vm.stopPrank();
-
-        assertTrue(token.isApprovedForAll(owner, token.DEFAULT_TRANSFER_VALIDATOR()));
-    }
-
-    function testIsApprovedForAllReturnsTrueWhenUserExplicitlyApprovesTransferValidator(address validator, address creator, address owner, bytes32 code) public {
-        _sanitizeAddress(creator);
-        _sanitizeAddress(owner);
-        vm.assume(validator != owner);
-
-        ITestCreatorToken token = _deployNewToken(creator);
-        address[] memory exclusionList = new address[](1);
-        exclusionList[0] = address(token);
-        _sanitizeAddress(validator, exclusionList);
-
-        vm.etch(validator, abi.encode(code));
-
-        vm.prank(creator);
-        token.setTransferValidator(address(validator));
-
-        vm.prank(owner);
-        token.setApprovalForAll(address(validator), true);
-
-        assertTrue(token.isApprovedForAll(owner, address(validator)));
     }
 }

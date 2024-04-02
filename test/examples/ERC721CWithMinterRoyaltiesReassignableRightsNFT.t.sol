@@ -3,12 +3,12 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "../mocks/ERC20Mock.sol";
 import "src/examples/erc721c/ERC721CWithReassignableMinterRoyalties.sol";
 import "src/programmable-royalties/helpers/RoyaltyRightsNFT.sol";
 
-contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenTest {
+contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNonfungibleTest {
     address public royaltyRightsNFTReference;
     ERC20Mock public coinMock;
     ERC721CWithReassignableMinterRoyalties public tokenMock;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "../mocks/AdventureMock.sol";
 import "../mocks/AdventureERC721CMock.sol";
 import "../mocks/ClonerMock.sol";
@@ -16,7 +16,7 @@ abstract contract AdventureHelper {
     }
 }
 
-contract ERC721CTest is CreatorTokenTest, AdventureHelper {
+contract ERC721CTest is CreatorTokenNonfungibleTest, AdventureHelper {
     function setUp() public virtual override {
         super.setUp();
     }
