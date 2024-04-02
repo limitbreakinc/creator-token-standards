@@ -31,7 +31,17 @@ abstract contract AdventureERC721C is AdventureERC721, CreatorTokenBase, Automat
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @notice Returns the function selector for the transfer validator's validation function to be called 
+     * @notice for transaction simulation. 
+     */
+    function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
+        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256)"));
+        isViewFunction = true;
     }
 
     /// @dev Ties the adventure erc721 _beforeTokenTransfer hook to more granular transfer validation logic
@@ -98,7 +108,17 @@ abstract contract AdventureERC721CInitializable is AdventureERC721Initializable,
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @notice Returns the function selector for the transfer validator's validation function to be called 
+     * @notice for transaction simulation. 
+     */
+    function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
+        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256)"));
+        isViewFunction = true;
     }
 
     /// @dev Ties the adventure erc721 _beforeTokenTransfer hook to more granular transfer validation logic
