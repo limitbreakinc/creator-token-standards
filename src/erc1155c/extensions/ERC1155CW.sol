@@ -237,6 +237,8 @@ abstract contract ERC1155CW is ERC1155Holder, ERC1155WrapperBase, ERC1155C {
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155C, ERC1155Receiver) returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC1155).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -293,6 +295,8 @@ abstract contract ERC1155CWInitializable is ERC1155Holder, ERC1155WrapperBase, E
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155CInitializable, ERC1155Receiver) returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC1155).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 

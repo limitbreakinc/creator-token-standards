@@ -31,6 +31,7 @@ abstract contract ERC1155C is ERC1155OpenZeppelin, CreatorTokenBase, AutomaticVa
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -39,8 +40,8 @@ abstract contract ERC1155C is ERC1155OpenZeppelin, CreatorTokenBase, AutomaticVa
      * @notice for transaction simulation. 
      */
     function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
-        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256)"));
-        isViewFunction = true;
+        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)"));
+        isViewFunction = false;
     }
 
     /// @dev Ties the open-zeppelin _beforeTokenTransfer hook to more granular transfer validation logic
@@ -106,6 +107,7 @@ abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, Cre
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -114,8 +116,8 @@ abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, Cre
      * @notice for transaction simulation. 
      */
     function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
-        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256)"));
-        isViewFunction = true;
+        functionSignature = bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)"));
+        isViewFunction = false;
     }
 
     /// @dev Ties the open-zeppelin _beforeTokenTransfer hook to more granular transfer validation logic

@@ -227,6 +227,8 @@ abstract contract ERC721CW is ERC721WrapperBase, ERC721C {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -292,6 +294,8 @@ abstract contract ERC721CWInitializable is ERC721WrapperBase, ERC721CInitializab
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 

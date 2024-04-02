@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "../access/OwnablePermissions.sol";
 import "../interfaces/ICreatorToken.sol";
+import "../interfaces/ICreatorTokenLegacy.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferValidation.sol";
 import "@openzeppelin/contracts/interfaces/IERC165.sol";

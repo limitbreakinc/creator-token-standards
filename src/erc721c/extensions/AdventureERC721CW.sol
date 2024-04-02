@@ -35,6 +35,8 @@ abstract contract AdventureERC721CW is ERC721WrapperBase, AdventureERC721C {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
@@ -100,6 +102,8 @@ abstract contract AdventureERC721CWInitializable is ERC721WrapperBase, Adventure
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorTokenWrapperERC721).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
     }
 
