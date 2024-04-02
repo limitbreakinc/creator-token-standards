@@ -386,6 +386,8 @@ contract ERC1155CWPermanentTest is CreatorTokenTest {
         uint8 constraintsUint8
     ) public {
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(constraintsUint8 <= 2);
         StakerConstraints constraints = StakerConstraints(constraintsUint8);
 

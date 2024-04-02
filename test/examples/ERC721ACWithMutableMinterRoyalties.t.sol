@@ -205,6 +205,8 @@ contract ERC721ACWithMutableMinterRoyaltiesTest is CreatorTokenTest {
         vm.assume(quantity > 0 && quantity < 5);
         vm.assume(minter != address(0));
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(minter != unauthorizedUser);
         vm.assume(royaltyFeeNumerator <= tokenMock.FEE_DENOMINATOR());
 
@@ -215,6 +217,7 @@ contract ERC721ACWithMutableMinterRoyaltiesTest is CreatorTokenTest {
 
         for (uint256 tokenId = nextTokenId; tokenId <= lastTokenId; ++tokenId) {
             vm.expectRevert(MutableMinterRoyaltiesBase.MutableMinterRoyalties__OnlyMinterCanChangeRoyaltyFee.selector);
+            vm.prank(unauthorizedUser);
             tokenMock.setRoyaltyFee(tokenId, royaltyFeeNumerator);
         }
     }

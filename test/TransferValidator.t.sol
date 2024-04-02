@@ -11,16 +11,18 @@ import "src/utils/CreatorTokenTransferValidator.sol";
 import "src/Constants.sol";
 import "./utils/Events.sol";
 import "./utils/Helpers.sol";
-import "src/utils/EOARegistry.sol";
+import "./EOARegistry.t.sol";
 
-contract TransferValidatorTest is Events, Helpers {
-    EOARegistry public eoaRegistry;
+contract TransferValidatorTest is Events, EOARegistryTest {
     CreatorTokenTransferValidator public validator;
 
     function setUp() public virtual override {
         super.setUp();
 
-        eoaRegistry = new EOARegistry();
+        vm.expectEmit(true, true, true, true);
+        emit CreatorTokenTransferValidator.CreatedList(0, "DEFAULT LIST");
+        vm.expectEmit(true, true, true, true);
+        emit CreatorTokenTransferValidator.ReassignedListOwnership(0, address(this));
         validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "");
     }
 
@@ -2046,6 +2048,8 @@ contract TransferValidatorTest is Events, Helpers {
         (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
+        vm.assume(from != fuzzedList.whitelistedAddress);
+        vm.assume(from != fuzzedList.whitelistedToAddress);
 
         _configureCollectionSecurity(
             collection, 
@@ -3775,6 +3779,8 @@ contract TransferValidatorTest is Events, Helpers {
         (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
+        vm.assume(from != fuzzedList.whitelistedAddress);
+        vm.assume(from != fuzzedList.whitelistedToAddress);
 
         _configureCollectionSecurity(
             collection, 
@@ -4357,6 +4363,61 @@ contract TransferValidatorTest is Events, Helpers {
         );
     }
 
+    // Lists
+
+    function testCollectionSecuritySettingsApplied(
+        FuzzedList memory fuzzedList,
+        address collection,
+        address operator,
+        uint256 tokenId, 
+        uint256 amount,
+        uint8 transferSecurityLevel,
+        bool authorizersCanSetWildcardOperators,
+        bool enableAccountFreezingMode
+    ) public {
+        address authorizer = fuzzedList.authorizerAddress;
+        uint256 fromKey;
+        (collection, operator, fromKey) = _sanitizeAccounts(collection, authorizer, operator, operator);
+        transferSecurityLevel = uint8(bound(transferSecurityLevel, TRANSFER_SECURITY_LEVEL_RECOMMENDED, TRANSFER_SECURITY_LEVEL_NINE));
+        _configureCollectionSecurity(
+            collection, 
+            fuzzedList, 
+            transferSecurityLevel, 
+            false, 
+            authorizersCanSetWildcardOperators, 
+            enableAccountFreezingMode
+        );
+
+        assertTrue(validator.isAccountAuthorizerOfCollection(collection, authorizer));
+        assertTrue(validator.isAccountWhitelistedByCollection(collection, fuzzedList.whitelistedAddress));
+        assertTrue(validator.isAccountBlacklistedByCollection(collection, fuzzedList.blacklistedAddress));
+
+        address[] memory accounts = validator.getAuthorizerAccountsByCollection(collection);
+        assertEq(accounts.length, 1);
+        assertEq(accounts[0], authorizer);
+
+        accounts = validator.getWhitelistedAccountsByCollection(collection);
+        assertEq(accounts.length, 2);
+        assertEq(accounts[0], fuzzedList.whitelistedAddress);
+        assertEq(accounts[1], fuzzedList.whitelistedToAddress);
+
+        accounts = validator.getBlacklistedAccountsByCollection(collection);
+        assertEq(accounts.length, 1);
+        assertEq(accounts[0], fuzzedList.blacklistedAddress);
+
+        bytes32 whitelistedCodeHash = keccak256(abi.encode(fuzzedList.whitelistedCode));
+        assertTrue(validator.isCodeHashWhitelistedByCollection(collection, whitelistedCodeHash));
+        bytes32[] memory codeHashes = validator.getWhitelistedCodeHashesByCollection(collection);
+        assertEq(codeHashes.length, 1);
+        assertEq(codeHashes[0], whitelistedCodeHash);
+
+        bytes32 blacklistedCodeHash = keccak256(abi.encode(fuzzedList.blacklistedCode));
+        assertTrue(validator.isCodeHashBlacklistedByCollection(collection, blacklistedCodeHash));
+        codeHashes = validator.getBlacklistedCodeHashesByCollection(collection);
+        assertEq(codeHashes.length, 1);
+        assertEq(codeHashes[0], blacklistedCodeHash);
+    }
+
     // Helpers
 
     function _pickAWhitelistingSecurityLevel(uint8 number) internal view returns (uint8) {
@@ -4376,15 +4437,6 @@ contract TransferValidatorTest is Events, Helpers {
         } else if (number == 6) {
             return TRANSFER_SECURITY_LEVEL_EIGHT;
         }
-    }
-
-    function _verifyEOA(uint160 toKey) internal returns (address to) {
-        toKey = uint160(bound(toKey, 1, type(uint160).max));
-        to = vm.addr(toKey);
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(toKey, ECDSA.toEthSignedMessageHash(bytes(eoaRegistry.MESSAGE_TO_SIGN())));
-        vm.prank(to);
-        eoaRegistry.verifySignatureVRS(v, r, s);
     }
 
     function _sanitizeAccounts(

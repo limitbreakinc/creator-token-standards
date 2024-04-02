@@ -109,6 +109,7 @@ contract PermitTransferValidatorTestERC1155 is TransferValidatorTest {
         uint256 amount,
         bytes4 expectedRevertSelector
     ) internal override {
+        vm.assume(from != to);
         vm.assume(amount > 0 && amount < type(uint200).max);
         _mint1155(from, tokenId, amount);
         erc1155C.setTransferValidator(address(validator));

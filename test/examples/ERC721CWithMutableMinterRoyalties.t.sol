@@ -201,11 +201,14 @@ contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenTest {
     ) public {
         vm.assume(minter != address(0));
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(minter != unauthorizedUser);
         vm.assume(royaltyFeeNumerator <= tokenMock.FEE_DENOMINATOR());
 
         _mintToken(address(tokenMock), minter, tokenId);
         vm.expectRevert(MutableMinterRoyaltiesBase.MutableMinterRoyalties__OnlyMinterCanChangeRoyaltyFee.selector);
+        vm.prank(unauthorizedUser);
         tokenMock.setRoyaltyFee(tokenId, royaltyFeeNumerator);
     }
 
@@ -495,11 +498,14 @@ contract ERC721CWithMutableMinterRoyaltiesInitializableTest is CreatorTokenTest 
     ) public {
         vm.assume(minter != address(0));
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(minter != unauthorizedUser);
         vm.assume(royaltyFeeNumerator <= tokenMock.FEE_DENOMINATOR());
 
         _mintToken(address(tokenMock), minter, tokenId);
         vm.expectRevert(MutableMinterRoyaltiesBase.MutableMinterRoyalties__OnlyMinterCanChangeRoyaltyFee.selector);
+        vm.prank(unauthorizedUser);
         tokenMock.setRoyaltyFee(tokenId, royaltyFeeNumerator);
     }
 

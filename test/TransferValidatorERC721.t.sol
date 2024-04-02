@@ -89,6 +89,7 @@ contract TransferValidatorTestERC721 is TransferValidatorTest {
         uint256 amount,
         bytes4 expectedRevertSelector
     ) internal override {
+        vm.assume(from != to);
         amount = 1;
         _mint721(from, tokenId);
         erc721C.setTransferValidator(address(validator));

@@ -452,6 +452,8 @@ contract ERC1155CWPaidUnstakeTest is CreatorTokenTest {
         uint8 constraintsUint8
     ) public {
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(constraintsUint8 <= 2);
         vm.assume(unauthorizedUser != tokenMock.owner());
         StakerConstraints constraints = StakerConstraints(constraintsUint8);
