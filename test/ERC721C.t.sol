@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./CreatorTokenNonfungible.t.sol";
+import "src/token/erc721/MetadataURI.sol";
 
 contract ERC721CTest is CreatorTokenNonfungibleTest {
     function setUp() public virtual override {
@@ -24,10 +25,25 @@ contract ERC721CTest is CreatorTokenNonfungibleTest {
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
+
+    function testGetTransferValidationFunction() public override {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
+    function testNameAndSymbol() public {
+        ERC721CMock _tokenMock = ERC721CMock(address(_deployNewToken(address(this))));
+
+        assertEq(_tokenMock.name(), "ERC-721C Mock");
+        assertEq(_tokenMock.symbol(), "MOCK");
+    }
 }
 
-/*
-contract ERC721CInitializableTest is Events, Helpers {
+
+contract ERC721CInitializableTest is CreatorTokenNonfungibleTest {
     ClonerMock cloner;
 
     ERC721CInitializableMock public tokenMock;
@@ -55,7 +71,7 @@ contract ERC721CInitializableTest is Events, Helpers {
         //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
-    function _deployNewToken(address creator) internal virtual returns (ITestCreatorToken) {
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
         bytes4[] memory initializationSelectors = new bytes4[](1);
         bytes[] memory initializationArguments = new bytes[](1);
 
@@ -68,7 +84,7 @@ contract ERC721CInitializableTest is Events, Helpers {
         );
     }
 
-    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual {
+    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
         ERC721CInitializableMock(tokenAddress).mint(to, tokenId);
     }
 
@@ -79,9 +95,20 @@ contract ERC721CInitializableTest is Events, Helpers {
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
 
+    function testInitializeAlreadyInitialized(string memory badName, string memory badSymbol) public {
+        vm.expectRevert(ERC721OpenZeppelinInitializable.ERC721OpenZeppelinInitializable__AlreadyInitializedERC721.selector);
+        tokenMock.initializeERC721(badName, badSymbol);
+    }
+
     function testRevertsWhenInitializingOwnerAgain(address badOwner) public {
         vm.expectRevert(OwnableInitializable.InitializableOwnable__OwnerAlreadyInitialized.selector);
         tokenMock.initializeOwner(badOwner);
     }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
 }
-*/

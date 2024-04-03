@@ -6,6 +6,7 @@ import "forge-std/console.sol";
 import "../CreatorTokenNonfungible.t.sol";
 import "../mocks/ERC20Mock.sol";
 import "src/examples/erc721c/ERC721CWithReassignableMinterRoyalties.sol";
+import "src/examples/adventure-erc721c/AdventureERC721CWithReassignableMinterRoyalties.sol";
 import "src/programmable-royalties/helpers/RoyaltyRightsNFT.sol";
 
 contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNonfungibleTest {
@@ -45,7 +46,7 @@ contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNonf
         ERC721CWithReassignableMinterRoyalties(tokenAddress).mint(to, tokenId);
     }
 
-    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal {
+    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal virtual {
         ERC721CWithReassignableMinterRoyalties(tokenAddress).safeMint(to, tokenId);
     }
 
@@ -55,6 +56,13 @@ contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNonf
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testRevertsWhenFeeNumeratorExceedsSalesPrice(
@@ -222,4 +230,48 @@ contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNonf
 
         assertEq(RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT())).ownerOf(tokenId), rightsOwner);
     }
+
+    function testRoyaltyRightsNameAndSymbol() public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        assertEq(royaltyRights.name(), string(abi.encodePacked(tokenMock.name(), " Royalty Rights")));
+        assertEq(royaltyRights.symbol(), string(abi.encodePacked(tokenMock.symbol(), "RR")));
+    }
+
+    function testRoyaltyRightsTokenURI(address to, uint256 tokenId) public {
+        vm.assume(to != address(0));
+        _mintToken(address(tokenMock), to, tokenId);
+
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        assertEq(royaltyRights.tokenURI(tokenId), tokenMock.tokenURI(tokenId));
+    }
+}
+
+contract AdventureERC721CWithReassignableMinterRoyaltiesTest is ERC721CWithMinterRoyaltiesReassignableRightsNFTTest {
+    uint256 public constant MAX_SIMULTANEOUS_QUESTS = 10;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        tokenMock = ERC721CWithReassignableMinterRoyalties(address(new AdventureERC721CWithReassignableMinterRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, royaltyRightsNFTReference, MAX_SIMULTANEOUS_QUESTS, "Test", "TEST")));
+        vm.prank(address(tokenMock));
+        validator.setTransferSecurityLevelOfCollection(address(tokenMock), 1, false, false, false);
+    }
+
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
+        vm.prank(creator);
+        return ITestCreatorToken(
+            address(new AdventureERC721CWithReassignableMinterRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, royaltyRightsNFTReference, MAX_SIMULTANEOUS_QUESTS, "Test", "TEST"))
+        );
+    }
+
+    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+        AdventureERC721CWithReassignableMinterRoyalties(tokenAddress).mint(to, tokenId);
+    }
+
+    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+        AdventureERC721CWithReassignableMinterRoyalties(tokenAddress).safeMint(to, tokenId);
+    }
+
+    // foundry cheat to exclude from test coverage
+    function test() public {}
 }

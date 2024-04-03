@@ -50,6 +50,17 @@ contract ERC721CWTest is CreatorTokenNonfungibleTest {
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
 
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
+    function testWrappedCollectionAddress() public {
+        assertEq(tokenMock.getWrappedCollectionAddress(), address(wrappedTokenMock));
+    }
+
     function testRevertsWhenWrappingZeroAddress() public {
         vm.expectRevert();
         new ERC721CWMock(address(0));
@@ -772,6 +783,13 @@ contract ERC721CWInitializableTest is CreatorTokenNonfungibleTest {
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testInitializeAlreadyInitialized(address badAddress) public {

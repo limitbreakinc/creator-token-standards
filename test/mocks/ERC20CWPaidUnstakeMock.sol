@@ -6,7 +6,7 @@ import "src/access/OwnableBasic.sol";
 import "src/access/OwnableInitializable.sol";
 import "src/erc20c/presets/ERC20CWPaidUnstake.sol";
 
-contract ERC20CWMock is OwnableBasic, ERC20CWPaidUnstake {
+contract ERC20CWPaidUnstakeMock is OwnableBasic, ERC20CWPaidUnstake {
     constructor(
         uint256 unstakeUnitPrice_, 
         address wrappedCollectionAddress_, 

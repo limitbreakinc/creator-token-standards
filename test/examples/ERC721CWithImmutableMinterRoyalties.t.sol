@@ -6,6 +6,7 @@ import "forge-std/console.sol";
 import "../mocks/ClonerMock.sol";
 import "../CreatorTokenNonfungible.t.sol";
 import "src/examples/erc721c/ERC721CWithImmutableMinterRoyalties.sol";
+import "src/examples/adventure-erc721c/AdventureERC721CWithImmutableMinterRoyalties.sol";
 
 contract ERC721CWithImmutableMinterRoyaltiesConstructableTest is CreatorTokenNonfungibleTest {
     ERC721CWithImmutableMinterRoyalties public tokenMock;
@@ -29,7 +30,7 @@ contract ERC721CWithImmutableMinterRoyaltiesConstructableTest is CreatorTokenNon
         ERC721CWithImmutableMinterRoyalties(tokenAddress).mint(to, tokenId);
     }
 
-    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal {
+    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal virtual {
         ERC721CWithImmutableMinterRoyalties(tokenAddress).safeMint(to, tokenId);
     }
 
@@ -39,6 +40,13 @@ contract ERC721CWithImmutableMinterRoyaltiesConstructableTest is CreatorTokenNon
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testRevertsWhenFeeNumeratorExceedsSalesPrice(uint256 royaltyFeeNumerator) public {
@@ -222,6 +230,13 @@ contract ERC721CWithImmutableMinterRoyaltiesInitializableTest is CreatorTokenNon
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
     }
 
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
     function testInitializeAlreadyInitialized() public {
         vm.expectRevert(ImmutableMinterRoyaltiesInitializable.ImmutableMinterRoyaltiesInitializable__MinterRoyaltyFeeAlreadyInitialized.selector);
         tokenMock.initializeMinterRoyaltyFee(1);
@@ -371,4 +386,34 @@ contract ERC721CWithImmutableMinterRoyaltiesInitializableTest is CreatorTokenNon
         assertEq(recipient, minter);
         assertEq(value, (salePrice * tokenMock.royaltyFeeNumerator()) / tokenMock.FEE_DENOMINATOR());
     }
+}
+
+contract AdventureERC721CWithImmutableMinterRoyaltiesTest is ERC721CWithImmutableMinterRoyaltiesConstructableTest {
+    uint256 public constant MAX_SIMULTANEOUS_QUESTS = 10;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        tokenMock = ERC721CWithImmutableMinterRoyalties(address(new AdventureERC721CWithImmutableMinterRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, MAX_SIMULTANEOUS_QUESTS, "Test", "TEST")));
+        vm.prank(address(tokenMock));
+        validator.setTransferSecurityLevelOfCollection(address(tokenMock), 1, false, false, false);
+    }
+
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
+        vm.prank(creator);
+        return ITestCreatorToken(
+            address(new AdventureERC721CWithImmutableMinterRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, MAX_SIMULTANEOUS_QUESTS, "Test", "TEST"))
+        );
+    }
+
+    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+        AdventureERC721CWithImmutableMinterRoyalties(tokenAddress).mint(to, tokenId);
+    }
+
+    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+        AdventureERC721CWithImmutableMinterRoyalties(tokenAddress).safeMint(to, tokenId);
+    }
+
+    // foundry cheat to exclude from test coverage
+    function test() public {}
 }

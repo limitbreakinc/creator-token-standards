@@ -31,7 +31,7 @@ contract ERC721ACWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
         ERC721ACWithBasicRoyalties(tokenAddress).mint(to, quantity);
     }
 
-    function _safeMintToken(address tokenAddress, address to, uint256 quantity) internal {
+    function _safeMintToken(address tokenAddress, address to, uint256 quantity) internal virtual {
         ERC721ACWithBasicRoyalties(tokenAddress).safeMint(to, quantity);
     }
 
@@ -42,6 +42,13 @@ contract ERC721ACWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
         //assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testRevertsWhenFeeNumeratorExceedsSalesPrice(uint96 royaltyFeeNumerator) public {

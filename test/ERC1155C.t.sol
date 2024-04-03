@@ -25,10 +25,17 @@ contract ERC1155CTest is CreatorTokenNonfungibleTest {
         assertEq(tokenMock.supportsInterface(type(IERC1155MetadataURI).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
+
+    function testGetTransferValidationFunction() public override {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
+    }
 }
 
-/*
-contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
+contract ERC1155CInitializableTest is CreatorTokenNonfungibleTest {
     ClonerMock cloner;
 
     ERC1155CInitializableMock public referenceTokenMock;
@@ -55,7 +62,7 @@ contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
         //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
-    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken1155) {
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
         bytes4[] memory initializationSelectors = new bytes4[](1);
         bytes[] memory initializationArguments = new bytes[](1);
 
@@ -63,7 +70,7 @@ contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
         initializationArguments[0] = abi.encode("testuri.com");
 
         vm.prank(creator);
-        return ITestCreatorToken1155(
+        return ITestCreatorToken(
             cloner.cloneContract(address(referenceTokenMock), creator, initializationSelectors, initializationArguments)
         );
     }
@@ -90,5 +97,11 @@ contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
         );
         tokenMock.initializeERC1155(uri);
     }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
+    }
 }
-*/

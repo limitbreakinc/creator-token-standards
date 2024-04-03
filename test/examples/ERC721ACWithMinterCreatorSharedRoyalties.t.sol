@@ -58,6 +58,13 @@ contract ERC721ACWithMinterCreatorSharedRoyaltiesTest is CreatorTokenNonfungible
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
     }
 
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
     function testRevertsWhenFeeNumeratorExceedsSalesPrice(
         uint256 royaltyFeeNumerator,
         uint256 minterShares,

@@ -91,4 +91,6 @@ abstract contract CreatorTokenFungibleTest is CreatorTokenTest {
 
         assertEq(token.allowance(owner, address(validator)), type(uint256).max);
     }
+
+    function testGetTransferValidationFunction() public virtual; 
 }

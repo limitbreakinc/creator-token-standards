@@ -114,5 +114,33 @@ contract TransferValidatorTestERC721 is TransferValidatorTest {
             assertEq(erc721C.ownerOf(tokenId), from);
         }
     }
-    
+
+    // foundry cheat to exclude from test coverage
+    function test() public {}
+}
+
+contract TransferValidatorTestERC721Initializable is TransferValidatorTestERC721 {
+    ClonerMock cloner;
+
+    ERC721CInitializableMock public referenceTokenMock;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        cloner = new ClonerMock();
+
+        referenceTokenMock = new ERC721CInitializableMock();
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeERC721.selector;
+        initializationArguments[0] = abi.encode("Test", "TST");
+
+        erc721C = ERC721CMock(
+            cloner.cloneContract(
+                address(referenceTokenMock), address(this), initializationSelectors, initializationArguments
+            )
+        );
+    }
 }

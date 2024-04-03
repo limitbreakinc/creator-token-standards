@@ -3309,6 +3309,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         vm.assume(caller != from);
         vm.assume(caller != fuzzedList.whitelistedAddress);
         vm.assume(caller != fuzzedList.whitelistedToAddress);
+        vm.assume(from != fuzzedList.whitelistedAddress);
+        vm.assume(from != fuzzedList.whitelistedToAddress);
 
         _configureCollectionSecurity(
             collection, 

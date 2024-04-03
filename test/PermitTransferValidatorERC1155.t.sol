@@ -188,4 +188,33 @@ contract PermitTransferValidatorTestERC1155 is TransferValidatorTest {
         sanitizedBlacklistedCode = blacklistedCode;
     }
 
+    // foundry cheat to exclude from test coverage
+    function test() public {}
+}
+
+
+contract PermitTransferValidatorTestERC1155Initializable is PermitTransferValidatorTestERC1155 {
+    ClonerMock cloner;
+
+    ERC1155CInitializableMock public referenceTokenMock;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        cloner = new ClonerMock();
+
+        referenceTokenMock = new ERC1155CInitializableMock();
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeERC1155.selector;
+        initializationArguments[0] = abi.encode("testuri.com");
+
+        erc1155C = ERC1155CMock(
+            cloner.cloneContract(
+                address(referenceTokenMock), address(this), initializationSelectors, initializationArguments
+            )
+        );
+    }
 }

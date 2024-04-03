@@ -49,6 +49,13 @@ contract ERC1155CWPaidUnstakeTest is CreatorTokenNonfungibleTest {
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
 
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
+    }
+
     function testCanUnstakeReturnsFalseWhenTokensDoNotExist(uint256 tokenId, uint256 amount) public {
         vm.assume(amount > 0);
         assertFalse(tokenMock.canUnstake(tokenId, amount));

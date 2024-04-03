@@ -96,4 +96,5 @@ abstract contract CreatorTokenNonfungibleTest is CreatorTokenTest {
 
         assertTrue(token.isApprovedForAll(owner, address(validator)));
     }
+    function testGetTransferValidationFunction() public virtual;
 }

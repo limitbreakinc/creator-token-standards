@@ -6,7 +6,7 @@ import "src/access/OwnableBasic.sol";
 import "src/access/OwnableInitializable.sol";
 import "src/erc20c/presets/ERC20CWPermanent.sol";
 
-contract ERC20CWMock is OwnableBasic, ERC20CWPermanent {
+contract ERC20CWPermanentMock is OwnableBasic, ERC20CWPermanent {
     constructor(address wrappedCollectionAddress_, uint8 decimals_)
         ERC20CW(wrappedCollectionAddress_)
         ERC20OpenZeppelin("ERC20CWPermanentMock", "E20CWPM", decimals_) 

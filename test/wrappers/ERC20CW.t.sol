@@ -52,14 +52,21 @@ contract ERC20CWTest is CreatorTokenFungibleTest {
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
 
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
+    }
+
     function testRevertsWhenWrappingZeroAddress() public {
-        vm.expectRevert();
+        vm.expectRevert(ERC20WrapperBase.ERC20WrapperBase__InvalidERC20Collection.selector);
         new ERC20CWMock(address(0), DEFAULT_DECIMALS);
     }
 
     function testRevertsWhenWrappingNoCode(address noCodeToken) public {
         vm.assume(noCodeToken.code.length == 0);
-        vm.expectRevert();
+        vm.expectRevert(ERC20WrapperBase.ERC20WrapperBase__InvalidERC20Collection.selector);
         new ERC20CWMock(noCodeToken, DEFAULT_DECIMALS);
     }
 
@@ -105,6 +112,30 @@ contract ERC20CWTest is CreatorTokenFungibleTest {
 
         assertEq(tokenMock.balanceOf(stakeReceiver), amount);
         assertEq(wrappedTokenMock.balanceOf(address(tokenMock)), amount);
+    }
+
+    function testRevertsWhenStakeZeroAmount(address to) public {
+        vm.assume(to != address(0));
+        vm.assume(to != address(tokenMock));
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, 1);
+        wrappedTokenMock.approve(address(tokenMock), type(uint256).max);
+        vm.expectRevert(ERC20WrapperBase.ERC20WrapperBase__AmountMustBeGreaterThanZero.selector);
+        tokenMock.stake(0);
+        vm.stopPrank();
+    }
+
+    function testRevertsWhenStakeToZeroAmount(address to) public {
+        vm.assume(to != address(0));
+        vm.assume(to != address(tokenMock));
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, 1);
+        wrappedTokenMock.approve(address(tokenMock), type(uint256).max);
+        vm.expectRevert(ERC20WrapperBase.ERC20WrapperBase__AmountMustBeGreaterThanZero.selector);
+        tokenMock.stakeTo(0, address(0x0b0b));
+        vm.stopPrank();
     }
 
     function testRevertsWhenNativeFundsIncludedInStake(address to, uint256 amount, uint256 value) public {
@@ -807,6 +838,13 @@ contract ERC20CWInitializableTest is CreatorTokenFungibleTest {
         assertEq(tokenMock.supportsInterface(type(IERC20).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC20Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
     }
 
     function testInitializeAlreadyInitialized(address badAddress) public {
