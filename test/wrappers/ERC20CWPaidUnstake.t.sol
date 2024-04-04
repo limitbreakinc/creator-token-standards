@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
+import "../mocks/RejectEtherMock.sol";
 import "../mocks/ERC20Mock.sol";
 import "../mocks/ERC20CWPaidUnstakeMock.sol";
 import "../CreatorTokenFungible.t.sol";
@@ -283,6 +284,15 @@ contract ERC20CWPaidUnstakeTest is CreatorTokenFungibleTest {
 
         vm.expectRevert(WithdrawETH.WithdrawETH__AmountMustBeGreaterThanZero.selector);
         tokenMock.withdrawETH(payable(recipient), 0);
+    }
+
+    function testRevertWithdrawToAddressThatDoesNotAcceptEther(address to, uint256 amount) public {
+        testWrappingCollectionHoldersCanUnstakeTokensIfExactStakePriceIsPaid(to, amount);
+
+        address rejectEther = address(new RejectEtherMock());
+
+        vm.expectRevert(WithdrawETH.WithdrawETH__AmountMustBeGreaterThanZero.selector);
+        tokenMock.withdrawETH(payable(rejectEther), 0);
     }
 
     function testRevertWithdrawAmountIsGreaterThanContractBalance(address to, uint256 amount, address recipient) public {

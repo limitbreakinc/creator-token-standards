@@ -30,6 +30,20 @@ contract ERC1155CWTest is CreatorTokenNonfungibleTest {
         return token;
     }
 
+    function testRevertsWhenDeployingWithZeroAddressWrapper() public {
+        address wrappedToken = address(0);
+
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InvalidERC1155Collection.selector);
+        ERC1155CWMock newMock = new ERC1155CWMock(wrappedToken);
+    }
+
+    function testRevertsWhenDeployingWithZeroCodeLengthWrapper() public {
+        address wrappedToken = address(uint160(uint256(keccak256(abi.encode(0)))));
+
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InvalidERC1155Collection.selector);
+        ERC1155CWMock newMock = new ERC1155CWMock(wrappedToken);
+    }
+
     function _mintToken(address tokenAddress, address to, uint256 tokenId, uint256 amount) internal virtual override {
         address wrappedTokenAddress = ERC1155CWMock(tokenAddress).getWrappedCollectionAddress();
         vm.startPrank(to);
@@ -1053,6 +1067,32 @@ contract ERC1155CWInitializableTest is ERC1155CWTest {
         ITestCreatorToken token = ITestCreatorToken(address(tokenMock));
         vm.stopPrank();
         return token;
+    }
+
+    function testRevertsWhenDeployingInitializableWithZeroAddressWrapper() public {
+        address wrappedToken = address(0);
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedToken));
+
+        vm.expectRevert(abi.encodePacked(ClonerMock.InitializationArgumentInvalid.selector, uint256(0)));
+        cloner.cloneContract(address(referenceTokenMock), address(this), initializationSelectors, initializationArguments);
+    }
+
+    function testRevertsWhenDeployingInitializableWithZeroCodeLengthWrapper() public {
+        address wrappedToken = address(uint160(uint256(keccak256(abi.encode(0)))));
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedToken));
+
+        vm.expectRevert(abi.encodePacked(ClonerMock.InitializationArgumentInvalid.selector, uint256(0)));
+        cloner.cloneContract(address(referenceTokenMock), address(this), initializationSelectors, initializationArguments);
     }
 
     function testInitializeAlreadyInitialized(address badAddress) public {

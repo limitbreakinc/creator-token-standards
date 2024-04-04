@@ -132,11 +132,13 @@ contract TransferValidatorTestERC721 is TransferValidatorTest {
 
     function testRevertsSetBaseAndSuffixURIUnauthorizedUser(string memory _baseURI, string memory _suffixURI, address unauthorizedUser) public {
         vm.assume(unauthorizedUser != address(this));
+        vm.startPrank(unauthorizedUser);
         vm.expectRevert();
         erc721C.setBaseURI(_baseURI);
 
         vm.expectRevert();
         erc721C.setSuffixURI(_baseURI);
+        vm.stopPrank();
     }
 
     // foundry cheat to exclude from test coverage
@@ -171,6 +173,8 @@ contract TransferValidatorTestERC721Initializable is TransferValidatorTestERC721
         );
     }
 
-    // foundry cheat to exclude from test coverage
-    function testA() public {}
+    function testRevertsWhenInitializingUriAgain(string memory baseURI, string memory suffixURI) public {
+        vm.expectRevert(MetadataURIInitializable.MetadataURIInitializable__URIAlreadyInitialized.selector);
+        MetadataURIInitializable(address(erc721C)).initializeURI(baseURI, suffixURI);
+    }
 }

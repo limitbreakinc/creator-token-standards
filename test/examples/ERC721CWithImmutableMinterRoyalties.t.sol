@@ -56,6 +56,11 @@ contract ERC721CWithImmutableMinterRoyaltiesConstructableTest is CreatorTokenNon
         assertEq(address(badToken).code.length, 0);
     }
 
+    function testRevertsWhenMintingToZeroAddress(uint256 tokenId) public {
+        vm.expectRevert(ImmutableMinterRoyaltiesBase.ImmutableMinterRoyalties__MinterCannotBeZeroAddress.selector);
+        _mintToken(address(tokenMock), address(0), tokenId);
+    }
+
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {
         vm.assume(salePrice < type(uint256).max / tokenMock.royaltyFeeNumerator());
 

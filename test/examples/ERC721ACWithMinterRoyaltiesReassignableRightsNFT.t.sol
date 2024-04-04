@@ -83,6 +83,12 @@ contract ERC721ACWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNon
         new ERC721ACWithReassignableMinterRoyalties(royaltyFeeNumerator, royaltyRightsNFTReference, "Test", "TEST");
     }
 
+    function testRevertsWhenMintingToZeroAddress(uint256 quantity) public {
+        vm.assume(quantity > 0 && quantity < 5);
+        vm.expectRevert(MinterRoyaltiesReassignableRightsNFT.MinterRoyaltiesReassignableRightsNFT__MinterCannotBeZeroAddress.selector);
+        _mintToken(address(tokenMock), address(0), quantity);
+    }
+
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {
         vm.assume(salePrice < type(uint256).max / tokenMock.royaltyFeeNumerator());
 
@@ -108,6 +114,24 @@ contract ERC721ACWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNon
 
             assertEq(RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT())).ownerOf(tokenId), minter);
         }
+    }
+
+    function testRevertsWhenRoyaltyRightsAreAlreadyInitialized() public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__CollectionAlreadyInitialized.selector);
+        royaltyRights.initializeAndBindToCollection();
+    }
+
+    function testRevertsWhenRoyaltyRightsMintCalledByAccountOtherThanBoundCollection(address to, uint256 tokenId) public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__OnlyMintableFromCollection.selector);
+        royaltyRights.mint(to, tokenId);
+    }
+
+    function testRevertsWhenRoyaltyRightsBurnCalledByAccountOtherThanBoundCollection(uint256 tokenId) public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__OnlyBurnableFromCollection.selector);
+        royaltyRights.burn(tokenId);
     }
 
     function testRoyaltyInfoForMintedTokenIdsAfterTransfer(

@@ -28,6 +28,19 @@ abstract contract ClaimPeriodTest is Test {
         token.openClaims(claimClosingTimestamp);
     }
 
+    function testCloseClaimsInPast(address creator) public {
+        vm.assume(creator != address(0));
+        vm.assume(creator != address(this));
+
+        ITestCreatorMintableToken token = _deployNewToken(creator);
+
+        vm.startPrank(creator);
+        token.openClaims(block.timestamp + 600);
+        skip(300);
+        vm.expectRevert(ClaimPeriodBase.ClaimPeriodBase__ClaimPeriodMustBeClosedInTheFuture.selector);
+        token.closeClaims(block.timestamp - 100);
+    }
+
     function testOpenClaimsNotOwner(address creator) public {
         vm.assume(creator != address(0));
         vm.assume(creator != address(this));

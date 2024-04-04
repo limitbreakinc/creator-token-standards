@@ -83,6 +83,11 @@ contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNonf
         new ERC721CWithReassignableMinterRoyalties(royaltyFeeNumerator, royaltyRightsNFTReference, "Test", "TEST");
     }
 
+    function testRevertsWhenMintingToZeroAddress(uint256 tokenId) public {
+        vm.expectRevert(MinterRoyaltiesReassignableRightsNFT.MinterRoyaltiesReassignableRightsNFT__MinterCannotBeZeroAddress.selector);
+        _mintToken(address(tokenMock), address(0), tokenId);
+    }
+
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {
         vm.assume(salePrice < type(uint256).max / tokenMock.royaltyFeeNumerator());
 
@@ -152,6 +157,24 @@ contract ERC721CWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNonf
 
         vm.expectRevert("ERC721: invalid token ID");
         address rightsOwner = rightsNFT.ownerOf(tokenId);
+    }
+
+    function testRevertsWhenRoyaltyRightsAreAlreadyInitialized() public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__CollectionAlreadyInitialized.selector);
+        royaltyRights.initializeAndBindToCollection();
+    }
+
+    function testRevertsWhenRoyaltyRightsMintCalledByAccountOtherThanBoundCollection(address to, uint256 tokenId) public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__OnlyMintableFromCollection.selector);
+        royaltyRights.mint(to, tokenId);
+    }
+
+    function testRevertsWhenRoyaltyRightsBurnCalledByAccountOtherThanBoundCollection(uint256 tokenId) public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__OnlyBurnableFromCollection.selector);
+        royaltyRights.burn(tokenId);
     }
 
     function testRevertsIfTokenIdMintedAgain(address minter, uint256 tokenId, uint256 salePrice) public {

@@ -35,6 +35,20 @@ contract ERC20CWTest is CreatorTokenFungibleTest {
         return token;
     }
 
+    function testRevertsWhenDeployingWithZeroAddressWrapper() public {
+        address wrappedToken = address(0);
+
+        vm.expectRevert(ERC20WrapperBase.ERC20WrapperBase__InvalidERC20Collection.selector);
+        ERC20CWMock newMock = new ERC20CWMock(wrappedToken, DEFAULT_DECIMALS);
+    }
+
+    function testRevertsWhenDeployingWithZeroCodeLengthWrapper() public {
+        address wrappedToken = address(uint160(uint256(keccak256(abi.encode(0)))));
+
+        vm.expectRevert(ERC20WrapperBase.ERC20WrapperBase__InvalidERC20Collection.selector);
+        ERC20CWMock newMock = new ERC20CWMock(wrappedToken, DEFAULT_DECIMALS);
+    }
+
     function _mintToken(address tokenAddress, address to, uint256 amount) internal virtual override {
         address wrappedTokenAddress = ERC20CWMock(tokenAddress).getWrappedCollectionAddress();
         vm.startPrank(to);
@@ -823,6 +837,32 @@ contract ERC20CWInitializableTest is CreatorTokenFungibleTest {
         return token;
     }
 
+    function testRevertsWhenDeployingInitializableWithZeroAddressWrapper() public {
+        address wrappedToken = address(0);
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedToken));
+
+        vm.expectRevert(abi.encodePacked(ClonerMock.InitializationArgumentInvalid.selector, uint256(0)));
+        cloner.cloneContract(address(referenceTokenMock), address(this), initializationSelectors, initializationArguments);
+    }
+
+    function testRevertsWhenDeployingInitializableWithZeroCodeLengthWrapper() public {
+        address wrappedToken = address(uint160(uint256(keccak256(abi.encode(0)))));
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedToken));
+
+        vm.expectRevert(abi.encodePacked(ClonerMock.InitializationArgumentInvalid.selector, uint256(0)));
+        cloner.cloneContract(address(referenceTokenMock), address(this), initializationSelectors, initializationArguments);
+    }
+
     function _mintToken(address tokenAddress, address to, uint256 amount) internal virtual override {
         address wrappedTokenAddress = ERC20CWInitializableMock(tokenAddress).getWrappedCollectionAddress();
         vm.startPrank(to);
@@ -1185,6 +1225,22 @@ contract ERC20CWInitializableTest is CreatorTokenFungibleTest {
             ERC20WrapperBase.ERC20WrapperBase__DefaultImplementationOfUnstakeDoesNotAcceptPayment.selector
         );
         tokenMock.unstake{value: value}(amount);
+        vm.stopPrank();
+    }
+
+    function testRevertsWhenUnstakingZeroAmount(address to, uint256 amount) public {
+        vm.assume(to != address(0));
+        vm.assume(to != address(tokenMock));
+        vm.assume(amount > 0);
+
+        vm.startPrank(to);
+        wrappedTokenMock.mint(to, amount);
+        wrappedTokenMock.approve(address(tokenMock), type(uint256).max);
+        tokenMock.stake(amount);
+        vm.expectRevert(
+            ERC20WrapperBase.ERC20WrapperBase__AmountMustBeGreaterThanZero.selector
+        );
+        tokenMock.unstake(0);
         vm.stopPrank();
     }
 

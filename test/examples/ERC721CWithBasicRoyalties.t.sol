@@ -164,6 +164,7 @@ contract ERC721CWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
         vm.assume(minter.code.length == 0);
         vm.assume(uint256(uint160(newRoyaltyReceiver)) > 0xFF);
         vm.assume(salePrice > 0);
+        vm.assume(newRoyaltyNumerator < FEE_DENOMINATOR);
         vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
 
         _mintToken(address(tokenMock), minter, tokenId);
@@ -184,6 +185,7 @@ contract ERC721CWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
         vm.assume(minter.code.length == 0);
         vm.assume(uint256(uint160(newRoyaltyReceiver)) > 0xFF);
         vm.assume(salePrice > 0);
+        vm.assume(newRoyaltyNumerator < FEE_DENOMINATOR);
         vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
 
         _mintToken(address(tokenMock), minter, tokenId);

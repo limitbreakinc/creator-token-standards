@@ -154,4 +154,60 @@ contract ERC721ACWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
             assertEq(value, (salePrice * DEFAULT_ROYALTY_FEE_NUMERATOR) / FEE_DENOMINATOR);
         }
     }
+
+    function testUpdateDefaultRoyaltyInfoForMintedTokenIds(address minter, uint256 quantity, uint256 salePrice, address newRoyaltyReceiver, uint96 newRoyaltyNumerator) public {
+        vm.assume(minter != address(0));
+        vm.assume(minter.code.length == 0);
+        vm.assume(quantity > 0 && quantity < 5);
+        vm.assume(uint256(uint160(newRoyaltyReceiver)) > 0xFF);
+        vm.assume(salePrice > 0);
+        vm.assume(newRoyaltyNumerator < FEE_DENOMINATOR);
+        vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
+
+        uint256 nextTokenId = tokenMock.totalSupply();
+        uint256 lastTokenId = nextTokenId + quantity - 1;
+
+        _mintToken(address(tokenMock), minter, quantity);
+
+        for (uint256 tokenId = nextTokenId; tokenId <= lastTokenId; ++tokenId) {
+            (address recipient, uint256 value) = tokenMock.royaltyInfo(tokenId, salePrice);
+            assertEq(recipient, DEFAULT_ROYALTY_FEE_RECEIVER);
+            assertEq(value, (salePrice * DEFAULT_ROYALTY_FEE_NUMERATOR) / FEE_DENOMINATOR);
+        }
+
+        tokenMock.setDefaultRoyalty(newRoyaltyReceiver, newRoyaltyNumerator);
+
+        for (uint256 tokenId = nextTokenId; tokenId <= lastTokenId; ++tokenId) {
+            (address recipient, uint256 value) = tokenMock.royaltyInfo(tokenId, salePrice);
+            assertEq(recipient, newRoyaltyReceiver);
+            assertEq(value, (salePrice * newRoyaltyNumerator) / FEE_DENOMINATOR);
+        }
+    }
+
+    function testUpdateTokenRoyaltyInfoForMintedTokenIds(address minter, uint256 quantity, uint256 salePrice, address newRoyaltyReceiver, uint96 newRoyaltyNumerator) public {
+        vm.assume(minter != address(0));
+        vm.assume(minter.code.length == 0);
+        vm.assume(quantity > 0 && quantity < 5);
+        vm.assume(uint256(uint160(newRoyaltyReceiver)) > 0xFF);
+        vm.assume(salePrice > 0);
+        vm.assume(newRoyaltyNumerator < FEE_DENOMINATOR);
+        vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
+
+        uint256 nextTokenId = tokenMock.totalSupply();
+        uint256 lastTokenId = nextTokenId + quantity - 1;
+
+        _mintToken(address(tokenMock), minter, quantity);
+
+        for (uint256 tokenId = nextTokenId; tokenId <= lastTokenId; ++tokenId) {
+            (address recipient, uint256 value) = tokenMock.royaltyInfo(tokenId, salePrice);
+            assertEq(recipient, DEFAULT_ROYALTY_FEE_RECEIVER);
+            assertEq(value, (salePrice * DEFAULT_ROYALTY_FEE_NUMERATOR) / FEE_DENOMINATOR);
+
+            tokenMock.setTokenRoyalty(tokenId, newRoyaltyReceiver, newRoyaltyNumerator);
+
+            (recipient, value) = tokenMock.royaltyInfo(tokenId, salePrice);
+            assertEq(recipient, newRoyaltyReceiver);
+            assertEq(value, (salePrice * newRoyaltyNumerator) / FEE_DENOMINATOR);
+        }
+    }
 }

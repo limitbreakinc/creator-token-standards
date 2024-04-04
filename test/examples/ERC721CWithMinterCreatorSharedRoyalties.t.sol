@@ -142,6 +142,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         new ERC721CWithMinterCreatorSharedRoyalties(royaltyFeeNumerator, minterShares, creatorShares, creator, address(0), "Test", "TEST");
     }
 
+    function testRevertsWhenMintingToZeroAddress(uint256 tokenId) public {
+        vm.expectRevert(MinterCreatorSharedRoyaltiesBase.MinterCreatorSharedRoyalties__MinterCannotBeZeroAddress.selector);
+        _mintToken(address(tokenMock), address(0), tokenId);
+    }
+
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {
         vm.assume(salePrice < type(uint256).max / tokenMock.royaltyFeeNumerator());
 

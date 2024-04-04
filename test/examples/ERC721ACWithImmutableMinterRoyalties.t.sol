@@ -62,6 +62,16 @@ contract ERC721ACWithImmutableMinterRoyaltiesTest is CreatorTokenNonfungibleTest
         assertEq(value, (salePrice * tokenMock.royaltyFeeNumerator()) / tokenMock.FEE_DENOMINATOR());
     }
 
+    function testRevertsWhenMintingToZeroAddress(uint256 quantity) public {
+        vm.assume(quantity > 0 && quantity < 5);
+
+        uint256 nextTokenId = tokenMock.totalSupply() + 1;
+        uint256 lastTokenId = nextTokenId + quantity - 1;
+
+        vm.expectRevert(ImmutableMinterRoyaltiesBase.ImmutableMinterRoyalties__MinterCannotBeZeroAddress.selector);
+        _mintToken(address(tokenMock), address(0), quantity);
+    }
+
     function testRoyaltyInfoForMintedTokenIds(address minter, uint256 quantity, uint256 salePrice) public {
         vm.assume(quantity > 0 && quantity < 5);
         vm.assume(minter != address(0));

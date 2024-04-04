@@ -81,6 +81,12 @@ contract ERC721ACWithMinterCreatorSharedRoyaltiesTest is CreatorTokenNonfungible
         new ERC721ACWithMinterCreatorSharedRoyalties(royaltyFeeNumerator, minterShares, creatorShares, creator, paymentSplitterReference, "Test", "TEST");
     }
 
+    function testRevertsWhenMintingToZeroAddress(uint256 quantity) public {
+        vm.assume(quantity > 0 && quantity < 5);
+        vm.expectRevert(MinterCreatorSharedRoyaltiesBase.MinterCreatorSharedRoyalties__MinterCannotBeZeroAddress.selector);
+        _mintToken(address(tokenMock), address(0), quantity);
+    }
+
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {
         vm.assume(salePrice < type(uint256).max / tokenMock.royaltyFeeNumerator());
 
