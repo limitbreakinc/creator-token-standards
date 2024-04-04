@@ -18,12 +18,17 @@ import "lib/PermitC/src/Constants.sol";
 
 contract TransferValidatorTestERC721 is TransferValidatorTest {
 
+    string internal constant DEFAULT_BASE_URI = "BASE";
+    string internal constant DEFAULT_SUFFIX_URI = "SUFFIX";
+
     ERC721CMock erc721C;
 
     function setUp() public virtual override {
         super.setUp();
 
         erc721C = new ERC721CMock();
+        erc721C.setBaseURI(DEFAULT_BASE_URI);
+        erc721C.setSuffixURI(DEFAULT_SUFFIX_URI);
     }
 
     function _mint721(address to, uint256 tokenId) internal virtual {
@@ -115,6 +120,25 @@ contract TransferValidatorTestERC721 is TransferValidatorTest {
         }
     }
 
+    function testSetBaseAndSuffixURI(string memory _baseURI, string memory _suffixURI) public {
+        vm.expectEmit(true, true, true, true);
+        emit MetadataURI.BaseURISet(_baseURI);
+        erc721C.setBaseURI(_baseURI);
+
+        vm.expectEmit(true, true, true, true);
+        emit MetadataURI.SuffixURISet(_baseURI);
+        erc721C.setSuffixURI(_baseURI);
+    }
+
+    function testRevertsSetBaseAndSuffixURIUnauthorizedUser(string memory _baseURI, string memory _suffixURI, address unauthorizedUser) public {
+        vm.assume(unauthorizedUser != address(this));
+        vm.expectRevert();
+        erc721C.setBaseURI(_baseURI);
+
+        vm.expectRevert();
+        erc721C.setSuffixURI(_baseURI);
+    }
+
     // foundry cheat to exclude from test coverage
     function test() public {}
 }
@@ -131,11 +155,14 @@ contract TransferValidatorTestERC721Initializable is TransferValidatorTestERC721
 
         referenceTokenMock = new ERC721CInitializableMock();
 
-        bytes4[] memory initializationSelectors = new bytes4[](1);
-        bytes[] memory initializationArguments = new bytes[](1);
+        bytes4[] memory initializationSelectors = new bytes4[](2);
+        bytes[] memory initializationArguments = new bytes[](2);
 
         initializationSelectors[0] = referenceTokenMock.initializeERC721.selector;
         initializationArguments[0] = abi.encode("Test", "TST");
+
+        initializationSelectors[1] = referenceTokenMock.initializeURI.selector;
+        initializationArguments[1] = abi.encode(DEFAULT_BASE_URI, DEFAULT_SUFFIX_URI);
 
         erc721C = ERC721CMock(
             cloner.cloneContract(
@@ -143,4 +170,7 @@ contract TransferValidatorTestERC721Initializable is TransferValidatorTestERC721
             )
         );
     }
+
+    // foundry cheat to exclude from test coverage
+    function testA() public {}
 }

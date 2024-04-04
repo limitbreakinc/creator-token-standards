@@ -160,4 +160,7 @@ contract TransferValidatorTestERC1155Initializable is TransferValidatorTestERC11
             )
         );
     }
+
+    // foundry cheat to exclude from test coverage
+    function testA() public {}
 }

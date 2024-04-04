@@ -194,4 +194,7 @@ contract PermitTransferValidatorTestERC721Initializable is PermitTransferValidat
             )
         );
     }
+
+    // foundry cheat to exclude from test coverage
+    function testA() public {}
 }

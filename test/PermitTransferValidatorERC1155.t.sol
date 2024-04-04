@@ -217,4 +217,7 @@ contract PermitTransferValidatorTestERC1155Initializable is PermitTransferValida
             )
         );
     }
+
+    // foundry cheat to exclude from test coverage
+    function testA() public {}
 }

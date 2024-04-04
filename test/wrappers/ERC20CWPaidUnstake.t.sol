@@ -266,6 +266,17 @@ contract ERC20CWPaidUnstakeTest is CreatorTokenFungibleTest {
         tokenMock.withdrawETH(payable(recipient), unstakePayment);
     }
 
+    function testRevertsIfNonOwnerWithdrawETHAfterPaidUnstake(address to, uint256 amount, address recipient, address unauthorizedUser) public {
+        vm.assume(uint256(uint160(recipient)) > 0xFF);
+        vm.assume(uint256(uint160(unauthorizedUser)) > 0xFF);
+        vm.assume(unauthorizedUser != address(this));
+        uint256 unstakePayment = testWrappingCollectionHoldersCanUnstakeTokensIfExactStakePriceIsPaid(to, amount);
+
+        vm.expectRevert();
+        vm.prank(unauthorizedUser);
+        tokenMock.withdrawETH(payable(recipient), unstakePayment);
+    }
+
     function testRevertWithdrawAmountIsZero(address to, uint256 amount, address recipient) public {
         vm.assume(uint256(uint160(recipient)) > 0xFF);
         testWrappingCollectionHoldersCanUnstakeTokensIfExactStakePriceIsPaid(to, amount);

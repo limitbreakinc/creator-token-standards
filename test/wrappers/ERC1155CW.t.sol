@@ -1008,3 +1008,60 @@ contract ERC1155CWTest is CreatorTokenNonfungibleTest {
         vm.assume(addr != address(wrappedTokenMock));
     }
 }
+
+
+contract ERC1155CWInitializableTest is ERC1155CWTest {
+    ClonerMock cloner;
+
+    ERC1155CWInitializableMock public referenceTokenMock;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        cloner = new ClonerMock();
+
+        referenceTokenMock = new ERC1155CWInitializableMock();
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedTokenMock));
+
+        tokenMock = ERC1155CWMock(
+            cloner.cloneContract(
+                address(referenceTokenMock), address(this), initializationSelectors, initializationArguments
+            )
+        );
+    }
+
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
+        vm.startPrank(creator);
+        address wrappedToken = address(new ERC1155Mock());
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedTokenMock));
+
+        tokenMock = ERC1155CWMock(
+            cloner.cloneContract(
+                address(referenceTokenMock), creator, initializationSelectors, initializationArguments
+            )
+        );
+        ITestCreatorToken token = ITestCreatorToken(address(tokenMock));
+        vm.stopPrank();
+        return token;
+    }
+
+    function testInitializeAlreadyInitialized(address badAddress) public {
+        vm.expectRevert(ERC1155CWInitializable.ERC1155CWInitializable__AlreadyInitializedWrappedCollection.selector);
+        ERC1155CWInitializableMock(address(tokenMock)).initializeWrappedCollectionAddress(badAddress);
+    }
+
+    function testRevertsWhenInitializingOwnerAgain(address badOwner) public {
+        vm.expectRevert(OwnableInitializable.InitializableOwnable__OwnerAlreadyInitialized.selector);
+        ERC1155CWInitializableMock(address(tokenMock)).initializeOwner(badOwner);
+    }
+}

@@ -119,19 +119,7 @@ contract ERC721CWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
         assertEq(recipient, DEFAULT_ROYALTY_FEE_RECEIVER);
         assertEq(value, (salePrice * DEFAULT_ROYALTY_FEE_NUMERATOR) / FEE_DENOMINATOR);
     }
-/*
-    function testRevertsIfTokenIdMintedAgain(address minter, uint256 tokenId, uint256 salePrice) public {
-        vm.assume(minter != address(0));
-        vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
-
-        _mintToken(address(tokenMock), minter, tokenId);
-
-        vm.expectRevert(
-            ImmutableMinterRoyaltiesBase.ImmutableMinterRoyalties__MinterHasAlreadyBeenAssignedToTokenId.selector
-        );
-        _mintToken(address(tokenMock), minter, tokenId);
-    }
-*/
+    
     function testBurnedTokenIdsCanBeReminted(
         address minter,
         address secondaryOwner,
@@ -169,6 +157,46 @@ contract ERC721CWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
         (address recipient, uint256 value) = tokenMock.royaltyInfo(tokenId, salePrice);
         assertEq(recipient, DEFAULT_ROYALTY_FEE_RECEIVER);
         assertEq(value, (salePrice * DEFAULT_ROYALTY_FEE_NUMERATOR) / FEE_DENOMINATOR);
+    }
+
+    function testUpdateDefaultRoyaltyInfoForMintedTokenIds(address minter, uint256 tokenId, uint256 salePrice, address newRoyaltyReceiver, uint96 newRoyaltyNumerator) public {
+        vm.assume(minter != address(0));
+        vm.assume(minter.code.length == 0);
+        vm.assume(uint256(uint160(newRoyaltyReceiver)) > 0xFF);
+        vm.assume(salePrice > 0);
+        vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
+
+        _mintToken(address(tokenMock), minter, tokenId);
+
+        (address recipient, uint256 value) = tokenMock.royaltyInfo(tokenId, salePrice);
+        assertEq(recipient, DEFAULT_ROYALTY_FEE_RECEIVER);
+        assertEq(value, (salePrice * DEFAULT_ROYALTY_FEE_NUMERATOR) / FEE_DENOMINATOR);
+
+        tokenMock.setDefaultRoyalty(newRoyaltyReceiver, newRoyaltyNumerator);
+
+        (recipient, value) = tokenMock.royaltyInfo(tokenId, salePrice);
+        assertEq(recipient, newRoyaltyReceiver);
+        assertEq(value, (salePrice * newRoyaltyNumerator) / FEE_DENOMINATOR);
+    }
+
+    function testUpdateTokenRoyaltyInfoForMintedTokenIds(address minter, uint256 tokenId, uint256 salePrice, address newRoyaltyReceiver, uint96 newRoyaltyNumerator) public {
+        vm.assume(minter != address(0));
+        vm.assume(minter.code.length == 0);
+        vm.assume(uint256(uint160(newRoyaltyReceiver)) > 0xFF);
+        vm.assume(salePrice > 0);
+        vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
+
+        _mintToken(address(tokenMock), minter, tokenId);
+
+        (address recipient, uint256 value) = tokenMock.royaltyInfo(tokenId, salePrice);
+        assertEq(recipient, DEFAULT_ROYALTY_FEE_RECEIVER);
+        assertEq(value, (salePrice * DEFAULT_ROYALTY_FEE_NUMERATOR) / FEE_DENOMINATOR);
+
+        tokenMock.setTokenRoyalty(tokenId, newRoyaltyReceiver, newRoyaltyNumerator);
+
+        (recipient, value) = tokenMock.royaltyInfo(tokenId, salePrice);
+        assertEq(recipient, newRoyaltyReceiver);
+        assertEq(value, (salePrice * newRoyaltyNumerator) / FEE_DENOMINATOR);
     }
 }
 
