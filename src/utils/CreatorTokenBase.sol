@@ -6,7 +6,6 @@ import "../interfaces/ICreatorToken.sol";
 import "../interfaces/ICreatorTokenLegacy.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferValidation.sol";
-import "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 /**
  * @title CreatorTokenBase

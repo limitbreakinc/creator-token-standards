@@ -3,11 +3,9 @@ pragma solidity ^0.8.24;
 
 import "../Constants.sol";
 import "../interfaces/IEOARegistry.sol";
-import "../interfaces/IOwnable.sol";
 import "../interfaces/ITransferValidator.sol";
-import "../utils/TransferPolicy.sol";
+import "./TransferPolicy.sol";
 import "@limitbreak/permit-c/PermitC.sol";
-import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@opensea/tstorish/Tstorish.sol";
