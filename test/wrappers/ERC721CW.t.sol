@@ -4,12 +4,11 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ERC721Mock.sol";
-import "../mocks/ERC1155Mock.sol";
 import "../mocks/ERC721CWMock.sol";
 import "../mocks/ClonerMock.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 
-contract ERC721CWTest is CreatorTokenTest {
+contract ERC721CWTest is CreatorTokenNonfungibleTest {
     event Staked(uint256 indexed tokenId, address indexed account);
     event Unstaked(uint256 indexed tokenId, address indexed account);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
@@ -33,6 +32,20 @@ contract ERC721CWTest is CreatorTokenTest {
         return token;
     }
 
+    function testRevertsWhenDeployingWithZeroAddressWrapper() public {
+        address wrappedToken = address(0);
+
+        vm.expectRevert(ERC721WrapperBase.ERC721WrapperBase__InvalidERC721Collection.selector);
+        ERC721CWMock newMock = new ERC721CWMock(wrappedToken);
+    }
+
+    function testRevertsWhenDeployingWithZeroCodeLengthWrapper() public {
+        address wrappedToken = address(uint160(uint256(keccak256(abi.encode(0)))));
+
+        vm.expectRevert(ERC721WrapperBase.ERC721WrapperBase__InvalidERC721Collection.selector);
+        ERC721CWMock newMock = new ERC721CWMock(wrappedToken);
+    }
+
     function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
         address wrappedTokenAddress = ERC721CWMock(tokenAddress).getWrappedCollectionAddress();
         vm.startPrank(to);
@@ -48,6 +61,17 @@ contract ERC721CWTest is CreatorTokenTest {
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
+    function testWrappedCollectionAddress() public {
+        assertEq(tokenMock.getWrappedCollectionAddress(), address(wrappedTokenMock));
     }
 
     function testRevertsWhenWrappingZeroAddress() public {
@@ -462,6 +486,8 @@ contract ERC721CWTest is CreatorTokenTest {
         uint8 constraintsUint8
     ) public {
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(constraintsUint8 <= 2);
         StakerConstraints constraints = StakerConstraints(constraintsUint8);
 
@@ -702,7 +728,7 @@ contract ERC721CWTest is CreatorTokenTest {
     }
 }
 
-contract ERC721CWInitializableTest is CreatorTokenTest {
+contract ERC721CWInitializableTest is CreatorTokenNonfungibleTest {
     event Staked(uint256 indexed tokenId, address indexed account);
     event Unstaked(uint256 indexed tokenId, address indexed account);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
@@ -755,6 +781,32 @@ contract ERC721CWInitializableTest is CreatorTokenTest {
         return token;
     }
 
+    function testRevertsWhenDeployingInitializableWithZeroAddressWrapper() public {
+        address wrappedToken = address(0);
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedToken));
+
+        vm.expectRevert(abi.encodePacked(ClonerMock.InitializationArgumentInvalid.selector, uint256(0)));
+        cloner.cloneContract(address(referenceTokenMock), address(this), initializationSelectors, initializationArguments);
+    }
+
+    function testRevertsWhenDeployingInitializableWithZeroCodeLengthWrapper() public {
+        address wrappedToken = address(uint160(uint256(keccak256(abi.encode(0)))));
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedToken));
+
+        vm.expectRevert(abi.encodePacked(ClonerMock.InitializationArgumentInvalid.selector, uint256(0)));
+        cloner.cloneContract(address(referenceTokenMock), address(this), initializationSelectors, initializationArguments);
+    }
+
     function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
         address wrappedTokenAddress = ERC721CWInitializableMock(tokenAddress).getWrappedCollectionAddress();
         vm.startPrank(to);
@@ -770,6 +822,13 @@ contract ERC721CWInitializableTest is CreatorTokenTest {
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testInitializeAlreadyInitialized(address badAddress) public {
@@ -1186,6 +1245,8 @@ contract ERC721CWInitializableTest is CreatorTokenTest {
         uint8 constraintsUint8
     ) public {
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(constraintsUint8 <= 2);
         StakerConstraints constraints = StakerConstraints(constraintsUint8);
 

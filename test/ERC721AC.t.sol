@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "./mocks/ERC721ACMock.sol";
-import "./CreatorToken.t.sol";
+import "./CreatorTokenNonfungible.t.sol";
 
-contract ERC721CTest is CreatorTokenTest {
+contract ERC721CTest is CreatorTokenNonfungibleTest {
     function setUp() public virtual override {
         super.setUp();
     }
@@ -24,5 +24,13 @@ contract ERC721CTest is CreatorTokenTest {
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 }

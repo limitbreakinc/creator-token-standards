@@ -28,6 +28,12 @@ abstract contract ERC721C is ERC721OpenZeppelin, CreatorTokenBase, AutomaticVali
         }
     }
 
+    /**
+     * @notice Indicates whether the contract implements the specified interface.
+     * @dev Overrides supportsInterface in ERC165.
+     * @param interfaceId The interface id
+     * @return true if the contract implements the specified interface, false otherwise
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
@@ -94,6 +100,12 @@ abstract contract ERC721CInitializable is ERC721OpenZeppelinInitializable, Creat
         }
     }
 
+    /**
+     * @notice Indicates whether the contract implements the specified interface.
+     * @dev Overrides supportsInterface in ERC165.
+     * @param interfaceId The interface id
+     * @return true if the contract implements the specified interface, false otherwise
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 

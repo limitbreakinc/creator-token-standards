@@ -5,9 +5,9 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ERC1155Mock.sol";
 import "../mocks/ERC1155CWPermanentMock.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 
-contract ERC1155CWPermanentTest is CreatorTokenTest {
+contract ERC1155CWPermanentTest is CreatorTokenNonfungibleTest {
     event Staked(uint256 indexed tokenId, address indexed account, uint256 amount);
     event Unstaked(uint256 indexed tokenId, address indexed account, uint256 amount);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
@@ -46,6 +46,13 @@ contract ERC1155CWPermanentTest is CreatorTokenTest {
         assertEq(tokenMock.supportsInterface(type(IERC1155MetadataURI).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC1155Receiver).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
     }
 
     function testCanUnstakeReturnsFalseWhenTokensDoNotExist(uint256 tokenId, uint256 amount) public {
@@ -386,6 +393,8 @@ contract ERC1155CWPermanentTest is CreatorTokenTest {
         uint8 constraintsUint8
     ) public {
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(constraintsUint8 <= 2);
         StakerConstraints constraints = StakerConstraints(constraintsUint8);
 

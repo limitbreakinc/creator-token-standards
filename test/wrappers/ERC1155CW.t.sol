@@ -5,9 +5,9 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ERC1155Mock.sol";
 import "../mocks/ERC1155CWMock.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 
-contract ERC1155CWTest is CreatorTokenTest {
+contract ERC1155CWTest is CreatorTokenNonfungibleTest {
     event Staked(uint256 indexed tokenId, address indexed account, uint256 amount);
     event Unstaked(uint256 indexed tokenId, address indexed account, uint256 amount);
     event StakerConstraintsSet(StakerConstraints stakerConstraints);
@@ -30,6 +30,20 @@ contract ERC1155CWTest is CreatorTokenTest {
         return token;
     }
 
+    function testRevertsWhenDeployingWithZeroAddressWrapper() public {
+        address wrappedToken = address(0);
+
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InvalidERC1155Collection.selector);
+        ERC1155CWMock newMock = new ERC1155CWMock(wrappedToken);
+    }
+
+    function testRevertsWhenDeployingWithZeroCodeLengthWrapper() public {
+        address wrappedToken = address(uint160(uint256(keccak256(abi.encode(0)))));
+
+        vm.expectRevert(ERC1155WrapperBase.ERC1155WrapperBase__InvalidERC1155Collection.selector);
+        ERC1155CWMock newMock = new ERC1155CWMock(wrappedToken);
+    }
+
     function _mintToken(address tokenAddress, address to, uint256 tokenId, uint256 amount) internal virtual override {
         address wrappedTokenAddress = ERC1155CWMock(tokenAddress).getWrappedCollectionAddress();
         vm.startPrank(to);
@@ -46,6 +60,13 @@ contract ERC1155CWTest is CreatorTokenTest {
         assertEq(tokenMock.supportsInterface(type(IERC1155MetadataURI).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC1155Receiver).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
     }
 
     function testCanUnstakeReturnsFalseWhenTokensDoNotExist(uint256 tokenId, uint256 amount) public {
@@ -719,6 +740,8 @@ contract ERC1155CWTest is CreatorTokenTest {
         uint8 constraintsUint8
     ) public {
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(constraintsUint8 <= 2);
         StakerConstraints constraints = StakerConstraints(constraintsUint8);
 
@@ -997,5 +1020,88 @@ contract ERC1155CWTest is CreatorTokenTest {
         super._sanitizeAddress(addr);
         vm.assume(addr != address(tokenMock));
         vm.assume(addr != address(wrappedTokenMock));
+    }
+}
+
+
+contract ERC1155CWInitializableTest is ERC1155CWTest {
+    ClonerMock cloner;
+
+    ERC1155CWInitializableMock public referenceTokenMock;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        cloner = new ClonerMock();
+
+        referenceTokenMock = new ERC1155CWInitializableMock();
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedTokenMock));
+
+        tokenMock = ERC1155CWMock(
+            cloner.cloneContract(
+                address(referenceTokenMock), address(this), initializationSelectors, initializationArguments
+            )
+        );
+    }
+
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
+        vm.startPrank(creator);
+        address wrappedToken = address(new ERC1155Mock());
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedTokenMock));
+
+        tokenMock = ERC1155CWMock(
+            cloner.cloneContract(
+                address(referenceTokenMock), creator, initializationSelectors, initializationArguments
+            )
+        );
+        ITestCreatorToken token = ITestCreatorToken(address(tokenMock));
+        vm.stopPrank();
+        return token;
+    }
+
+    function testRevertsWhenDeployingInitializableWithZeroAddressWrapper() public {
+        address wrappedToken = address(0);
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedToken));
+
+        vm.expectRevert(abi.encodePacked(ClonerMock.InitializationArgumentInvalid.selector, uint256(0)));
+        cloner.cloneContract(address(referenceTokenMock), address(this), initializationSelectors, initializationArguments);
+    }
+
+    function testRevertsWhenDeployingInitializableWithZeroCodeLengthWrapper() public {
+        address wrappedToken = address(uint160(uint256(keccak256(abi.encode(0)))));
+
+        bytes4[] memory initializationSelectors = new bytes4[](1);
+        bytes[] memory initializationArguments = new bytes[](1);
+
+        initializationSelectors[0] = referenceTokenMock.initializeWrappedCollectionAddress.selector;
+        initializationArguments[0] = abi.encode(address(wrappedToken));
+
+        vm.expectRevert(abi.encodePacked(ClonerMock.InitializationArgumentInvalid.selector, uint256(0)));
+        cloner.cloneContract(address(referenceTokenMock), address(this), initializationSelectors, initializationArguments);
+    }
+
+    function testInitializeAlreadyInitialized(address badAddress) public {
+        vm.expectRevert(ERC1155CWInitializable.ERC1155CWInitializable__AlreadyInitializedWrappedCollection.selector);
+        ERC1155CWInitializableMock(address(tokenMock)).initializeWrappedCollectionAddress(badAddress);
+    }
+
+    function testRevertsWhenInitializingOwnerAgain(address badOwner) public {
+        vm.expectRevert(OwnableInitializable.InitializableOwnable__OwnerAlreadyInitialized.selector);
+        ERC1155CWInitializableMock(address(tokenMock)).initializeOwner(badOwner);
     }
 }

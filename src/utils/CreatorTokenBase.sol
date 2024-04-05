@@ -6,7 +6,6 @@ import "../interfaces/ICreatorToken.sol";
 import "../interfaces/ICreatorTokenLegacy.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferValidation.sol";
-import "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 /**
  * @title CreatorTokenBase
@@ -36,18 +35,22 @@ import "@openzeppelin/contracts/interfaces/IERC165.sol";
  */
 abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, ICreatorToken {
 
+    /// @dev Thrown when setting a transfer validator address that has no deployed code.
     error CreatorTokenBase__InvalidTransferValidatorContract();
 
+    /// @dev The default transfer validator that will be used if no transfer validator has been set by the creator.
     address public constant DEFAULT_TRANSFER_VALIDATOR = address(0x721C00182a990771244d7A71B9FA2ea789A3b433);
 
+    /// @dev Used to determine if the default transfer validator is applied.
+    /// @dev Set to true when the creator sets a transfer validator address.
     bool private isValidatorInitialized;
+    /// @dev Address of the transfer validator to apply to transactions.
     address private transferValidator;
 
     /**
      * @notice Sets the transfer validator for the token contract.
      *
-     * @dev    Throws when provided validator contract is not the zero address and doesn't support 
-     *         the ICreatorTokenTransferValidator or ICreatorTokenTransferValidatorV2 interface. 
+     * @dev    Throws when provided validator contract is not the zero address and does not have code.
      * @dev    Throws when the caller is not the contract owner.
      *
      * @dev    <h4>Postconditions:</h4>
@@ -90,7 +93,7 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
      *      and calling _validateBeforeTransfer so that checks can be properly applied during token transfers.
      *
      * @dev Be aware that if the msg.sender is the transfer validator, the transfer is automatically permitted, as the
-     *      transfer validator will have pre-validated the transfer.
+     *      transfer validator is expected to pre-validate the transfer.
      *
      * @dev Throws when the transfer doesn't comply with the collection's transfer policy, if the transferValidator is
      *      set to a non-zero address.
@@ -98,6 +101,7 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
      * @param caller  The address of the caller.
      * @param from    The address of the sender.
      * @param to      The address of the receiver.
+     * @param tokenId The token id being transferred.
      */
     function _preValidateTransfer(
         address caller, 
@@ -122,7 +126,10 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
      *      and calling _validateBeforeTransfer so that checks can be properly applied during token transfers.
      *
      * @dev Be aware that if the msg.sender is the transfer validator, the transfer is automatically permitted, as the
-     *      transfer validator will have pre-validated the transfer.
+     *      transfer validator is expected to pre-validate the transfer.
+     * 
+     * @dev Used for ERC20 and ERC1155 token transfers which have an amount value to validate in the transfer validator.
+     * @dev The `tokenId` for ERC20 tokens should be set to `0`.
      *
      * @dev Throws when the transfer doesn't comply with the collection's transfer policy, if the transferValidator is
      *      set to a non-zero address.
@@ -130,6 +137,8 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
      * @param caller  The address of the caller.
      * @param from    The address of the sender.
      * @param to      The address of the receiver.
+     * @param tokenId The token id being transferred.
+     * @param amount  The amount of token being transferred.
      */
     function _preValidateTransfer(
         address caller, 

@@ -161,6 +161,7 @@ contract SignedApprovalMintConstructableTest is MaxSupplyTest {
     }
 
     function testNewSigner(uint256 newSignerKey, uint256 nonce, bytes32 sample) public {
+        vm.assume(newSignerKey != signerPkey);
         vm.assume(newSignerKey > 0 && newSignerKey < 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141);
         nonce = bound(nonce, 1, 999999999999999999);
 
@@ -481,6 +482,7 @@ contract SignedApprovalMintInitializableTest is MaxSupplyInitializableTest {
     }
 
     function testNewSigner(uint256 newSignerKey, uint256 nonce, bytes32 sample) public {
+        vm.assume(newSignerKey != signerPkey);
         vm.assume(newSignerKey > 0 && newSignerKey < 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141);
         nonce = bound(nonce, 1, 999999999999999999);
 

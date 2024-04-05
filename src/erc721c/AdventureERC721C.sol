@@ -28,6 +28,12 @@ abstract contract AdventureERC721C is AdventureERC721, CreatorTokenBase, Automat
         }
     }
 
+    /**
+     * @notice Indicates whether the contract implements the specified interface.
+     * @dev Overrides supportsInterface in ERC165.
+     * @param interfaceId The interface id
+     * @return true if the contract implements the specified interface, false otherwise
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 

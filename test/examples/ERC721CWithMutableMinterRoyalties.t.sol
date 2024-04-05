@@ -4,10 +4,11 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../mocks/ClonerMock.sol";
-import "../CreatorToken.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "src/examples/erc721c/ERC721CWithMutableMinterRoyalties.sol";
+import "src/examples/adventure-erc721c/AdventureERC721CWithMutableMinterRoyalties.sol";
 
-contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenTest {
+contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenNonfungibleTest {
     event RoyaltySet(uint256 indexed tokenId, address indexed receiver, uint96 feeNumerator);
 
     ERC721CWithMutableMinterRoyalties public tokenMock;
@@ -34,7 +35,7 @@ contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenTest {
         ERC721CWithMutableMinterRoyalties(tokenAddress).mint(to, tokenId);
     }
 
-    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal {
+    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal virtual {
         uint96 defaultRoyaltyFee = ERC721CWithMutableMinterRoyalties(tokenAddress).defaultRoyaltyFeeNumerator();
         vm.expectEmit(true, true, false, true);
         emit RoyaltySet(tokenId, to, defaultRoyaltyFee);
@@ -49,10 +50,22 @@ contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenTest {
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
     }
 
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
     function testRevertsWhenFeeNumeratorExceedsSalesPrice(uint96 royaltyFeeNumerator) public {
         vm.assume(royaltyFeeNumerator > tokenMock.FEE_DENOMINATOR());
         vm.expectRevert(MutableMinterRoyaltiesBase.MutableMinterRoyalties__RoyaltyFeeWillExceedSalePrice.selector);
         new ERC721CWithMutableMinterRoyalties(royaltyFeeNumerator, "Test", "TEST");
+    }
+
+    function testRevertsWhenMintingToZeroAddress(uint256 tokenId) public {
+        vm.expectRevert(MutableMinterRoyaltiesBase.MutableMinterRoyalties__MinterCannotBeZeroAddress.selector);
+        ERC721CWithMutableMinterRoyalties(address(tokenMock)).mint(address(0), tokenId);
     }
 
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {
@@ -201,11 +214,14 @@ contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenTest {
     ) public {
         vm.assume(minter != address(0));
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(minter != unauthorizedUser);
         vm.assume(royaltyFeeNumerator <= tokenMock.FEE_DENOMINATOR());
 
         _mintToken(address(tokenMock), minter, tokenId);
         vm.expectRevert(MutableMinterRoyaltiesBase.MutableMinterRoyalties__OnlyMinterCanChangeRoyaltyFee.selector);
+        vm.prank(unauthorizedUser);
         tokenMock.setRoyaltyFee(tokenId, royaltyFeeNumerator);
     }
 
@@ -264,7 +280,7 @@ contract ERC721CWithMutableMinterRoyaltiesTest is CreatorTokenTest {
     }
 }
 
-contract ERC721CWithMutableMinterRoyaltiesInitializableTest is CreatorTokenTest {
+contract ERC721CWithMutableMinterRoyaltiesInitializableTest is CreatorTokenNonfungibleTest {
     event RoyaltySet(uint256 indexed tokenId, address indexed receiver, uint96 feeNumerator);
 
     ClonerMock cloner;
@@ -335,6 +351,13 @@ contract ERC721CWithMutableMinterRoyaltiesInitializableTest is CreatorTokenTest 
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testRevertsWhenFeeNumeratorExceedsSalesPrice(uint96 royaltyFeeNumerator) public {
@@ -495,11 +518,14 @@ contract ERC721CWithMutableMinterRoyaltiesInitializableTest is CreatorTokenTest 
     ) public {
         vm.assume(minter != address(0));
         vm.assume(unauthorizedUser != address(0));
+        vm.assume(unauthorizedUser != address(tokenMock));
+        vm.assume(unauthorizedUser != address(this));
         vm.assume(minter != unauthorizedUser);
         vm.assume(royaltyFeeNumerator <= tokenMock.FEE_DENOMINATOR());
 
         _mintToken(address(tokenMock), minter, tokenId);
         vm.expectRevert(MutableMinterRoyaltiesBase.MutableMinterRoyalties__OnlyMinterCanChangeRoyaltyFee.selector);
+        vm.prank(unauthorizedUser);
         tokenMock.setRoyaltyFee(tokenId, royaltyFeeNumerator);
     }
 
@@ -556,4 +582,34 @@ contract ERC721CWithMutableMinterRoyaltiesInitializableTest is CreatorTokenTest 
         assertEq(recipient, minter);
         assertEq(value, (salePrice * tokenMock.defaultRoyaltyFeeNumerator()) / tokenMock.FEE_DENOMINATOR());
     }
+}
+
+contract AdventureERC721CWithMutableMinterRoyaltiesTest is ERC721CWithMutableMinterRoyaltiesTest {
+    uint256 public constant MAX_SIMULTANEOUS_QUESTS = 10;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        tokenMock = ERC721CWithMutableMinterRoyalties(address(new AdventureERC721CWithMutableMinterRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, MAX_SIMULTANEOUS_QUESTS, "Test", "TEST")));
+        vm.prank(address(tokenMock));
+        validator.setTransferSecurityLevelOfCollection(address(tokenMock), 1, false, false, false);
+    }
+
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
+        vm.prank(creator);
+        return ITestCreatorToken(
+            address(new AdventureERC721CWithMutableMinterRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, MAX_SIMULTANEOUS_QUESTS, "Test", "TEST"))
+        );
+    }
+
+    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+        AdventureERC721CWithMutableMinterRoyalties(tokenAddress).mint(to, tokenId);
+    }
+
+    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+        AdventureERC721CWithMutableMinterRoyalties(tokenAddress).safeMint(to, tokenId);
+    }
+
+    // foundry cheat to exclude from test coverage
+    function test() public {}
 }

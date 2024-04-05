@@ -30,6 +30,12 @@ abstract contract ERC721AC is ERC721A, CreatorTokenBase, AutomaticValidatorTrans
         }
     }
 
+    /**
+     * @notice Indicates whether the contract implements the specified interface.
+     * @dev Overrides supportsInterface in ERC165.
+     * @param interfaceId The interface id
+     * @return true if the contract implements the specified interface, false otherwise
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(ICreatorToken).interfaceId || 
