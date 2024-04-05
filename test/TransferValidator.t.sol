@@ -152,12 +152,12 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.startPrank(listOwner);
         uint120 sourceListId = validator.createList(name);
-        validator.addAccountToWhitelist(sourceListId, whitelistedAccount);
-        validator.addAccountToWhitelist(sourceListId, address(uint160(uint256(keccak256(abi.encode(whitelistedAccount))))));
-        validator.addAccountToBlacklist(sourceListId, blacklistedAccount);
-        validator.addAccountToBlacklist(sourceListId, address(uint160(uint256(keccak256(abi.encode(blacklistedAccount))))));
-        validator.addAccountToAuthorizers(sourceListId, authorizerAccount);
-        validator.addAccountToAuthorizers(sourceListId, address(uint160(uint256(keccak256(abi.encode(authorizerAccount))))));
+        validator.addAccountsToWhitelist(sourceListId, _asSingletonArray(whitelistedAccount));
+        validator.addAccountsToWhitelist(sourceListId, _asSingletonArray(address(uint160(uint256(keccak256(abi.encode(whitelistedAccount)))))));
+        validator.addAccountsToBlacklist(sourceListId, _asSingletonArray(blacklistedAccount));
+        validator.addAccountsToBlacklist(sourceListId, _asSingletonArray(address(uint160(uint256(keccak256(abi.encode(blacklistedAccount)))))));
+        validator.addAccountsToAuthorizers(sourceListId, _asSingletonArray(authorizerAccount));
+        validator.addAccountsToAuthorizers(sourceListId, _asSingletonArray(address(uint160(uint256(keccak256(abi.encode(authorizerAccount)))))));
         validator.addCodeHashesToWhitelist(sourceListId, whitelistedCodeHashes);
         validator.addCodeHashesToBlacklist(sourceListId, blacklistedCodeHashes);
         vm.stopPrank();
@@ -545,7 +545,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         emit AddedAccountToList(LIST_TYPE_BLACKLIST, listId, account);
 
         vm.prank(listOwner);
-        validator.addAccountToBlacklist(listId, account);
+        validator.addAccountsToBlacklist(listId, _asSingletonArray(account));
         assertTrue(validator.isAccountBlacklisted(listId, account));
     }
 
@@ -564,7 +564,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
-        validator.addAccountToBlacklist(listId, account);
+        validator.addAccountsToBlacklist(listId, _asSingletonArray(account));
     }
 
     function testAddAccountsToBlacklist(address listOwner, uint256 numAccountsToBlacklist, address[10] memory accounts) public {
@@ -633,12 +633,12 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.startPrank(listOwner);
         uint120 listId = validator.createList("test");
-        validator.addAccountToBlacklist(listId, account);
+        validator.addAccountsToBlacklist(listId, _asSingletonArray(account));
 
         vm.expectEmit(true, true, true, true);
         emit RemovedAccountFromList(LIST_TYPE_BLACKLIST, listId, account);
 
-        validator.removeAccountFromBlacklist(listId, account);
+        validator.removeAccountsFromBlacklist(listId, _asSingletonArray(account));
         assertFalse(validator.isAccountBlacklisted(listId, account));
         vm.stopPrank();
     }
@@ -655,12 +655,12 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.startPrank(listOwner);
         uint120 listId = validator.createList("test");
-        validator.addAccountToBlacklist(listId, account);
+        validator.addAccountsToBlacklist(listId, _asSingletonArray(account));
         vm.stopPrank();
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
-        validator.removeAccountFromBlacklist(listId, account);
+        validator.removeAccountsFromBlacklist(listId, _asSingletonArray(account));
     }
 
     function testRemoveAccountsFromBlacklist(address listOwner, uint256 numAccountsToRemove, address[10] memory accounts) public {
@@ -747,7 +747,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         emit AddedAccountToList(LIST_TYPE_WHITELIST, listId, account);
 
         vm.prank(listOwner);
-        validator.addAccountToWhitelist(listId, account);
+        validator.addAccountsToWhitelist(listId, _asSingletonArray(account));
         assertTrue(validator.isAccountWhitelisted(listId, account));
     }
 
@@ -766,7 +766,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
-        validator.addAccountToWhitelist(listId, account);
+        validator.addAccountsToWhitelist(listId, _asSingletonArray(account));
     }
 
     function testAddAccountsToWhitelist(address listOwner, uint256 numAccountsToWhitelist, address[10] memory accounts) public {
@@ -835,12 +835,12 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.startPrank(listOwner);
         uint120 listId = validator.createList("test");
-        validator.addAccountToWhitelist(listId, account);
+        validator.addAccountsToWhitelist(listId, _asSingletonArray(account));
 
         vm.expectEmit(true, true, true, true);
         emit RemovedAccountFromList(LIST_TYPE_WHITELIST, listId, account);
 
-        validator.removeAccountFromWhitelist(listId, account);
+        validator.removeAccountsFromWhitelist(listId, _asSingletonArray(account));
         assertFalse(validator.isAccountWhitelisted(listId, account));
         vm.stopPrank();
     }
@@ -857,12 +857,12 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.startPrank(listOwner);
         uint120 listId = validator.createList("test");
-        validator.addAccountToWhitelist(listId, account);
+        validator.addAccountsToWhitelist(listId, _asSingletonArray(account));
         vm.stopPrank();
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
-        validator.removeAccountFromWhitelist(listId, account);
+        validator.removeAccountsFromWhitelist(listId, _asSingletonArray(account));
     }
 
     function testRemoveAccountsFromWhitelist(address listOwner, uint256 numAccountsToRemove, address[10] memory accounts) public {
@@ -949,7 +949,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         emit AddedAccountToList(LIST_TYPE_AUTHORIZERS, listId, account);
 
         vm.prank(listOwner);
-        validator.addAccountToAuthorizers(listId, account);
+        validator.addAccountsToAuthorizers(listId, _asSingletonArray(account));
         assertTrue(validator.isAccountAuthorizer(listId, account));
     }
 
@@ -968,7 +968,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
-        validator.addAccountToAuthorizers(listId, account);
+        validator.addAccountsToAuthorizers(listId, _asSingletonArray(account));
     }
 
     function testAddAccountsToAuthorizerList(address listOwner, uint256 numAccountsToAuthorize, address[10] memory accounts) public {
@@ -1037,12 +1037,12 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.startPrank(listOwner);
         uint120 listId = validator.createList("test");
-        validator.addAccountToAuthorizers(listId, account);
+        validator.addAccountsToAuthorizers(listId, _asSingletonArray(account));
 
         vm.expectEmit(true, true, true, true);
         emit RemovedAccountFromList(LIST_TYPE_AUTHORIZERS, listId, account);
 
-        validator.removeAccountFromAuthorizers(listId, account);
+        validator.removeAccountsFromAuthorizers(listId, _asSingletonArray(account));
         assertFalse(validator.isAccountAuthorizer(listId, account));
         vm.stopPrank();
     }
@@ -1059,12 +1059,12 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.startPrank(listOwner);
         uint120 listId = validator.createList("test");
-        validator.addAccountToAuthorizers(listId, account);
+        validator.addAccountsToAuthorizers(listId, _asSingletonArray(account));
         vm.stopPrank();
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerDoesNotOwnList.selector);
         vm.prank(unauthorizedUser);
-        validator.removeAccountFromAuthorizers(listId, account);
+        validator.removeAccountsFromAuthorizers(listId, _asSingletonArray(account));
     }
 
     function testRemoveAccountsFromAuthorizerList(address listOwner, uint256 numAccountsToRemove, address[10] memory accounts) public {
@@ -4505,10 +4505,10 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         uint120 listId = validator.createList("test");
 
-        validator.addAccountToWhitelist(listId, fuzzedList.whitelistedAddress);
-        validator.addAccountToWhitelist(listId, fuzzedList.whitelistedToAddress);
-        validator.addAccountToBlacklist(listId, fuzzedList.blacklistedAddress);
-        validator.addAccountToAuthorizers(listId, fuzzedList.authorizerAddress);
+        validator.addAccountsToWhitelist(listId, _asSingletonArray(fuzzedList.whitelistedAddress));
+        validator.addAccountsToWhitelist(listId, _asSingletonArray(fuzzedList.whitelistedToAddress));
+        validator.addAccountsToBlacklist(listId, _asSingletonArray(fuzzedList.blacklistedAddress));
+        validator.addAccountsToAuthorizers(listId, _asSingletonArray(fuzzedList.authorizerAddress));
 
         bytes memory whitelistedCode = abi.encode(fuzzedList.whitelistedCode);
         bytes memory blacklistedCode = abi.encode(fuzzedList.blacklistedCode);
@@ -4627,5 +4627,10 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         validator.afterAuthorizedTransferWithAmount(collection, tokenId);
 
         vm.stopPrank();
+    }
+
+    function _asSingletonArray(address account) private pure returns (address[] memory array) {
+        array = new address[](1);
+        array[0] = account;
     }
 }

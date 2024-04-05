@@ -15,7 +15,7 @@ contract ClonerMock {
         bytes4[] calldata initializationSelectors,
         bytes[] calldata initializationArgs
     ) external returns (address) {
-        bytes32 salt;
+        bytes32 salt = keccak256(abi.encode(blockhash(block.number - 1)));
         address clone = Clones.predictDeterministicAddress(referenceContract, salt, address(this));
         bool codeEmpty;
         while (true) {

@@ -31,6 +31,12 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase, Automat
         }
     }
 
+    /**
+     * @notice Indicates whether the contract implements the specified interface.
+     * @dev Overrides supportsInterface in ERC165.
+     * @param interfaceId The interface id
+     * @return true if the contract implements the specified interface, false otherwise
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(IERC20).interfaceId || 
@@ -89,6 +95,12 @@ abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable,
         }
     }
 
+    /**
+     * @notice Indicates whether the contract implements the specified interface.
+     * @dev Overrides supportsInterface in ERC165.
+     * @param interfaceId The interface id
+     * @return true if the contract implements the specified interface, false otherwise
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return 
         interfaceId == type(IERC20).interfaceId || 

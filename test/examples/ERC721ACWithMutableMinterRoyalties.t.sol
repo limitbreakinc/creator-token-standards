@@ -77,7 +77,7 @@ contract ERC721ACWithMutableMinterRoyaltiesTest is CreatorTokenNonfungibleTest {
     function testRevertsWhenMintingToZeroAddress(uint256 quantity) public {
         vm.assume(quantity > 0 && quantity < 5);
         vm.expectRevert(MutableMinterRoyaltiesBase.MutableMinterRoyalties__MinterCannotBeZeroAddress.selector);
-        _mintToken(address(tokenMock), address(0), quantity);
+        ERC721ACWithMutableMinterRoyalties(address(tokenMock)).mint(address(0), quantity);
     }
 
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {

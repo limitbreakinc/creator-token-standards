@@ -5,6 +5,7 @@ import "../Constants.sol";
 import "../interfaces/IEOARegistry.sol";
 import "../interfaces/IOwnable.sol";
 import "../interfaces/ITransferValidator.sol";
+import "../utils/TransferPolicy.sol";
 import "@limitbreak/permit-c/PermitC.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
@@ -89,7 +90,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
-    // Custom Errors
+    /*************************************************************************/
+    /*                             CUSTOM ERRORS                             */
+    /*************************************************************************/
 
     /// @dev Thrown when attempting to set a list id that does not exist.
     error CreatorTokenTransferValidator__ListDoesNotExist();
@@ -139,20 +142,50 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     /// @dev Thrown when attempting to set a authorized operator when authorization mode is disabled.
     error CreatorTokenTransferValidator__AuthorizationDisabledForCollection();
 
+    /*************************************************************************/
+    /*                                EVENTS                                 */
+    /*************************************************************************/
+
+    /// @dev Emitted when a new list is created.
     event CreatedList(uint256 indexed id, string name);
+
+    /// @dev Emitted when a list is applied to a collection.
     event AppliedListToCollection(address indexed collection, uint120 indexed id);
+
+    /// @dev Emitted when the ownership of a list is transferred to a new owner.
     event ReassignedListOwnership(uint256 indexed id, address indexed newOwner);
+
+    /// @dev Emitted when an account is added to the list of frozen accounts for a collection.
     event AccountFrozenForCollection(address indexed collection, address indexed account);
+
+    /// @dev Emitted when an account is removed from the list of frozen accounts for a collection.
     event AccountUnfrozenForCollection(address indexed collection, address indexed account);
+
+    /// @dev Emitted when an address is added to a list.
     event AddedAccountToList(uint8 indexed kind, uint256 indexed id, address indexed account);
+
+    /// @dev Emitted when a codehash is added to a list.
     event AddedCodeHashToList(uint8 indexed kind, uint256 indexed id, bytes32 indexed codehash);
+
+    /// @dev Emitted when an address is removed from a list.
     event RemovedAccountFromList(uint8 indexed kind, uint256 indexed id, address indexed account);
+
+    /// @dev Emitted when a codehash is removed from a list.
     event RemovedCodeHashFromList(uint8 indexed kind, uint256 indexed id, bytes32 indexed codehash);
+
+    /// @dev Emitted when the security level for a collection is updated.
     event SetTransferSecurityLevel(address indexed collection, uint8 level);
+
+    /// @dev Emitted when a collection updates its authorization mode.
     event SetAuthorizationModeEnabled(address indexed collection, bool enabled, bool authorizersCanSetWildcardOperators);
+
+    /// @dev Emitted when a collection turns account freezing on or off.
     event SetAccountFreezingModeEnabled(address indexed collection, bool enabled);
 
-    // Structs
+    /*************************************************************************/
+    /*                                STRUCTS                                */
+    /*************************************************************************/
+
     /**
      * @dev This struct is internally for the storage of account and codehash lists.
      */
@@ -163,23 +196,28 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         mapping (bytes32 => bool) nonEnumerableCodehashes;
     }
 
+    /**
+     * @dev This struct is internally for the storage of account lists.
+     */
     struct AccountList {
         EnumerableSet.AddressSet enumerableAccounts;
         mapping (address => bool) nonEnumerableAccounts;
     }
 
-    struct CollectionTokenIdAndAmount {
-        address collection;
-        uint256 tokenId;
-        uint256 amount;
-    }
+    /*************************************************************************/
+    /*                               CONSTANTS                               */
+    /*************************************************************************/
 
-    // Immutable lookup tables
+    /// @dev Immutable lookup table for constant gas determination of caller constraints by security level.
+    /// @dev Created during contract construction using defined constants.
     uint256 private immutable _callerConstraintsLookup;
+
+    /// @dev Immutable lookup table for constant gas determination of receiver constraints by security level.
+    /// @dev Created during contract construction using defined constants.
     uint256 private immutable _receiverConstraintsLookup;
+
+    /// @dev The address of the EOA Registry to use to validate an account is a verified EOA.
     address private immutable _eoaRegistry;
-    
-    // Constants
 
     /// @dev The legacy Creator Token Transfer Validator Interface
     bytes4 private constant LEGACY_TRANSFER_VALIDATOR_INTERFACE_ID = 0x00000000;
@@ -191,10 +229,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
     address private constant WILDCARD_OPERATOR_ADDRESS = address(0x01);
 
-    uint8 private AUTHORIZATION_TYPES_UNSET = 0;
-    uint8 private AUTHORIZATION_TYPES_COLLECTION = 1;
-    uint8 private AUTHORIZATION_TYPES_TOKEN_ID = 2;
-    uint8 private AUTHORIZATION_TYPES_TOKEN_ID_AND_AMOUNT = 3;
+    /*************************************************************************/
+    /*                                STORAGE                                */
+    /*************************************************************************/
 
     /// @notice Keeps track of the most recently created list id.
     uint120 public lastListId;
@@ -230,6 +267,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         }
 
         _createDefaultList(defaultOwner);
+
         _eoaRegistry = eoaRegistry_;
 
         _callerConstraintsLookup = _constructCallerConstraintsTable();
@@ -237,6 +275,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         _receiverConstraintsLookup = _constructReceiverConstraintsTable();
     }
 
+    /**
+     * @dev This function is only called during contract construction to create the default list.
+     */
     function _createDefaultList(address defaultOwner) internal {
         uint120 id = 0;
 
@@ -246,6 +287,10 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         emit ReassignedListOwnership(id, defaultOwner);
     }
 
+    /**
+     * @dev This function is only called during contract construction to create the caller constraints
+     * @dev lookup table.
+     */
     function _constructCallerConstraintsTable() internal pure returns (uint256) {
         return 
         (CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC << (TRANSFER_SECURITY_LEVEL_RECOMMENDED << 3))
@@ -260,6 +305,10 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             | (CALLER_CONSTRAINTS_SBT << (TRANSFER_SECURITY_LEVEL_NINE << 3));
     }
 
+    /**
+     * @dev This function is only called during contract construction to create the receiver constraints
+     * @dev lookup table.
+     */
     function _constructReceiverConstraintsTable() internal pure returns (uint256) {
         return 
         (RECEIVER_CONSTRAINTS_NONE << (TRANSFER_SECURITY_LEVEL_RECOMMENDED << 3))
@@ -291,7 +340,40 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     /*                          APPLY TRANSFER POLICIES                      */
     /*************************************************************************/
 
-    /// Ensure that a specific operator has been authorized to transfer tokens
+    /**
+     * @notice Apply the collection transfer policy to a transfer operation of a creator token.
+     *
+     * @dev If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
+     *      _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
+     *      that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
+     *
+     * @dev The order of checking whitelisted accounts, authorized operator check and whitelisted codehashes
+     *      is very deliberate.  The order of operations is determined by the most frequently used settings that are
+     *      expected in the wild.
+     *
+     * @dev Throws when the collection has enabled account freezing mode and either the `from` or `to` addresses
+     *      are on the list of frozen accounts for the collection.
+     * @dev Throws when the collection is set to Level 9 - Soulbound Token.
+     * @dev Throws when the receiver has deployed code and isn't whitelisted, if ReceiverConstraints.NoCode is set
+     *      and the transfer is not approved by an authorizer for the collection.
+     * @dev Throws when the receiver has never verified a signature to prove they are an EOA and the receiver
+     *      isn't whitelisted, if the ReceiverConstraints.EOA is set and the transfer is not approved by an 
+     *      authorizer for the collection..
+     * @dev Throws when `msg.sender` is blacklisted, if CallerConstraints.OperatorBlacklistEnableOTC is set, unless
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
+     * @dev Throws when `msg.sender` isn't whitelisted, if CallerConstraints.OperatorWhitelistEnableOTC is set, unless
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
+     * @dev Throws when neither `msg.sender` nor `from` are whitelisted, if 
+     *      CallerConstraints.OperatorWhitelistDisableOTC is set and the transfer 
+     *      is not approved by an authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. Transfer is allowed or denied based on the applied transfer policy.
+     *
+     * @param caller      The address initiating the transfer.
+     * @param from        The address of the token owner.
+     * @param to          The address of the token receiver.
+     */
     function validateTransfer(address caller, address from, address to) public view {
         bytes4 errorSelector = _validateTransfer(msg.sender, caller, from, to, 0);
         if (errorSelector != SELECTOR_NO_ERROR) {
@@ -299,7 +381,41 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         }
     }
 
-    /// Ensure that a transfer has been authorized for a specific tokenId
+    /**
+     * @notice Apply the collection transfer policy to a transfer operation of a creator token.
+     *
+     * @dev If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
+     *      _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
+     *      that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
+     *
+     * @dev The order of checking whitelisted accounts, authorized operator check and whitelisted codehashes
+     *      is very deliberate.  The order of operations is determined by the most frequently used settings that are
+     *      expected in the wild.
+     *
+     * @dev Throws when the collection has enabled account freezing mode and either the `from` or `to` addresses
+     *      are on the list of frozen accounts for the collection.
+     * @dev Throws when the collection is set to Level 9 - Soulbound Token.
+     * @dev Throws when the receiver has deployed code and isn't whitelisted, if ReceiverConstraints.NoCode is set
+     *      and the transfer is not approved by an authorizer for the collection.
+     * @dev Throws when the receiver has never verified a signature to prove they are an EOA and the receiver
+     *      isn't whitelisted, if the ReceiverConstraints.EOA is set and the transfer is not approved by an 
+     *      authorizer for the collection..
+     * @dev Throws when `msg.sender` is blacklisted, if CallerConstraints.OperatorBlacklistEnableOTC is set, unless
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
+     * @dev Throws when `msg.sender` isn't whitelisted, if CallerConstraints.OperatorWhitelistEnableOTC is set, unless
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
+     * @dev Throws when neither `msg.sender` nor `from` are whitelisted, if 
+     *      CallerConstraints.OperatorWhitelistDisableOTC is set and the transfer 
+     *      is not approved by an authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. Transfer is allowed or denied based on the applied transfer policy.
+     *
+     * @param caller      The address initiating the transfer.
+     * @param from        The address of the token owner.
+     * @param to          The address of the token receiver.
+     * @param tokenId     The token id being transferred.
+     */
     function validateTransfer(address caller, address from, address to, uint256 tokenId) public view {
         bytes4 errorSelector = _validateTransfer(msg.sender, caller, from, to, tokenId);
         if (errorSelector != SELECTOR_NO_ERROR) {
@@ -307,7 +423,41 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         }
     }
 
-    /// Ensure that a transfer has been authorized for a specific tokenId and amount
+    /**
+     * @notice Apply the collection transfer policy to a transfer operation of a creator token.
+     *
+     * @dev If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
+     *      _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
+     *      that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
+     *
+     * @dev The order of checking whitelisted accounts, authorized operator check and whitelisted codehashes
+     *      is very deliberate.  The order of operations is determined by the most frequently used settings that are
+     *      expected in the wild.
+     *
+     * @dev Throws when the collection has enabled account freezing mode and either the `from` or `to` addresses
+     *      are on the list of frozen accounts for the collection.
+     * @dev Throws when the collection is set to Level 9 - Soulbound Token.
+     * @dev Throws when the receiver has deployed code and isn't whitelisted, if ReceiverConstraints.NoCode is set
+     *      and the transfer is not approved by an authorizer for the collection.
+     * @dev Throws when the receiver has never verified a signature to prove they are an EOA and the receiver
+     *      isn't whitelisted, if the ReceiverConstraints.EOA is set and the transfer is not approved by an 
+     *      authorizer for the collection..
+     * @dev Throws when `msg.sender` is blacklisted, if CallerConstraints.OperatorBlacklistEnableOTC is set, unless
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
+     * @dev Throws when `msg.sender` isn't whitelisted, if CallerConstraints.OperatorWhitelistEnableOTC is set, unless
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
+     * @dev Throws when neither `msg.sender` nor `from` are whitelisted, if 
+     *      CallerConstraints.OperatorWhitelistDisableOTC is set and the transfer 
+     *      is not approved by an authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. Transfer is allowed or denied based on the applied transfer policy.
+     *
+     * @param caller      The address initiating the transfer.
+     * @param from        The address of the token owner.
+     * @param to          The address of the token receiver.
+     * @param tokenId     The token id being transferred.
+     */
     function validateTransfer(address caller, address from, address to, uint256 tokenId, uint256 /*amount*/) external {
         validateTransfer(caller, from, to, tokenId);
     }
@@ -315,22 +465,36 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     /**
      * @notice Apply the collection transfer policy to a transfer operation of a creator token.
      *
-     * @dev Throws when the receiver has deployed code and isn't whitelisted, if ReceiverConstraints.NoCode is set.
+     * @dev If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
+     *      _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
+     *      that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
+     *
+     * @dev The order of checking whitelisted accounts, authorized operator check and whitelisted codehashes
+     *      is very deliberate.  The order of operations is determined by the most frequently used settings that are
+     *      expected in the wild.
+     *
+     * @dev Throws when the collection has enabled account freezing mode and either the `from` or `to` addresses
+     *      are on the list of frozen accounts for the collection.
+     * @dev Throws when the collection is set to Level 9 - Soulbound Token.
+     * @dev Throws when the receiver has deployed code and isn't whitelisted, if ReceiverConstraints.NoCode is set
+     *      and the transfer is not approved by an authorizer for the collection.
      * @dev Throws when the receiver has never verified a signature to prove they are an EOA and the receiver
-     *      isn't whitelisted, if the ReceiverConstraints.EOA is set.
+     *      isn't whitelisted, if the ReceiverConstraints.EOA is set and the transfer is not approved by an 
+     *      authorizer for the collection..
      * @dev Throws when `msg.sender` is blacklisted, if CallerConstraints.OperatorBlacklistEnableOTC is set, unless
-     *      `msg.sender` is also the `from` address.
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
      * @dev Throws when `msg.sender` isn't whitelisted, if CallerConstraints.OperatorWhitelistEnableOTC is set, unless
-     *      `msg.sender` is also the `from` address.
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
      * @dev Throws when neither `msg.sender` nor `from` are whitelisted, if 
-     *      CallerConstraints.OperatorWhitelistDisableOTC is set.
+     *      CallerConstraints.OperatorWhitelistDisableOTC is set and the transfer 
+     *      is not approved by an authorizer for the collection.
      *
      * @dev <h4>Postconditions:</h4>
      *      1. Transfer is allowed or denied based on the applied transfer policy.
      *
-     * @param caller The address initiating the transfer.
-     * @param from   The address of the token owner.
-     * @param to     The address of the token receiver.
+     * @param caller      The address initiating the transfer.
+     * @param from        The address of the token owner.
+     * @param to          The address of the token receiver.
      */
     function applyCollectionTransferPolicy(address caller, address from, address to) external view {
         validateTransfer(caller, from, to);
@@ -351,32 +515,147 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         receiverConstraints = uint8((_receiverConstraintsLookup >> (level << 3)));
     }
 
+    /**
+     * @notice Sets an operator for an authorized transfer that skips transfer security level
+     *         validation for caller and receiver constraints.
+     * 
+     * @dev    An authorizer *MUST* clear the authorization with a call to `afterAuthorizedTransfer`
+     *         to prevent unauthorized transfers of the token.
+     * 
+     * @dev    Throws when authorization mode is disabled for the collection.
+     * @dev    Throws when using the wildcard operator address and the collection does not allow
+     *         for wildcard authorized operators.
+     * @dev    Throws when the caller is not an allowed authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The `operator` is stored as an authorized operator for transfers.
+     * 
+     * @param operator  The address of the operator to set as authorized for transfers.
+     * @param token     The address of the token to authorize.
+     * @param tokenId   The token id to set the authorized operator for.
+     */
     function beforeAuthorizedTransfer(address operator, address token, uint256 tokenId) public {
         _setOperatorInTransientStorage(operator, token, tokenId);
     }
 
+    /**
+     * @notice Clears the authorized operator for a token to prevent additional transfers that
+     *         do not conform to the transfer security level for the token.
+     * 
+     * @dev    Throws when authorization mode is disabled for the collection.
+     * @dev    Throws when using the wildcard operator address and the collection does not allow
+     *         for wildcard authorized operators.
+     * @dev    Throws when the caller is not an allowed authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The authorized operator for the token is cleared from storage.
+     * 
+     * @param token     The address of the token to authorize.
+     * @param tokenId   The token id to set the authorized operator for.
+     */
     function afterAuthorizedTransfer(address token, uint256 tokenId) public {
         _setOperatorInTransientStorage(address(uint160(uint256(BYTES32_ZERO))), token, tokenId);
     }
 
-    // Shims
-
+    /**
+     * @notice Sets an operator for an authorized transfer that skips transfer security level
+     *         validation for caller and receiver constraints.
+     * @notice This overload of `beforeAuthorizedTransfer` defaults to a tokenId of 0.
+     * 
+     * @dev    An authorizer *MUST* clear the authorization with a call to `afterAuthorizedTransfer`
+     *         to prevent unauthorized transfers of the token.
+     * 
+     * @dev    Throws when authorization mode is disabled for the collection.
+     * @dev    Throws when using the wildcard operator address and the collection does not allow
+     *         for wildcard authorized operators.
+     * @dev    Throws when the caller is not an allowed authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The `operator` is stored as an authorized operator for transfers.
+     * 
+     * @param operator  The address of the operator to set as authorized for transfers.
+     * @param token     The address of the token to authorize.
+     */
     function beforeAuthorizedTransfer(address operator, address token) external {
         beforeAuthorizedTransfer(operator, token, 0);
     }
 
+    /**
+     * @notice Clears the authorized operator for a token to prevent additional transfers that
+     *         do not conform to the transfer security level for the token.
+     * @notice This overload of `afterAuthorizedTransfer` defaults to a tokenId of 0.
+     * 
+     * @dev    Throws when authorization mode is disabled for the collection.
+     * @dev    Throws when using the wildcard operator address and the collection does not allow
+     *         for wildcard authorized operators.
+     * @dev    Throws when the caller is not an allowed authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The authorized operator for the token is cleared from storage.
+     * 
+     * @param token     The address of the token to authorize.
+     */
     function afterAuthorizedTransfer(address token) external {
         afterAuthorizedTransfer(token, 0);
     }
 
+    /**
+     * @notice Sets the wildcard operator to authorize any operator to transfer a token while
+     *         skipping transfer security level validation for caller and receiver constraints.
+     * 
+     * @dev    An authorizer *MUST* clear the authorization with a call to `afterAuthorizedTransfer`
+     *         to prevent unauthorized transfers of the token.
+     * 
+     * @dev    Throws when authorization mode is disabled for the collection.
+     * @dev    Throws when the collection does not allow for wildcard authorized operators.
+     * @dev    Throws when the caller is not an allowed authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The wildcard operator is stored as an authorized operator for transfers.
+     * 
+     * @param token     The address of the token to authorize.
+     * @param tokenId   The token id to set the authorized operator for.
+     */
     function beforeAuthorizedTransfer(address token, uint256 tokenId) external {
         beforeAuthorizedTransfer(WILDCARD_OPERATOR_ADDRESS, token, tokenId);
     }
 
+    /**
+     * @notice Sets the wildcard operator to authorize any operator to transfer a token while
+     *         skipping transfer security level validation for caller and receiver constraints.
+     * 
+     * @dev    An authorizer *MUST* clear the authorization with a call to `afterAuthorizedTransfer`
+     *         to prevent unauthorized transfers of the token.
+     * 
+     * @dev    Throws when authorization mode is disabled for the collection.
+     * @dev    Throws when the collection does not allow for wildcard authorized operators.
+     * @dev    Throws when the caller is not an allowed authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The wildcard operator is stored as an authorized operator for transfers.
+     * 
+     * @param token     The address of the token to authorize.
+     * @param tokenId   The token id to set the authorized operator for.
+     */
     function beforeAuthorizedTransferWithAmount(address token, uint256 tokenId, uint256 /*amount*/) external {
         beforeAuthorizedTransfer(WILDCARD_OPERATOR_ADDRESS, token, tokenId);
     }
 
+    /**
+     * @notice Clears the authorized operator for a token to prevent additional transfers that
+     *         do not conform to the transfer security level for the token.
+     * 
+     * @dev    Throws when authorization mode is disabled for the collection.
+     * @dev    Throws when using the wildcard operator address and the collection does not allow
+     *         for wildcard authorized operators.
+     * @dev    Throws when the caller is not an allowed authorizer for the collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The authorized operator for the token is cleared from storage.
+     * 
+     * @param token     The address of the token to authorize.
+     * @param tokenId   The token id to set the authorized operator for.
+     */
     function afterAuthorizedTransferWithAmount(address token, uint256 tokenId) external {
         afterAuthorizedTransfer(token, tokenId);
     }
@@ -491,16 +770,24 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     }
 
     /**
-     * @notice Set the transfer security level of a collection.
+     * @notice Set the transfer security level, authorization mode and account freezing mode settings of a collection.
      *
      * @dev Throws when the caller is neither collection contract, nor the owner or admin of the specified collection.
      *
      * @dev <h4>Postconditions:</h4>
      *      1. The transfer security level of the specified collection is set to the new value.
-     *      2. A `SetTransferSecurityLevel` event is emitted.
+     *      2. The authorization mode setting of the specified collection is set to the new value.
+     *      3. The authorization wildcard operator mode setting of the specified collection is set to the new value.
+     *      4. The account freezing mode setting of the specified collection is set to the new value.
+     *      5. A `SetTransferSecurityLevel` event is emitted.
+     *      6. A `SetAuthorizationModeEnabled` event is emitted.
+     *      7. A `SetAccountFreezingModeEnabled` event is emitted.
      *
-     * @param collection The address of the collection.
-     * @param level      The new transfer security level to apply.
+     * @param collection                          The address of the collection.
+     * @param level                               The new transfer security level to apply.
+     * @param enableAuthorizationMode             Flag if the collection allows for authorizer mode.
+     * @param authorizersCanSetWildcardOperators  Flag if the authorizer can set wildcard operators.
+     * @param enableAccountFreezingMode           Flag if the collection is using account freezing.
      */
     function setTransferSecurityLevelOfCollection(
         address collection, 
@@ -547,6 +834,18 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         emit AppliedListToCollection(collection, id);
     }
 
+    /**
+     * @notice Adds accounts to the frozen accounts list of a collection.
+     * 
+     * @dev Throws when the caller is neither collection contract, nor the owner or admin of the specified collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The accounts are added to the list of frozen accounts for a collection.
+     *      2. A `AccountFrozenForCollection` event is emitted for each account added to the list.
+     *
+     * @param collection        The address of the collection.
+     * @param accountsToFreeze  The list of accounts to added to frozen accounts.
+     */
     function freezeAccountsForCollection(address collection, address[] calldata accountsToFreeze) external {
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
 
@@ -566,6 +865,18 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         }
     }
 
+    /**
+     * @notice Removes accounts to the frozen accounts list of a collection.
+     * 
+     * @dev Throws when the caller is neither collection contract, nor the owner or admin of the specified collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The accounts are removed from the list of frozen accounts for a collection.
+     *      2. A `AccountUnfrozenForCollection` event is emitted for each account removed from the list.
+     *
+     * @param collection          The address of the collection.
+     * @param accountsToUnfreeze  The list of accounts to remove from frozen accounts.
+     */
     function unfreezeAccountsForCollection(address collection, address[] calldata accountsToUnfreeze) external {
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
 
@@ -589,10 +900,13 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @notice Get the security policy of the specified collection.
      * @param collection The address of the collection.
      * @return           The security policy of the specified collection, which includes:
-     *                   Transfer security level, operator whitelist id, permitted contract receiver allowlist id
+     *                   Transfer security level, operator whitelist id, permitted contract receiver allowlist id,
+     *                   authorizer mode, if authorizer can set a wildcard operator, and if account freezing is
+     *                   enabled.
      */
-    function getCollectionSecurityPolicy(address collection) 
-        external view returns (CollectionSecurityPolicyV3 memory) {
+    function getCollectionSecurityPolicy(
+        address collection
+    ) external view returns (CollectionSecurityPolicyV3 memory) {
         return collectionSecurityPolicies[collection];
     }
 
@@ -611,16 +925,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      */
     function addAccountsToBlacklist(
         uint120 id, 
-        address[] memory accounts
-    ) public {
-        _addAccountsToList(blacklists[id], LIST_TYPE_BLACKLIST, id, accounts);
-    }
-
-    function addAccountToBlacklist(
-        uint120 id,
-        address account
+        address[] calldata accounts
     ) external {
-        addAccountsToBlacklist(id, _asSingletonArray(account));
+        _addAccountsToList(blacklists[id], LIST_TYPE_BLACKLIST, id, accounts);
     }
 
     /**
@@ -638,16 +945,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      */
     function addAccountsToWhitelist(
         uint120 id, 
-        address[] memory accounts
-    ) public {
-        _addAccountsToList(whitelists[id], LIST_TYPE_WHITELIST, id, accounts);
-    }
-
-    function addAccountToWhitelist(
-        uint120 id,
-        address account
+        address[] calldata accounts
     ) external {
-        addAccountsToWhitelist(id, _asSingletonArray(account));
+        _addAccountsToList(whitelists[id], LIST_TYPE_WHITELIST, id, accounts);
     }
 
     /**
@@ -665,16 +965,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      */
     function addAccountsToAuthorizers(
         uint120 id, 
-        address[] memory accounts
-    ) public {
-        _addAccountsToList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, accounts);
-    }
-
-    function addAccountToAuthorizers(
-        uint120 id,
-        address account
+        address[] calldata accounts
     ) external {
-        addAccountsToAuthorizers(id, _asSingletonArray(account));
+        _addAccountsToList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, accounts);
     }
 
     /**
@@ -734,16 +1027,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      */
     function removeAccountsFromBlacklist(
         uint120 id, 
-        address[] memory accounts
-    ) public {
-        _removeAccountsFromList(blacklists[id], LIST_TYPE_BLACKLIST, id, accounts);
-    }
-
-    function removeAccountFromBlacklist(
-        uint120 id,
-        address account
+        address[] calldata accounts
     ) external {
-        removeAccountsFromBlacklist(id, _asSingletonArray(account));
+        _removeAccountsFromList(blacklists[id], LIST_TYPE_BLACKLIST, id, accounts);
     }
 
     /**
@@ -761,16 +1047,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      */
     function removeAccountsFromWhitelist(
         uint120 id, 
-        address[] memory accounts
-    ) public {
-        _removeAccountsFromList(whitelists[id], LIST_TYPE_WHITELIST, id, accounts);
-    }
-
-    function removeAccountFromWhitelist(
-        uint120 id,
-        address account
+        address[] calldata accounts
     ) external {
-        removeAccountsFromWhitelist(id, _asSingletonArray(account));
+        _removeAccountsFromList(whitelists[id], LIST_TYPE_WHITELIST, id, accounts);
     }
 
     /**
@@ -788,16 +1067,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      */
     function removeAccountsFromAuthorizers(
         uint120 id, 
-        address[] memory accounts
-    ) public {
-        _removeAccountsFromList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, accounts);
-    }
-
-    function removeAccountFromAuthorizers(
-        uint120 id,
-        address account
+        address[] calldata accounts
     ) external {
-        removeAccountsFromAuthorizers(id, _asSingletonArray(account));
+        _removeAccountsFromList(authorizers[id], LIST_TYPE_AUTHORIZERS, id, accounts);
     }
 
     /**
@@ -962,6 +1234,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         return getAuthorizerAccounts(collectionSecurityPolicies[collection].listId);
     }
 
+    /**
+     * @notice Get frozen accounts by collection.
+     * @param collection The address of the collection.
+     * @return           An array of frozen accounts.
+     */
     function getFrozenAccountsByCollection(address collection) external view returns (address[] memory) {
         return frozenAccounts[collection].enumerableAccounts.values();
     }
@@ -1014,6 +1291,12 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         return isAccountAuthorizer(collectionSecurityPolicies[collection].listId, account);
     }
 
+    /**
+     * @notice Check if an account is frozen for a specified collection.
+     * @param collection The address of the collection.
+     * @param account    The address of the account to check.
+     * @return           True if the account is frozen by the specified collection, false otherwise.
+     */
     function isAccountFrozenForCollection(address collection, address account) external view returns (bool) {
         return frozenAccounts[collection].nonEnumerableAccounts[account];
     }
@@ -1173,15 +1456,23 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
     /**
      * @notice Adds one or more accounts to a list.
+     * 
+     * @dev <h4>Postconditions:</h4>
+     *      1. Accounts that were not previously in the list are added to the list.
+     *      2. An `AddedAccountToList` event is emitted for each account that was not
+     *         previously on the list.
+     * 
+     * @param list     The storage pointer for the list to add accounts to.
+     * @param listType The type of list the accounts are being added to.
+     * @param id       The id of the list the accounts are being added to.
+     * @param accounts An array of accounts to add to the list.
      */
     function _addAccountsToList(
         List storage list,
         uint8 listType,
         uint120 id,
-        address[] memory accounts
-    ) 
-    internal
-    onlyListOwner(id) {
+        address[] calldata accounts
+    ) internal onlyListOwner(id) {
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
@@ -1199,15 +1490,23 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
     /**
      * @notice Adds one or more codehashes to a list.
+     * 
+     * @dev <h4>Postconditions:</h4>
+     *      1. Codehashes that were not previously in the list are added to the list.
+     *      2. An `AddedCodeHashToList` event is emitted for each codehash that was not
+     *         previously on the list.
+     * 
+     * @param list        The storage pointer for the list to add codehashes to.
+     * @param listType    The type of list the codehashes are being added to.
+     * @param id          The id of the list the codehashes are being added to.
+     * @param codehashes  An array of codehashes to add to the list.
      */
     function _addCodeHashesToList(
         List storage list,
         uint8 listType,
         uint120 id,
         bytes32[] calldata codehashes
-    ) 
-    internal
-    onlyListOwner(id) {
+    ) internal onlyListOwner(id) {
         bytes32 codehash;
         for (uint256 i = 0; i < codehashes.length;) {
             codehash = codehashes[i];
@@ -1225,15 +1524,23 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
     /**
      * @notice Removes one or more accounts from a list.
+     * 
+     * @dev <h4>Postconditions:</h4>
+     *      1. Accounts that were previously in the list are removed from the list.
+     *      2. An `RemovedAccountFromList` event is emitted for each account that was
+     *         previously on the list.
+     * 
+     * @param list        The storage pointer for the list to remove accounts from.
+     * @param listType    The type of list the accounts are being removed from.
+     * @param id          The id of the list the accounts are being removed from.
+     * @param accounts    An array of accounts to remove from the list.
      */
     function _removeAccountsFromList(
         List storage list, 
         uint8 listType,
         uint120 id, 
         address[] memory accounts
-    ) 
-    internal 
-    onlyListOwner(id) {
+    ) internal onlyListOwner(id) {
         address account;
         for (uint256 i = 0; i < accounts.length;) {
             account = accounts[i];
@@ -1250,15 +1557,23 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
     /**
      * @notice Removes one or more codehashes from a list.
+     * 
+     * @dev <h4>Postconditions:</h4>
+     *      1. Codehashes that were previously in the list are removed from the list.
+     *      2. An `RemovedCodeHashFromList` event is emitted for each codehash that was
+     *         previously on the list.
+     * 
+     * @param list        The storage pointer for the list to remove codehashes from.
+     * @param listType    The type of list the codehashes are being removed from.
+     * @param id          The id of the list the codehashes are being removed from.
+     * @param codehashes  An array of codehashes to remove from the list.
      */
     function _removeCodeHashesFromList(
         List storage list, 
         uint8 listType, 
         uint120 id, 
         bytes32[] calldata codehashes
-    ) 
-    internal 
-    onlyListOwner(id) {
+    ) internal onlyListOwner(id) {
         bytes32 codehash;
         for (uint256 i = 0; i < codehashes.length;) {
             codehash = codehashes[i];
@@ -1281,6 +1596,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @dev    <h4>Postconditions:</h4>
      *         1. The owner of list `id` is set to `newOwner`.
      *         2. Emits a `ReassignedListOwnership` event.
+     * 
+     * @param id       The id of the list to reassign ownership of.
+     * @param newOwner The account to assign ownership of the list to.
      */
     function _reassignOwnershipOfList(uint120 id, address newOwner) private {
         _requireCallerOwnsList(id);
@@ -1292,6 +1610,8 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @notice Requires the caller to be the owner of list `id`.
      * 
      * @dev    Throws when the caller is not the owner of the list.
+     * 
+     * @param id  The id of the list to check ownership of.
      */
     function _requireCallerOwnsList(uint120 id) private view {
         if (msg.sender != listOwners[id]) {
@@ -1325,6 +1645,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @dev Hook that is called before any permitted token transfer that goes through Permit-C.
      *      Applies the collection transfer policy, using the operator that called Permit-C as the caller.
      *      This allows creator token standard protections to extend to permitted transfers.
+     * 
+     * @param token  The collection address of the token being transferred.
+     * @param from   The address of the token owner.
+     * @param to     The address of the token receiver.
+     * @param id     The token id being transferred.
      */
     function _beforeTransferFrom(
         address token, 
@@ -1347,22 +1672,32 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      *      is very deliberate.  The order of operations is determined by the most frequently used settings that are
      *      expected in the wild.
      *
-     * @dev Throws when the receiver has deployed code and isn't whitelisted, if ReceiverConstraints.NoCode is set.
+     * @dev Throws when the collection has enabled account freezing mode and either the `from` or `to` addresses
+     *      are on the list of frozen accounts for the collection.
+     * @dev Throws when the collection is set to Level 9 - Soulbound Token.
+     * @dev Throws when the receiver has deployed code and isn't whitelisted, if ReceiverConstraints.NoCode is set
+     *      and the transfer is not approved by an authorizer for the collection.
      * @dev Throws when the receiver has never verified a signature to prove they are an EOA and the receiver
-     *      isn't whitelisted, if the ReceiverConstraints.EOA is set.
+     *      isn't whitelisted, if the ReceiverConstraints.EOA is set and the transfer is not approved by an 
+     *      authorizer for the collection..
      * @dev Throws when `msg.sender` is blacklisted, if CallerConstraints.OperatorBlacklistEnableOTC is set, unless
-     *      `msg.sender` is also the `from` address.
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
      * @dev Throws when `msg.sender` isn't whitelisted, if CallerConstraints.OperatorWhitelistEnableOTC is set, unless
-     *      `msg.sender` is also the `from` address.
+     *      `msg.sender` is also the `from` address or the transfer is approved by an authorizer for the collection.
      * @dev Throws when neither `msg.sender` nor `from` are whitelisted, if 
-     *      CallerConstraints.OperatorWhitelistDisableOTC is set.
+     *      CallerConstraints.OperatorWhitelistDisableOTC is set and the transfer 
+     *      is not approved by an authorizer for the collection.
      *
      * @dev <h4>Postconditions:</h4>
      *      1. Transfer is allowed or denied based on the applied transfer policy.
      *
-     * @param caller The address initiating the transfer.
-     * @param from   The address of the token owner.
-     * @param to     The address of the token receiver.
+     * @param collection  The collection address of the token being transferred.
+     * @param caller      The address initiating the transfer.
+     * @param from        The address of the token owner.
+     * @param to          The address of the token receiver.
+     * @param tokenId     The token id being transferred.
+     * 
+     * @return The selector value for an error if the transfer is not allowed, `SELECTOR_NO_ERROR` if the transfer is allowed.
      */
     function _validateTransfer(
         address collection, 
@@ -1501,6 +1836,19 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         }
     }
 
+    /**
+     * @dev Internal function used to check if authorization mode can be activated for a transfer.
+     * 
+     * @dev Throws when the collection has not enabled authorization mode.
+     * @dev Throws when the wildcard operator is being set for a collection that does not
+     *      allow wildcard operators.
+     * @dev Throws when the authorizer is not in the list of approved authorizers for
+     *      the collection.
+     * 
+     * @param collection  The collection address to activate authorization mode for a transfer.
+     * @param operator    The operator specified by the authorizer to allow transfers.
+     * @param authorizer  The address of the authorizer making the call.
+     */
     function _checkCollectionAllowsAuthorizerAndOperator(
         address collection, 
         address operator, 
@@ -1523,6 +1871,19 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         }
     }
 
+    /**
+     * @dev Modifier to apply the allowed authorizer and operator for collection checks.
+     * 
+     * @dev Throws when the collection has not enabled authorization mode.
+     * @dev Throws when the wildcard operator is being set for a collection that does not
+     *      allow wildcard operators.
+     * @dev Throws when the authorizer is not in the list of approved authorizers for
+     *      the collection.
+     * 
+     * @param collection  The collection address to activate authorization mode for a transfer.
+     * @param operator    The operator specified by the authorizer to allow transfers.
+     * @param authorizer  The address of the authorizer making the call.
+     */
     modifier whenAuthorizerAndOperatorEnabledForCollection(
         address collection, 
         address operator, 
@@ -1532,6 +1893,13 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         _;
     }
 
+    /**
+     * @dev Internal function for setting the authorized operator in storage for a token and collection.
+     * 
+     * @param operator   The allowed operator for an authorized transfer.
+     * @param collection The address of the collection that the operator is authorized for.
+     * @param tokenId    The id of the token that is authorized.
+     */
     function _setOperatorInTransientStorage(
         address operator,
         address collection, 
@@ -1541,6 +1909,15 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         _setTstorish(_getTransientOperatorSlot(collection, tokenId), uint256(uint160(operator)));
     }
 
+    /**
+     * @dev Internal function to check if a caller is an authorized operator for the token being transferred.
+     * 
+     * @param caller     The caller of the token transfer.
+     * @param collection The collection address of the token being transferred.
+     * @param tokenId    The id of the token being transferred.
+     * 
+     * @return isAuthorized  True if the caller is authorized to transfer the token, false otherwise.
+     */
     function _callerAuthorized(
       address collection,
         address caller,
@@ -1551,13 +1928,28 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             _callerAuthorized(caller, _getTransientOperatorSlot(collection));
     }
 
+    /**
+     * @dev Internal function to check if a caller is an authorized operator. 
+     * @dev This overload of `_callerAuthorized` checks a specific storage slot for the caller address.
+     * 
+     * @param caller     The caller of the token transfer.
+     * @param slot       The storage slot to check for the caller address.
+     * 
+     * @return isAuthorized  True if the caller is authorized to transfer the token, false otherwise.
+     */
     function _callerAuthorized(address caller, uint256 slot) internal view returns (bool isAuthorized) {
         address authorizedOperator = address(uint160(_getTstorish(slot)));
         isAuthorized = authorizedOperator == WILDCARD_OPERATOR_ADDRESS || authorizedOperator == caller;
     }
 
     /**
-     * @dev Internal function used to compute the transient storage slot for the authorized operator of a collection.
+     * @dev Internal function used to compute the transient storage slot for the authorized 
+     *      operator of a token in a collection.
+     * 
+     * @param collection The collection address of the token being transferred.
+     * @param tokenId    The id of the token being transferred.
+     * 
+     * @return operatorSlot The storage slot location for the authorized operator value.
      */
     function _getTransientOperatorSlot(
         address collection, 
@@ -1570,6 +1962,13 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
        }
     }
 
+    /**
+     * @dev Internal function used to compute the transient storage slot for the authorized operator of a collection.
+     * 
+     * @param collection The collection address of the token being transferred.
+     * 
+     * @return operatorSlot The storage slot location for the authorized operator value.
+     */
     function _getTransientOperatorSlot(address collection) internal pure returns (uint256 operatorSlot) {
         return uint256(uint160(collection));
     }
@@ -1578,6 +1977,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @dev A gas efficient, and fallback-safe way to call the owner function on a token contract.
      *      This will get the owner if it exists - and when the function is unimplemented, the
      *      presence of a fallback function will not result in halted execution.
+     * 
+     * @param tokenAddress  The address of the token collection to get the owner of.
+     * 
+     * @return owner   The owner of the token collection contract.
+     * @return isError True if there was an error in retrieving the owner, false if the call was successful.
      */
     function _safeOwner(
         address tokenAddress
@@ -1599,6 +2003,13 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @dev A gas efficient, and fallback-safe way to call the hasRole function on a token contract.
      *      This will check if the account `hasRole` if `hasRole` exists - and when the function is unimplemented, the
      *      presence of a fallback function will not result in halted execution.
+     * 
+     * @param tokenAddress  The address of the token collection to call hasRole on.
+     * @param role          The role to check if the account has on the collection.
+     * @param account       The address of the account to check if they have a specified role.
+     * 
+     * @return hasRole The owner of the token collection contract.
+     * @return isError True if there was an error in retrieving the owner, false if the call was successful.
      */
     function _safeHasRole(
         address tokenAddress,
@@ -1620,10 +2031,5 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             }
             hasRole, isError := _callHasRole(tokenAddress, role, account)
         }
-    }
-
-    function _asSingletonArray(address account) private pure returns (address[] memory array) {
-        array = new address[](1);
-        array[0] = account;
     }
 }
