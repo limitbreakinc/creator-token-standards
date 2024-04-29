@@ -123,9 +123,12 @@ echo "Gas Price (wei): $GAS_PRICE"
 echo "Priority Gas Price (wei): $PRIORITY_GAS_PRICE"
 echo "Chain ID: $CHAIN_ID"
 echo "RPC URL: $RPC_URL"
-echo "SALT_TRANSFER_VALIDATOR_V2: $SALT_TRANSFER_VALIDATOR_V2"
-echo "EXPECTED_VALIDATOR_ADDRESS_V2: $EXPECTED_VALIDATOR_ADDRESS_V2"
+echo "SALT_TRANSFER_VALIDATOR: $SALT_TRANSFER_VALIDATOR"
+echo "EXPECTED_VALIDATOR_ADDRESS: $EXPECTED_VALIDATOR_ADDRESS"
 echo "DEFAULT_OWNER_ADDRESS: $DEFAULT_OWNER_ADDRESS"
+echo "EXPECTED_EOA_REGISTRY_ADDRESS: $EXPECTED_EOA_REGISTRY_ADDRESS"
+echo "VALIDATOR_NAME: $VALIDATOR_NAME"
+echo "VALIDATOR_VERSION: $VALIDATOR_VERSION"
 read -p "Do you want to proceed? (yes/no) " yn
 
 case $yn in 
@@ -136,10 +139,10 @@ case $yn in
     exit 1;;
 esac
 
-forge script script/common/DeployV2.s.sol:DeployV2 \
+forge script script/common/DeployValidator.s.sol:DeployValidator \
   --gas-price $GAS_PRICE \
   --priority-gas-price $PRIORITY_GAS_PRICE \
   --rpc-url $RPC_URL \
   --broadcast \
-  --optimizer-runs 1000000 \
+  --optimizer-runs 19500 \
   --verify $RESUME
