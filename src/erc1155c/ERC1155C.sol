@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "../utils/AutomaticValidatorTransferApproval.sol";
 import "../utils/CreatorTokenBase.sol";
 import "../token/erc1155/ERC1155OpenZeppelin.sol";
+import {TOKEN_TYPE_ERC1155} from "@limitbreak/permit-c/Constants.sol";
 
 /**
  * @title ERC1155C
@@ -87,6 +88,10 @@ abstract contract ERC1155C is ERC1155OpenZeppelin, CreatorTokenBase, AutomaticVa
             }
         }
     }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return uint16(TOKEN_TYPE_ERC1155);
+    }
 }
 
 /**
@@ -95,6 +100,12 @@ abstract contract ERC1155C is ERC1155OpenZeppelin, CreatorTokenBase, AutomaticVa
  * @notice Initializable implementation of ERC1155C to allow for EIP-1167 proxy clones.
  */
 abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, CreatorTokenBase, AutomaticValidatorTransferApproval {
+
+    function initializeERC1155(string memory uri_) public override {
+        super.initializeERC1155(uri_);
+
+        _registerTokenType(getTransferValidator());
+    }
 
     /**
      * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved
@@ -168,5 +179,9 @@ abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, Cre
                 ++i;
             }
         }
+    }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return uint16(TOKEN_TYPE_ERC1155);
     }
 }

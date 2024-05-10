@@ -12,6 +12,6 @@ contract Events {
     event RemovedAccountFromList(uint8 indexed kind, uint256 indexed id, address indexed account);
     event RemovedCodeHashFromList(uint8 indexed kind, uint256 indexed id, bytes32 indexed codehash);
     event SetTransferSecurityLevel(address indexed collection, uint8 level);
-    event SetAuthorizationModeEnabled(address indexed collection, bool enabled, bool disableAuthorizersCanSetWildcardOperators);
+    event SetAuthorizationModeEnabled(address indexed collection, bool enabled, bool authorizersCannotSetWildcardOperators);
     event SetAccountFreezingModeEnabled(address indexed collection, bool enabled);
 }

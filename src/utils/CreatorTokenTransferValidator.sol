@@ -181,7 +181,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     event SetTransferSecurityLevel(address indexed collection, uint8 level);
 
     /// @dev Emitted when a collection updates its authorization mode.
-    event SetAuthorizationModeEnabled(address indexed collection, bool disabled, bool disableAuthorizersCanSetWildcardOperators);
+    event SetAuthorizationModeEnabled(address indexed collection, bool disabled, bool authorizersCannotSetWildcardOperators);
 
     /// @dev Emitted when a collection turns account freezing on or off.
     event SetAccountFreezingModeEnabled(address indexed collection, bool enabled);
@@ -815,7 +815,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
         collectionSecurityPolicies[collection].transferSecurityLevel = level;
         collectionSecurityPolicies[collection].disableAuthorizationMode = disableAuthorizationMode;
-        collectionSecurityPolicies[collection].disableAuthorizersCanSetWildcardOperators = disableWildcardOperators;
+        collectionSecurityPolicies[collection].authorizersCannotSetWildcardOperators = disableWildcardOperators;
         collectionSecurityPolicies[collection].enableAccountFreezingMode = enableAccountFreezingMode;
         emit SetTransferSecurityLevel(collection, level);
         emit SetAuthorizationModeEnabled(collection, disableAuthorizationMode, disableWildcardOperators);
@@ -1887,7 +1887,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             revert CreatorTokenTransferValidator__AuthorizationDisabledForCollection();
         }
 
-        if (collectionSecurityPolicy.disableAuthorizersCanSetWildcardOperators) {
+        if (collectionSecurityPolicy.authorizersCannotSetWildcardOperators) {
             if (operator == WILDCARD_OPERATOR_ADDRESS) {
                 revert CreatorTokenTransferValidator__WildcardOperatorsCannotBeAuthorizedForCollection();
             }

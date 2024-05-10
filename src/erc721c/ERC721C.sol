@@ -5,6 +5,7 @@ import "../utils/AutomaticValidatorTransferApproval.sol";
 import "../utils/CreatorTokenBase.sol";
 import "../token/erc721/ERC721OpenZeppelin.sol";
 import "../interfaces/ITransferValidatorSetTokenType.sol";
+import {TOKEN_TYPE_ERC721} from "@limitbreak/permit-c/Constants.sol";
 
 /**
  * @title ERC721C
@@ -14,10 +15,6 @@ import "../interfaces/ITransferValidatorSetTokenType.sol";
  *         an external transfer validation security policy registry.  See {CreatorTokenTransferValidator}.
  */
 abstract contract ERC721C is ERC721OpenZeppelin, CreatorTokenBase, AutomaticValidatorTransferApproval {
-
-    constructor() {
-        _registerTokenType(DEFAULT_TRANSFER_VALIDATOR);
-    }
 
     /**
      * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved
@@ -84,7 +81,7 @@ abstract contract ERC721C is ERC721OpenZeppelin, CreatorTokenBase, AutomaticVali
     }
 
     function _tokenType() internal pure override returns(uint16) {
-        return 721;
+        return uint16(TOKEN_TYPE_ERC721);
     }
 }
 
@@ -98,7 +95,7 @@ abstract contract ERC721CInitializable is ERC721OpenZeppelinInitializable, Creat
     function initializeERC721(string memory name_, string memory symbol_) public override {
         super.initializeERC721(name_, symbol_);
 
-        _registerTokenType(DEFAULT_TRANSFER_VALIDATOR);
+        _registerTokenType(getTransferValidator());
     }
 
     /**
@@ -166,6 +163,6 @@ abstract contract ERC721CInitializable is ERC721OpenZeppelinInitializable, Creat
     }
 
     function _tokenType() internal pure override returns(uint16) {
-        return 721;
+        return uint16(TOKEN_TYPE_ERC721);
     }
 }

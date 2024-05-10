@@ -19,7 +19,7 @@ abstract contract ERC1155OpenZeppelinInitializable is OwnablePermissions, ERC115
 
     bool private _erc1155Initialized;
 
-    function initializeERC1155(string memory uri_) public {
+    function initializeERC1155(string memory uri_) public virtual {
         _requireCallerIsContractOwner();
 
         if(_erc1155Initialized) {

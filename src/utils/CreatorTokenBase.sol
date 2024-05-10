@@ -49,6 +49,10 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
     /// @dev Address of the transfer validator to apply to transactions.
     address private transferValidator;
 
+    constructor() {
+        _registerTokenType(DEFAULT_TRANSFER_VALIDATOR);
+    }
+
     /**
      * @notice Sets the transfer validator for the token contract.
      *
@@ -162,7 +166,7 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
         }
     }
 
-    function _tokenType() internal virtual pure returns(uint16) { return 0; }
+    function _tokenType() internal virtual pure returns(uint16);
 
     function _registerTokenType(address validator) internal {
         if (validator != address(0)) {

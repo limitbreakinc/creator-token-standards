@@ -24,7 +24,7 @@ enum StakerConstraints {
  */
 struct CollectionSecurityPolicyV3 {
     bool disableAuthorizationMode;
-    bool disableAuthorizersCanSetWildcardOperators;
+    bool authorizersCannotSetWildcardOperators;
     uint8 transferSecurityLevel;
     uint120 listId;
     bool enableAccountFreezingMode;
