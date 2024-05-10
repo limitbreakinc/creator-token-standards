@@ -16,7 +16,7 @@ import "../interfaces/ITransferValidatorSetTokenType.sol";
 abstract contract ERC721C is ERC721OpenZeppelin, CreatorTokenBase, AutomaticValidatorTransferApproval {
 
     constructor() {
-        //_registerTokenType(getTransferValidator());
+        _registerTokenType(DEFAULT_TRANSFER_VALIDATOR);
     }
 
     /**
@@ -98,7 +98,7 @@ abstract contract ERC721CInitializable is ERC721OpenZeppelinInitializable, Creat
     function initializeERC721(string memory name_, string memory symbol_) public override {
         super.initializeERC721(name_, symbol_);
 
-        _registerTokenType(getTransferValidator());
+        _registerTokenType(DEFAULT_TRANSFER_VALIDATOR);
     }
 
     /**

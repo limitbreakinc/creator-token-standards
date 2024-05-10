@@ -7,6 +7,7 @@ import "../interfaces/ICreatorTokenLegacy.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferValidation.sol";
 import "../interfaces/ITransferValidatorSetTokenType.sol";
+import "forge-std/console.sol";
 
 /**
  * @title CreatorTokenBase
@@ -165,8 +166,14 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
 
     function _registerTokenType(address validator) internal {
         if (validator != address(0)) {
-            try ITransferValidatorSetTokenType(validator).setTokenType(address(this), _tokenType()) {
-            } catch { }
+            uint256 validatorCodeSize;
+            assembly {
+                validatorCodeSize := extcodesize(validator)
+            }
+            if(validatorCodeSize > 0) {
+                try ITransferValidatorSetTokenType(validator).setTokenType(address(this), _tokenType()) {
+                } catch { }
+            }
         }
     }
 }

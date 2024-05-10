@@ -7,6 +7,11 @@ import "../interfaces/ITransferValidator.sol";
 import "./TransferPolicy.sol";
 import {CreatorTokenTransferValidatorConfiguration} from "./CreatorTokenTransferValidatorConfiguration.sol";
 import "@limitbreak/permit-c/PermitC.sol";
+import {
+    TOKEN_TYPE_ERC721,
+    TOKEN_TYPE_ERC1155,
+    TOKEN_TYPE_ERC20
+} from "@limitbreak/permit-c/Constants.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@opensea/tstorish/Tstorish.sol";
@@ -176,7 +181,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     event SetTransferSecurityLevel(address indexed collection, uint8 level);
 
     /// @dev Emitted when a collection updates its authorization mode.
-    event SetAuthorizationModeEnabled(address indexed collection, bool enabled, bool authorizersCanSetWildcardOperators);
+    event SetAuthorizationModeEnabled(address indexed collection, bool disabled, bool disableAuthorizersCanSetWildcardOperators);
 
     /// @dev Emitted when a collection turns account freezing on or off.
     event SetAccountFreezingModeEnabled(address indexed collection, bool enabled);
@@ -790,17 +795,17 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      *      6. A `SetAuthorizationModeEnabled` event is emitted.
      *      7. A `SetAccountFreezingModeEnabled` event is emitted.
      *
-     * @param collection                          The address of the collection.
-     * @param level                               The new transfer security level to apply.
-     * @param enableAuthorizationMode             Flag if the collection allows for authorizer mode.
-     * @param authorizersCanSetWildcardOperators  Flag if the authorizer can set wildcard operators.
-     * @param enableAccountFreezingMode           Flag if the collection is using account freezing.
+     * @param collection                 The address of the collection.
+     * @param level                      The new transfer security level to apply.
+     * @param disableAuthorizationMode   Flag if the collection allows for authorizer mode.
+     * @param disableWildcardOperators   Flag if the authorizer can set wildcard operators.
+     * @param enableAccountFreezingMode  Flag if the collection is using account freezing.
      */
     function setTransferSecurityLevelOfCollection(
         address collection, 
         uint8 level,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool disableWildcardOperators,
         bool enableAccountFreezingMode) external {
 
         if (level > TRANSFER_SECURITY_LEVEL_NINE) {
@@ -809,11 +814,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
         collectionSecurityPolicies[collection].transferSecurityLevel = level;
-        collectionSecurityPolicies[collection].enableAuthorizationMode = enableAuthorizationMode;
-        collectionSecurityPolicies[collection].authorizersCanSetWildcardOperators = authorizersCanSetWildcardOperators;
+        collectionSecurityPolicies[collection].disableAuthorizationMode = disableAuthorizationMode;
+        collectionSecurityPolicies[collection].disableAuthorizersCanSetWildcardOperators = disableWildcardOperators;
         collectionSecurityPolicies[collection].enableAccountFreezingMode = enableAccountFreezingMode;
         emit SetTransferSecurityLevel(collection, level);
-        emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode, authorizersCanSetWildcardOperators);
+        emit SetAuthorizationModeEnabled(collection, disableAuthorizationMode, disableWildcardOperators);
         emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
     }
 
@@ -1878,11 +1883,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     ) internal view {
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
 
-        if (!collectionSecurityPolicy.enableAuthorizationMode) {
+        if (collectionSecurityPolicy.disableAuthorizationMode) {
             revert CreatorTokenTransferValidator__AuthorizationDisabledForCollection();
         }
 
-        if (!collectionSecurityPolicy.authorizersCanSetWildcardOperators) {
+        if (collectionSecurityPolicy.disableAuthorizersCanSetWildcardOperators) {
             if (operator == WILDCARD_OPERATOR_ADDRESS) {
                 revert CreatorTokenTransferValidator__WildcardOperatorsCannotBeAuthorizedForCollection();
             }

@@ -151,6 +151,7 @@ contract PermitTransferValidatorTestERC721 is TransferValidatorTest {
             keccak256(
                 abi.encode(
                     SINGLE_USE_PERMIT_TYPEHASH,
+                    TOKEN_TYPE_ERC721,
                     permit.token,
                     permit.id,
                     permit.amount,
