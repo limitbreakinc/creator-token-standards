@@ -688,7 +688,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @return id   The id of the new list.
      */
     function createList(string calldata name) public returns (uint120 id) {
-        id = ++lastListId;
+        unchecked {
+            id = ++lastListId;
+        }
 
         listOwners[id] = msg.sender;
 
@@ -715,7 +717,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @return id           The id of the new list.
      */
     function createListCopy(string calldata name, uint120 sourceListId) external returns (uint120 id) {
-        id = ++lastListId;
+        unchecked {
+            id = ++lastListId;
+        }
 
         unchecked {
             if (sourceListId > id - 1) {
