@@ -42,7 +42,7 @@ abstract contract ERC721OpenZeppelinInitializable is OwnablePermissions, ERC721O
 
     /// @dev Initializes parameters of ERC721 tokens.
     /// These cannot be set in the constructor because this contract is optionally compatible with EIP-1167.
-    function initializeERC721(string memory name_, string memory symbol_) public {
+    function initializeERC721(string memory name_, string memory symbol_) public virtual {
         _requireCallerIsContractOwner();
 
         if(_erc721Initialized) {

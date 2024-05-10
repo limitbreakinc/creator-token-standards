@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "../utils/AutomaticValidatorTransferApproval.sol";
 import "../utils/CreatorTokenBase.sol";
 import "../token/erc721/ERC721OpenZeppelin.sol";
+import "../interfaces/ITransferValidatorSetTokenType.sol";
 
 /**
  * @title ERC721C
@@ -14,6 +15,10 @@ import "../token/erc721/ERC721OpenZeppelin.sol";
  */
 abstract contract ERC721C is ERC721OpenZeppelin, CreatorTokenBase, AutomaticValidatorTransferApproval {
 
+    constructor() {
+        //_registerTokenType(getTransferValidator());
+    }
+
     /**
      * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved
      *         for all, the contract owner can optionally auto-approve the 721-C transfer validator for transfers.
@@ -76,6 +81,10 @@ abstract contract ERC721C is ERC721OpenZeppelin, CreatorTokenBase, AutomaticVali
                 ++i;
             }
         }
+    }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return 721;
     }
 }
 
@@ -86,6 +95,12 @@ abstract contract ERC721C is ERC721OpenZeppelin, CreatorTokenBase, AutomaticVali
  */
 abstract contract ERC721CInitializable is ERC721OpenZeppelinInitializable, CreatorTokenBase, AutomaticValidatorTransferApproval {
 
+    function initializeERC721(string memory name_, string memory symbol_) public override {
+        super.initializeERC721(name_, symbol_);
+
+        _registerTokenType(getTransferValidator());
+    }
+
     /**
      * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved
      *         for all, the contract owner can optionally auto-approve the 721-C transfer validator for transfers.
@@ -148,5 +163,9 @@ abstract contract ERC721CInitializable is ERC721OpenZeppelinInitializable, Creat
                 ++i;
             }
         }
+    }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return 721;
     }
 }

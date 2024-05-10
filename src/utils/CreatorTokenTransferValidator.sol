@@ -227,6 +227,8 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
     address private constant WILDCARD_OPERATOR_ADDRESS = address(0x01);
 
+    uint16 private constant DEFAULT_TOKEN_TYPE = 0;
+
     /*************************************************************************/
     /*                                STORAGE                                */
     /*************************************************************************/
@@ -259,7 +261,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         string memory version
     ) 
     Tstorish()
-    PermitC(name, version) {
+    PermitC(name, version, address(1), 5 ether) {
         if (defaultOwner == address(0) || eoaRegistry_ == address(0)) {
             revert CreatorTokenTransferValidator__InvalidConstructorArgs();
         }
@@ -373,7 +375,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param to          The address of the token receiver.
      */
     function validateTransfer(address caller, address from, address to) public view {
-        bytes4 errorSelector = _validateTransfer(msg.sender, caller, from, to, 0);
+        (bytes4 errorSelector,) = _validateTransfer(msg.sender, caller, from, to, 0);
         if (errorSelector != SELECTOR_NO_ERROR) {
             _revertCustomErrorSelectorAsm(errorSelector);
         }
@@ -415,7 +417,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param tokenId     The token id being transferred.
      */
     function validateTransfer(address caller, address from, address to, uint256 tokenId) public view {
-        bytes4 errorSelector = _validateTransfer(msg.sender, caller, from, to, tokenId);
+        (bytes4 errorSelector,) = _validateTransfer(msg.sender, caller, from, to, tokenId);
         if (errorSelector != SELECTOR_NO_ERROR) {
             _revertCustomErrorSelectorAsm(errorSelector);
         }
@@ -806,6 +808,15 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         emit SetTransferSecurityLevel(collection, level);
         emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode, authorizersCanSetWildcardOperators);
         emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
+    }
+
+
+    function setTokenType(
+        address collection, 
+        uint16 tokenType
+    ) external {
+        _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
+        collectionSecurityPolicies[collection].tokenType = tokenType;
     }
 
     /**
@@ -1650,13 +1661,19 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param id     The token id being transferred.
      */
     function _beforeTransferFrom(
+        uint256 tokenType,
         address token, 
         address from, 
         address to, 
         uint256 id, 
         uint256 /*amount*/
     ) internal override returns (bool isError) {
-        isError = SELECTOR_NO_ERROR != _validateTransfer(token, msg.sender, from, to, id);
+        (bytes4 selector, uint16 collectionTokenType) = _validateTransfer(token, msg.sender, from, to, id);
+        if (collectionTokenType == DEFAULT_TOKEN_TYPE || collectionTokenType == tokenType) {
+            isError = SELECTOR_NO_ERROR != selector;
+        } else {
+            revert();
+        }
     }
 
     /**
@@ -1703,12 +1720,12 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         address from, 
         address to,
         uint256 tokenId
-    ) internal view returns (bytes4) {
+    ) internal view returns (bytes4,uint16) {
         if (caller == address(this)) { 
             // If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
             // _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
             // that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
-            return SELECTOR_NO_ERROR;
+            return (SELECTOR_NO_ERROR,0);
         }
 
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
@@ -1722,16 +1739,16 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             AccountList storage frozenAccountList = frozenAccounts[collection];
             
             if (frozenAccountList.nonEnumerableAccounts[from]) {
-                return CreatorTokenTransferValidator__SenderAccountIsFrozen.selector;
+                return (CreatorTokenTransferValidator__SenderAccountIsFrozen.selector,0);
             }
 
             if (frozenAccountList.nonEnumerableAccounts[to]) {
-                return CreatorTokenTransferValidator__ReceiverAccountIsFrozen.selector;
+                return (CreatorTokenTransferValidator__ReceiverAccountIsFrozen.selector,0);
             }
         }
 
         if (callerConstraints == CALLER_CONSTRAINTS_SBT) {
-            return CreatorTokenTransferValidator__TokenIsSoulbound.selector;
+            return (CreatorTokenTransferValidator__TokenIsSoulbound.selector,0);
         }
 
         List storage whitelist = whitelists[listId];
@@ -1741,7 +1758,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
                 if (!whitelist.nonEnumerableAccounts[to]) {
                     if(!_callerAuthorized(collection, caller, tokenId)) {
                         if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                            return CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector;
+                            return (CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector,0);
                         }
                     }
                 }
@@ -1751,7 +1768,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
                 if (!whitelist.nonEnumerableAccounts[to]) {
                     if(!_callerAuthorized(collection, caller, tokenId)) {
                         if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                            return CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector;
+                            return (CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector,0);
                         }
                     }
                 }
@@ -1760,66 +1777,66 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
         if (caller == from) {
             if (callerConstraints != CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
         }
 
         if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC) {
             if(_callerAuthorized(collection, caller, tokenId)) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             List storage blacklist = blacklists[listId];
             if (blacklist.nonEnumerableAccounts[caller]) {
-                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
+                return (CreatorTokenTransferValidator__OperatorIsBlacklisted.selector,0);
             }
 
             if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
+                return (CreatorTokenTransferValidator__OperatorIsBlacklisted.selector,0);
             }
         } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC) {
             if (whitelist.nonEnumerableAccounts[caller]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             if( _callerAuthorized(collection, caller, tokenId)) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
-            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
+            return (CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector,0);
         } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
             mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
 
             if (accountWhitelist[caller]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             if (accountWhitelist[from]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             if(_callerAuthorized(collection, caller, tokenId)) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
 
             if (codehashWhitelist[_getCodeHashAsm(caller)]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             if (codehashWhitelist[_getCodeHashAsm(from)]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
-            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
+            return (CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector,0);
         }
 
-        return SELECTOR_NO_ERROR;
+        return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
     }
 
     /**

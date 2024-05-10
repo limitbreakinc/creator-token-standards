@@ -6,6 +6,7 @@ import "../interfaces/ICreatorToken.sol";
 import "../interfaces/ICreatorTokenLegacy.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferValidation.sol";
+import "../interfaces/ITransferValidatorSetTokenType.sol";
 
 /**
  * @title CreatorTokenBase
@@ -72,6 +73,8 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
 
         isValidatorInitialized = true;
         transferValidator = transferValidator_;
+
+        _registerTokenType(transferValidator_);
     }
 
     /**
@@ -155,6 +158,15 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
             }
 
             ITransferValidator(validator).validateTransfer(caller, from, to, tokenId, amount);
+        }
+    }
+
+    function _tokenType() internal virtual pure returns(uint16) { return 0; }
+
+    function _registerTokenType(address validator) internal {
+        if (validator != address(0)) {
+            try ITransferValidatorSetTokenType(validator).setTokenType(address(this), _tokenType()) {
+            } catch { }
         }
     }
 }

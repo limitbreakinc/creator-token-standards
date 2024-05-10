@@ -9,7 +9,7 @@ solc_version = "0.8.24"
 evm_version = "cancun"
 
 optimizer = true
-optimizer_runs = 19500
+optimizer_runs = 1_500
 
 [fuzz]
 runs = 256

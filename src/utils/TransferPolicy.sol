@@ -28,4 +28,5 @@ struct CollectionSecurityPolicyV3 {
     uint8 transferSecurityLevel;
     uint120 listId;
     bool enableAccountFreezingMode;
+    uint16 tokenType;
 }
