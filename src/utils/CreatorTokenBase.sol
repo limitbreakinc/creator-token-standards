@@ -175,7 +175,7 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
                 validatorCodeSize := extcodesize(validator)
             }
             if(validatorCodeSize > 0) {
-                try ITransferValidatorSetTokenType(validator).setTokenType(address(this), _tokenType()) {
+                try ITransferValidatorSetTokenType(validator).setTokenTypeOfCollection(address(this), _tokenType()) {
                 } catch { }
             }
         }

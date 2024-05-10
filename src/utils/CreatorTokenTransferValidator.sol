@@ -7,11 +7,6 @@ import "../interfaces/ITransferValidator.sol";
 import "./TransferPolicy.sol";
 import {CreatorTokenTransferValidatorConfiguration} from "./CreatorTokenTransferValidatorConfiguration.sol";
 import "@limitbreak/permit-c/PermitC.sol";
-import {
-    TOKEN_TYPE_ERC721,
-    TOKEN_TYPE_ERC1155,
-    TOKEN_TYPE_ERC20
-} from "@limitbreak/permit-c/Constants.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@opensea/tstorish/Tstorish.sol";
@@ -185,6 +180,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
     /// @dev Emitted when a collection turns account freezing on or off.
     event SetAccountFreezingModeEnabled(address indexed collection, bool enabled);
+
+    /// @dev Emitted when a collection's token type is updated.
+    event SetTokenType(address indexed collection, uint16 tokenType);
 
     /*************************************************************************/
     /*                                STRUCTS                                */
@@ -822,13 +820,25 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
     }
 
-
-    function setTokenType(
+    /**
+     * @notice Set the token type setting of a collection.
+     *
+     * @dev Throws when the caller is neither collection contract, nor the owner or admin of the specified collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The token type of the specified collection is set to the new value.
+     *      2. A `SetTokenType` event is emitted.
+     *
+     * @param collection  The address of the collection.
+     * @param tokenType   The new transfer security level to apply.
+     */
+    function setTokenTypeOfCollection(
         address collection, 
         uint16 tokenType
     ) external {
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
         collectionSecurityPolicies[collection].tokenType = tokenType;
+        emit SetTokenType(collection, tokenType);
     }
 
     /**
@@ -1373,24 +1383,23 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param tokenAddress The contract address of the token to check permissions for.
      */
     function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
-        bool callerHasPermissions = false;
-
         address caller = msg.sender;
         
-        callerHasPermissions = caller == tokenAddress;
-        if(!callerHasPermissions) {
-            (address contractOwner,) = _safeOwner(tokenAddress);
-            callerHasPermissions = caller == contractOwner;
-
-            if(!callerHasPermissions) {
-                (bool callerIsContractAdmin,) = _safeHasRole(tokenAddress, DEFAULT_ACCESS_CONTROL_ADMIN_ROLE, caller);
-                callerHasPermissions = callerIsContractAdmin;
-            }
+        if(caller == tokenAddress) {
+            return;
         }
 
-        if(!callerHasPermissions) {
-            revert CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
+        (address contractOwner,) = _safeOwner(tokenAddress);
+        if(caller == contractOwner) {
+            return;
         }
+
+        (bool callerIsContractAdmin,) = _safeHasRole(tokenAddress, DEFAULT_ACCESS_CONTROL_ADMIN_ROLE, caller);
+        if(callerIsContractAdmin) {
+            return;
+        }
+
+        revert CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
     }
 
     /**
@@ -1751,16 +1760,16 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             AccountList storage frozenAccountList = frozenAccounts[collection];
             
             if (frozenAccountList.nonEnumerableAccounts[from]) {
-                return (CreatorTokenTransferValidator__SenderAccountIsFrozen.selector,0);
+                return (CreatorTokenTransferValidator__SenderAccountIsFrozen.selector, DEFAULT_TOKEN_TYPE);
             }
 
             if (frozenAccountList.nonEnumerableAccounts[to]) {
-                return (CreatorTokenTransferValidator__ReceiverAccountIsFrozen.selector,0);
+                return (CreatorTokenTransferValidator__ReceiverAccountIsFrozen.selector, DEFAULT_TOKEN_TYPE);
             }
         }
 
         if (callerConstraints == CALLER_CONSTRAINTS_SBT) {
-            return (CreatorTokenTransferValidator__TokenIsSoulbound.selector,0);
+            return (CreatorTokenTransferValidator__TokenIsSoulbound.selector, DEFAULT_TOKEN_TYPE);
         }
 
         List storage whitelist = whitelists[listId];
@@ -1770,7 +1779,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
                 if (!whitelist.nonEnumerableAccounts[to]) {
                     if(!_callerAuthorized(collection, caller, tokenId)) {
                         if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                            return (CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector,0);
+                            return (CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector, DEFAULT_TOKEN_TYPE);
                         }
                     }
                 }
@@ -1780,7 +1789,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
                 if (!whitelist.nonEnumerableAccounts[to]) {
                     if(!_callerAuthorized(collection, caller, tokenId)) {
                         if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                            return (CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector,0);
+                            return (CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector, DEFAULT_TOKEN_TYPE);
                         }
                     }
                 }
@@ -1800,11 +1809,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
             List storage blacklist = blacklists[listId];
             if (blacklist.nonEnumerableAccounts[caller]) {
-                return (CreatorTokenTransferValidator__OperatorIsBlacklisted.selector,0);
+                return (CreatorTokenTransferValidator__OperatorIsBlacklisted.selector, DEFAULT_TOKEN_TYPE);
             }
 
             if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                return (CreatorTokenTransferValidator__OperatorIsBlacklisted.selector,0);
+                return (CreatorTokenTransferValidator__OperatorIsBlacklisted.selector, DEFAULT_TOKEN_TYPE);
             }
         } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC) {
             if (whitelist.nonEnumerableAccounts[caller]) {
@@ -1819,7 +1828,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
                 return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
-            return (CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector,0);
+            return (CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector, DEFAULT_TOKEN_TYPE);
         } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
             mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
 
@@ -1845,7 +1854,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
                 return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
-            return (CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector,0);
+            return (CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector, DEFAULT_TOKEN_TYPE);
         }
 
         return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
