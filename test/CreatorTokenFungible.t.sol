@@ -7,7 +7,7 @@ import "./mocks/ContractMock.sol";
 import "./mocks/ERC721CMock.sol";
 import "./interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
-import "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidator} from "src/utils/CreatorTokenTransferValidator.sol";
 import "src/Constants.sol";
 import "./utils/Events.sol";
 import "./utils/Helpers.sol";

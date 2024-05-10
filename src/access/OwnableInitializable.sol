@@ -17,7 +17,7 @@ abstract contract OwnableInitializable is OwnablePermissions, Ownable {
      * not called during the cloning process.
      */
     function initializeOwner(address owner_) public {
-      if (_ownerInitialized) {
+      if (owner() != address(0) || _ownerInitialized) {
           revert InitializableOwnable__OwnerAlreadyInitialized();
       }
 
@@ -27,6 +27,8 @@ abstract contract OwnableInitializable is OwnablePermissions, Ownable {
 
     function renounceOwnership() public override {
         super.renounceOwnership();
+
+        // Ensure _ownerInitialized flag is true to prevent recapture of ownership.
         _ownerInitialized = true;
     }
 

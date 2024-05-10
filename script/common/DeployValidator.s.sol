@@ -12,7 +12,9 @@ contract DeployValidator is Script {
         address defaultOwner = vm.envAddress("DEFAULT_OWNER_ADDRESS");
         
         vm.startBroadcast(deployerPrivateKey);
-        address validator = address(new CreatorTokenTransferValidator{salt: saltValue}(defaultOwner, address(0), "", ""));
+        // TODO: Update validator configuration deployment
+        address validatorConfiguration = address(new CreatorTokenTransferValidatorConfiguration{salt: saltValue}(defaultOwner, 0));
+        address validator = address(new CreatorTokenTransferValidator(defaultOwner, address(0), "", "", validatorConfiguration));
         vm.stopBroadcast();
 
         console.log("CreatorTokenTransferValidatorV2: ", validator);

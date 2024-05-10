@@ -5,6 +5,7 @@ import "../Constants.sol";
 import "../interfaces/IEOARegistry.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferPolicy.sol";
+import {CreatorTokenTransferValidatorConfiguration} from "./CreatorTokenTransferValidatorConfiguration.sol";
 import "@limitbreak/permit-c/PermitC.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -258,10 +259,16 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         address defaultOwner,
         address eoaRegistry_,
         string memory name,
-        string memory version
+        string memory version,
+        address validatorConfiguration
     ) 
     Tstorish()
-    PermitC(name, version, address(1), 5 ether) {
+    PermitC(
+        name,
+        version,
+        defaultOwner,
+        CreatorTokenTransferValidatorConfiguration(validatorConfiguration).getNativeValueToCheckPauseState(msg.sender)
+    ) {
         if (defaultOwner == address(0) || eoaRegistry_ == address(0)) {
             revert CreatorTokenTransferValidator__InvalidConstructorArgs();
         }

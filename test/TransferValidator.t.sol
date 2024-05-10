@@ -7,7 +7,8 @@ import "./mocks/ContractMock.sol";
 import "./mocks/ERC721CMock.sol";
 import "./interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
-import "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidator, IPermitC} from "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidatorConfiguration} from "src/utils/CreatorTokenTransferValidatorConfiguration.sol";
 import "src/Constants.sol";
 import "./utils/Events.sol";
 import "./utils/Helpers.sol";
@@ -15,6 +16,7 @@ import "./EOARegistry.t.sol";
 
 contract TransferValidatorTest is Events, EOARegistryTest {
     CreatorTokenTransferValidator public validator;
+    CreatorTokenTransferValidatorConfiguration public validatorConfiguration;
 
     function setUp() public virtual override {
         super.setUp();
@@ -23,7 +25,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         emit CreatorTokenTransferValidator.CreatedList(0, "DEFAULT LIST");
         vm.expectEmit(true, true, true, true);
         emit CreatorTokenTransferValidator.ReassignedListOwnership(0, address(this));
-        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "");
+        validatorConfiguration = new CreatorTokenTransferValidatorConfiguration(address(this), 0);
+        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "", address(validatorConfiguration));
     }
 
     function testSupportedInterfaces() public {

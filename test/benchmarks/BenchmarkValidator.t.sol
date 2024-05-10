@@ -8,7 +8,10 @@ import "../mocks/ContractMock.sol";
 import "../mocks/ERC721CMock.sol";
 import "../interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
-import "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidator} from "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidatorConfiguration} from "src/utils/CreatorTokenTransferValidatorConfiguration.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "src/Constants.sol";
 import "src/utils/EOARegistry.sol";
 
 // Overall Gas Efficiency:
@@ -21,6 +24,7 @@ contract BenchmarkValidator is Test {
 
     EOARegistry public eoaRegistry;
     CreatorTokenTransferValidator public validator;
+    CreatorTokenTransferValidatorConfiguration public validatorConfiguration;
 
     address validatorDeployer;
 
@@ -53,7 +57,8 @@ contract BenchmarkValidator is Test {
 
         validatorDeployer = vm.addr(1);
         vm.startPrank(validatorDeployer);
-        validator = new CreatorTokenTransferValidator(validatorDeployer, address(eoaRegistry), "", "");
+        validatorConfiguration = new CreatorTokenTransferValidatorConfiguration(validatorDeployer, 0);
+        validator = new CreatorTokenTransferValidator(validatorDeployer, address(eoaRegistry), "", "", address(validatorConfiguration));
         vm.stopPrank();
 
         tokenLevelOne = _deployNewToken(address(this));
