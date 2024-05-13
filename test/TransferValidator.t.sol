@@ -4795,6 +4795,20 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         vm.stopPrank();
     }
 
+    function _configureCollectionTokenType(
+        address collection,
+        uint256 tokenType
+    ) internal {
+        vm.startPrank(collection);
+
+        validator.setTokenTypeOfCollection(
+            collection, 
+            uint16(tokenType)
+        );
+
+        vm.stopPrank();
+    }
+
     function _validateTransfersWithExpectedRevert(
         address collection,
         address caller,
