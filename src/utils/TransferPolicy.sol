@@ -23,9 +23,10 @@ enum StakerConstraints {
  * @dev **enableGraylisting**: If true, graylisting will be enabled for the collection.
  */
 struct CollectionSecurityPolicyV3 {
-    bool enableAuthorizationMode;
-    bool authorizersCanSetWildcardOperators;
+    bool disableAuthorizationMode;
+    bool authorizersCannotSetWildcardOperators;
     uint8 transferSecurityLevel;
     uint120 listId;
     bool enableAccountFreezingMode;
+    uint16 tokenType;
 }

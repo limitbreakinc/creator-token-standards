@@ -22,7 +22,7 @@ abstract contract AdventureERC721CW is ERC721WrapperBase, AdventureERC721C {
     IERC721 private immutable wrappedCollectionImmutable;
 
     constructor(address wrappedCollectionAddress_) {
-        _setWrappedCollectionAddress(wrappedCollectionAddress_);
+        _validateWrappedCollectionAddress(wrappedCollectionAddress_);
         wrappedCollectionImmutable = IERC721(wrappedCollectionAddress_);
     }
 
@@ -80,6 +80,9 @@ abstract contract AdventureERC721CWInitializable is ERC721WrapperBase, Adventure
 
     error AdventureERC721CWInitializable__AlreadyInitializedWrappedCollection();
 
+    /// @dev Points to an external ERC721 contract that will be wrapped via staking.
+    IERC721 private wrappedCollection;
+
     bool private _wrappedCollectionInitialized;
 
     function initializeWrappedCollectionAddress(address wrappedCollectionAddress_) public {
@@ -91,8 +94,10 @@ abstract contract AdventureERC721CWInitializable is ERC721WrapperBase, Adventure
 
         _wrappedCollectionInitialized = true;
 
-        _setWrappedCollectionAddress(wrappedCollectionAddress_);
+        _validateWrappedCollectionAddress(wrappedCollectionAddress_);
+        wrappedCollection = IERC721(wrappedCollectionAddress_);
     }
+
     /**
      * @notice Indicates whether the contract implements the specified interface.
      * @dev Overrides supportsInterface in ERC165.
@@ -105,6 +110,11 @@ abstract contract AdventureERC721CWInitializable is ERC721WrapperBase, Adventure
         interfaceId == type(ICreatorToken).interfaceId || 
         interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
+    }
+
+    /// @notice Returns the address of the wrapped ERC721 contract.
+    function getWrappedCollectionAddress() public virtual view override returns (address) {
+        return address(wrappedCollection);
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {

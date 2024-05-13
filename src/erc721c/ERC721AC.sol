@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "../utils/AutomaticValidatorTransferApproval.sol";
 import "../utils/CreatorTokenBase.sol";
 import "erc721a/contracts/ERC721A.sol";
+import {TOKEN_TYPE_ERC721} from "@limitbreak/permit-c/Constants.sol";
 
 /**
  * @title ERC721AC
@@ -84,5 +85,9 @@ abstract contract ERC721AC is ERC721A, CreatorTokenBase, AutomaticValidatorTrans
 
     function _msgSenderERC721A() internal view virtual override returns (address) {
         return _msgSender();
+    }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return uint16(TOKEN_TYPE_ERC721);
     }
 }

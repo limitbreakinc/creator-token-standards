@@ -6,6 +6,8 @@ import "../interfaces/ICreatorToken.sol";
 import "../interfaces/ICreatorTokenLegacy.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferValidation.sol";
+import "../interfaces/ITransferValidatorSetTokenType.sol";
+import "forge-std/console.sol";
 
 /**
  * @title CreatorTokenBase
@@ -47,6 +49,10 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
     /// @dev Address of the transfer validator to apply to transactions.
     address private transferValidator;
 
+    constructor() {
+        _registerTokenType(DEFAULT_TRANSFER_VALIDATOR);
+    }
+
     /**
      * @notice Sets the transfer validator for the token contract.
      *
@@ -72,6 +78,8 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
 
         isValidatorInitialized = true;
         transferValidator = transferValidator_;
+
+        _registerTokenType(transferValidator_);
     }
 
     /**
@@ -155,6 +163,21 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
             }
 
             ITransferValidator(validator).validateTransfer(caller, from, to, tokenId, amount);
+        }
+    }
+
+    function _tokenType() internal virtual pure returns(uint16);
+
+    function _registerTokenType(address validator) internal {
+        if (validator != address(0)) {
+            uint256 validatorCodeSize;
+            assembly {
+                validatorCodeSize := extcodesize(validator)
+            }
+            if(validatorCodeSize > 0) {
+                try ITransferValidatorSetTokenType(validator).setTokenTypeOfCollection(address(this), _tokenType()) {
+                } catch { }
+            }
         }
     }
 }

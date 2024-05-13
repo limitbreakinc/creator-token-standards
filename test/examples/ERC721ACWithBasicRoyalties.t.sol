@@ -163,6 +163,9 @@ contract ERC721ACWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
         vm.assume(salePrice > 0);
         vm.assume(newRoyaltyNumerator < FEE_DENOMINATOR);
         vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
+        if(newRoyaltyNumerator > 0) {
+            vm.assume(salePrice < type(uint256).max / newRoyaltyNumerator);
+        }
 
         uint256 nextTokenId = tokenMock.totalSupply();
         uint256 lastTokenId = nextTokenId + quantity - 1;
@@ -192,6 +195,9 @@ contract ERC721ACWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
         vm.assume(salePrice > 0);
         vm.assume(newRoyaltyNumerator < FEE_DENOMINATOR);
         vm.assume(salePrice < type(uint256).max / DEFAULT_ROYALTY_FEE_NUMERATOR);
+        if(newRoyaltyNumerator > 0) {
+            vm.assume(salePrice < type(uint256).max / newRoyaltyNumerator);
+        }
 
         uint256 nextTokenId = tokenMock.totalSupply();
         uint256 lastTokenId = nextTokenId + quantity - 1;

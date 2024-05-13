@@ -8,7 +8,7 @@ import "./mocks/ERC721CMock.sol";
 import "./mocks/ERC1155CMock.sol";
 import "./interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
-import "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidator} from "src/utils/CreatorTokenTransferValidator.sol";
 import "src/Constants.sol";
 import "./utils/Events.sol";
 import "./utils/Helpers.sol";
@@ -151,6 +151,7 @@ contract PermitTransferValidatorTestERC721 is TransferValidatorTest {
             keccak256(
                 abi.encode(
                     SINGLE_USE_PERMIT_TYPEHASH,
+                    TOKEN_TYPE_ERC721,
                     permit.token,
                     permit.id,
                     permit.amount,

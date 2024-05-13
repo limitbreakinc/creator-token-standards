@@ -25,6 +25,13 @@ abstract contract OwnableInitializable is OwnablePermissions, Ownable {
       _ownerInitialized = true;
     }
 
+    function renounceOwnership() public override {
+        super.renounceOwnership();
+
+        // Ensure _ownerInitialized flag is true to prevent recapture of ownership.
+        _ownerInitialized = true;
+    }
+
     function _requireCallerIsContractOwner() internal view virtual override {
         _checkOwner();
     }

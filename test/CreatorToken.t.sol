@@ -7,7 +7,8 @@ import "./mocks/ContractMock.sol";
 import "./mocks/ERC721CMock.sol";
 import "./interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
-import "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidator} from "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidatorConfiguration} from "src/utils/CreatorTokenTransferValidatorConfiguration.sol";
 import "src/Constants.sol";
 import "./utils/Events.sol";
 import "./utils/Helpers.sol";
@@ -16,12 +17,14 @@ import "src/utils/EOARegistry.sol";
 abstract contract CreatorTokenTest is Events, Helpers {
     EOARegistry public eoaRegistry;
     CreatorTokenTransferValidator public validator;
+    CreatorTokenTransferValidatorConfiguration public validatorConfiguration;
 
     function setUp() public virtual override {
         super.setUp();
 
         eoaRegistry = new EOARegistry();
-        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "");
+        validatorConfiguration = new CreatorTokenTransferValidatorConfiguration(address(this), 0);
+        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "", address(validatorConfiguration));
 
         uint256 validatorCodeSize;
         assembly {

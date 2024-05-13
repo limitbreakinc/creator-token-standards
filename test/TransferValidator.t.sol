@@ -7,7 +7,8 @@ import "./mocks/ContractMock.sol";
 import "./mocks/ERC721CMock.sol";
 import "./interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
-import "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidator, IPermitC} from "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidatorConfiguration} from "src/utils/CreatorTokenTransferValidatorConfiguration.sol";
 import "src/Constants.sol";
 import "./utils/Events.sol";
 import "./utils/Helpers.sol";
@@ -15,6 +16,7 @@ import "./EOARegistry.t.sol";
 
 contract TransferValidatorTest is Events, EOARegistryTest {
     CreatorTokenTransferValidator public validator;
+    CreatorTokenTransferValidatorConfiguration public validatorConfiguration;
 
     function setUp() public virtual override {
         super.setUp();
@@ -23,7 +25,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         emit CreatorTokenTransferValidator.CreatedList(0, "DEFAULT LIST");
         vm.expectEmit(true, true, true, true);
         emit CreatorTokenTransferValidator.ReassignedListOwnership(0, address(this));
-        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "");
+        validatorConfiguration = new CreatorTokenTransferValidatorConfiguration(address(this), 0);
+        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "", address(validatorConfiguration));
     }
 
     function testSupportedInterfaces() public {
@@ -302,8 +305,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
     function testSetTransferSecurityLevelOfCollection(
         address collection,
         uint8 level,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         _sanitizeAddress(collection);
@@ -314,7 +317,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         emit SetTransferSecurityLevel(collection, level);
 
         vm.expectEmit(true, true, true, true);
-        emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode, authorizersCanSetWildcardOperators);
+        emit SetAuthorizationModeEnabled(collection, disableAuthorizationMode, authorizersCannotSetWildcardOperators);
 
         vm.expectEmit(true, true, true, true);
         emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
@@ -323,23 +326,23 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         validator.setTransferSecurityLevelOfCollection(
             collection, 
             level, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode);
 
         CollectionSecurityPolicyV3 memory policy = validator.getCollectionSecurityPolicy(collection);
 
         assertEq(policy.transferSecurityLevel, level);
-        assertEq(policy.enableAuthorizationMode, enableAuthorizationMode);
-        assertEq(policy.authorizersCanSetWildcardOperators, authorizersCanSetWildcardOperators);
+        assertEq(policy.disableAuthorizationMode, disableAuthorizationMode);
+        assertEq(policy.authorizersCannotSetWildcardOperators, authorizersCannotSetWildcardOperators);
         assertEq(policy.enableAccountFreezingMode, enableAccountFreezingMode);
     }
 
     function testRevertsWhenSecurityLevelOutOfRangeForSetTransferSecurityLevelOfCollection(
         address collection,
         uint8 level,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         _sanitizeAddress(collection);
@@ -348,15 +351,15 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__InvalidTransferSecurityLevel.selector);
         vm.prank(collection);
-        validator.setTransferSecurityLevelOfCollection(collection, level, enableAuthorizationMode, authorizersCanSetWildcardOperators, enableAccountFreezingMode);
+        validator.setTransferSecurityLevelOfCollection(collection, level, disableAuthorizationMode, authorizersCannotSetWildcardOperators, enableAccountFreezingMode);
     }
 
     function testRevertsWhenUnauthorizedUserCallsSetTransferSecurityLevelOfCollection(
         address collection,
         address unauthorizedUser,
         uint8 level,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         _sanitizeAddress(collection);
@@ -367,7 +370,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
 
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT.selector);
         vm.prank(unauthorizedUser);
-        validator.setTransferSecurityLevelOfCollection(collection, level, enableAuthorizationMode, authorizersCanSetWildcardOperators, enableAccountFreezingMode);
+        validator.setTransferSecurityLevelOfCollection(collection, level, disableAuthorizationMode, authorizersCannotSetWildcardOperators, enableAccountFreezingMode);
     }
 
     function testApplyListToCollection(address collection) public {
@@ -1425,8 +1428,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -1436,8 +1439,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             TRANSFER_SECURITY_LEVEL_ONE, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -1464,8 +1467,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -1476,8 +1479,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             TRANSFER_SECURITY_LEVEL_TWO, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -1501,8 +1504,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.blacklistedAddress;
@@ -1515,8 +1518,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             TRANSFER_SECURITY_LEVEL_TWO, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -1541,8 +1544,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -1556,8 +1559,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             TRANSFER_SECURITY_LEVEL_TWO, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -1595,8 +1598,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             TRANSFER_SECURITY_LEVEL_TWO, 
-            true, 
-            true, 
+            false, 
+            false, 
             enableAccountFreezingMode
         );
 
@@ -1632,8 +1635,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -1644,8 +1647,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_THREE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -1670,8 +1673,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -1684,8 +1687,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_THREE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -1709,8 +1712,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -1722,8 +1725,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_THREE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -1748,8 +1751,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -1762,8 +1765,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_THREE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -1804,8 +1807,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_THREE,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -1841,8 +1844,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -1854,8 +1857,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FOUR,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -1879,8 +1882,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address from = fuzzedList.whitelistedAddress;
@@ -1893,8 +1896,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FOUR,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -1919,8 +1922,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -1934,8 +1937,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FOUR,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -1960,8 +1963,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -1975,8 +1978,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FOUR,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2000,8 +2003,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = from;
@@ -2014,8 +2017,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FOUR,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2040,8 +2043,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -2055,8 +2058,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FOUR,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2095,8 +2098,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FOUR,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -2145,8 +2148,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FOUR,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -2182,8 +2185,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2194,8 +2197,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2218,8 +2221,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2234,8 +2237,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2259,8 +2262,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2276,8 +2279,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2301,8 +2304,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2318,8 +2321,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2342,8 +2345,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2355,8 +2358,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2380,8 +2383,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -2395,8 +2398,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2419,8 +2422,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -2433,8 +2436,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2458,8 +2461,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -2473,8 +2476,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2517,8 +2520,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -2569,8 +2572,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_FIVE,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -2606,8 +2609,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint160 toKey,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = _verifyEOA(toKey);
@@ -2619,8 +2622,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2643,8 +2646,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2656,8 +2659,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2681,8 +2684,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2698,8 +2701,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2723,8 +2726,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2737,8 +2740,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2761,8 +2764,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2774,8 +2777,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2799,8 +2802,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -2814,8 +2817,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2838,8 +2841,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -2852,8 +2855,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2877,8 +2880,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -2892,8 +2895,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -2917,8 +2920,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -2935,8 +2938,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -2985,8 +2988,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SIX,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -3022,8 +3025,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3034,8 +3037,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3058,8 +3061,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3074,8 +3077,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3099,8 +3102,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3116,8 +3119,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3141,8 +3144,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3158,8 +3161,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3182,8 +3185,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3195,8 +3198,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3220,8 +3223,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -3235,8 +3238,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3259,8 +3262,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = from;
@@ -3274,8 +3277,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3299,8 +3302,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -3316,8 +3319,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3360,8 +3363,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -3411,8 +3414,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -3463,8 +3466,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_SEVEN,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -3500,8 +3503,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint160 toKey,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = _verifyEOA(toKey);
@@ -3513,8 +3516,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3537,8 +3540,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3550,8 +3553,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3575,8 +3578,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3592,8 +3595,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3617,8 +3620,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3631,8 +3634,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3655,8 +3658,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = fuzzedList.whitelistedAddress;
@@ -3668,8 +3671,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3693,8 +3696,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -3708,8 +3711,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3732,8 +3735,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address caller = from;
@@ -3747,8 +3750,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3772,8 +3775,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address from, 
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address to = fuzzedList.whitelistedToAddress;
@@ -3788,8 +3791,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            enableAuthorizationMode,
-            authorizersCanSetWildcardOperators,
+            disableAuthorizationMode,
+            authorizersCannotSetWildcardOperators,
             enableAccountFreezingMode
         );
 
@@ -3829,8 +3832,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -3880,8 +3883,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -3931,8 +3934,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList,
             TRANSFER_SECURITY_LEVEL_EIGHT,
-            true,
-            true,
+            false,
+            false,
             enableAccountFreezingMode
         );
 
@@ -3969,8 +3972,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address to,
         uint256 tokenId,
         uint256 amount,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -3980,8 +3983,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             TRANSFER_SECURITY_LEVEL_NINE, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -4009,8 +4012,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint256 tokenId,
         uint256 amount,
         uint8 transferSecurityLevel,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -4025,8 +4028,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -4052,8 +4055,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint256 tokenId,
         uint256 amount,
         uint8 transferSecurityLevel,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators
     ) public {
         uint256 fromKey;
         (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
@@ -4065,8 +4068,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             true
         );
 
@@ -4094,8 +4097,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint256 tokenId,
         uint256 amount,
         uint8 transferSecurityLevel,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators
     ) public {
         uint256 fromKey;
         (collection, from, fromKey) = _sanitizeAccounts(collection, caller, from, to);
@@ -4107,8 +4110,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             true
         );
 
@@ -4146,8 +4149,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            true, 
-            true, 
+            false, 
+            false, 
             enableAccountFreezingMode
         );
 
@@ -4169,7 +4172,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint256 tokenId, 
         uint256 amount,
         uint8 transferSecurityLevel,
-        bool authorizersCanSetWildcardOperators,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
@@ -4180,8 +4183,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            false, 
-            authorizersCanSetWildcardOperators, 
+            true, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -4213,8 +4216,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            true, 
             false, 
+            true, 
             enableAccountFreezingMode
         );
 
@@ -4237,7 +4240,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint256 tokenId, 
         uint256 amount,
         uint8 transferSecurityLevel,
-        bool authorizersCanSetWildcardOperators,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -4249,8 +4252,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            true, 
-            true, 
+            false, 
+            false, 
             enableAccountFreezingMode
         );
 
@@ -4282,8 +4285,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            true, 
-            true, 
+            false, 
+            false, 
             enableAccountFreezingMode
         );
 
@@ -4304,7 +4307,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint256 tokenId, 
         uint256 amount,
         uint8 transferSecurityLevel,
-        bool authorizersCanSetWildcardOperators,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
@@ -4315,8 +4318,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            false, 
-            authorizersCanSetWildcardOperators, 
+            true, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -4338,7 +4341,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint256 tokenId, 
         uint256 amount,
         uint8 transferSecurityLevel,
-        bool authorizersCanSetWildcardOperators,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         uint256 fromKey;
@@ -4350,8 +4353,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            true, 
-            true, 
+            false, 
+            false, 
             enableAccountFreezingMode
         );
 
@@ -4374,7 +4377,7 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         uint256 tokenId, 
         uint256 amount,
         uint8 transferSecurityLevel,
-        bool authorizersCanSetWildcardOperators,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) public {
         address authorizer = fuzzedList.authorizerAddress;
@@ -4385,8 +4388,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
             collection, 
             fuzzedList, 
             transferSecurityLevel, 
-            false, 
-            authorizersCanSetWildcardOperators, 
+            true, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode
         );
 
@@ -4489,8 +4492,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         address collection,
         FuzzedList memory fuzzedList,
         uint8 transferSecurityLevel,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool authorizersCannotSetWildcardOperators,
         bool enableAccountFreezingMode
     ) internal {
         vm.assume(fuzzedList.whitelistedCode != fuzzedList.blacklistedCode);
@@ -4522,8 +4525,8 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         validator.setTransferSecurityLevelOfCollection(
             collection, 
             transferSecurityLevel, 
-            enableAuthorizationMode, 
-            authorizersCanSetWildcardOperators, 
+            disableAuthorizationMode, 
+            authorizersCannotSetWildcardOperators, 
             enableAccountFreezingMode);
 
         validator.applyListToCollection(collection, listId);

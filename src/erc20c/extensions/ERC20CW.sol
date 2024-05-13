@@ -30,9 +30,6 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
     error ERC20WrapperBase__InvalidERC20Collection();
     error ERC20WrapperBase__SmartContractsNotPermittedToStake();
 
-    /// @dev Points to an external ERC20 contract that will be wrapped via staking.
-    IERC20 private wrappedCollection;
-
     /// @dev The staking constraints that will be used to determine if an address is eligible to stake tokens.
     StakerConstraints private stakerConstraints;
 
@@ -92,8 +89,8 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
         
         _onStake(amount, msg.value);
         emit Staked(_msgSender(), amount);
-        _doTokenMint(_msgSender(), amount);
         SafeERC20.safeTransferFrom(wrappedCollection_, _msgSender(), address(this), amount);
+        _doTokenMint(_msgSender(), amount);
     }
 
     /// @notice Allows holders of the wrapped ERC20 token to stake into this enhanced ERC20 token.
@@ -138,8 +135,8 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
         
         _onStake(amount, msg.value);
         emit Staked(to, amount);
-        _doTokenMint(to, amount);
         SafeERC20.safeTransferFrom(wrappedCollection_, _msgSender(), address(this), amount);
+        _doTokenMint(to, amount);
     }
 
     /// @notice Allows holders of this wrapper ERC20 token to unstake and receive the original wrapped tokens.
@@ -185,9 +182,7 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
     }
 
     /// @notice Returns the address of the wrapped ERC20 contract.
-    function getWrappedCollectionAddress() public virtual view override returns (address) {
-        return address(wrappedCollection);
-    }
+    function getWrappedCollectionAddress() public virtual view override returns (address);
 
     /// @dev Optional logic hook that fires during stake transaction.
     function _onStake(uint256 /*amount*/, uint256 value) internal virtual {
@@ -203,12 +198,10 @@ abstract contract ERC20WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorToke
         }
     }
 
-    function _setWrappedCollectionAddress(address wrappedCollectionAddress_) internal {
+    function _validateWrappedCollectionAddress(address wrappedCollectionAddress_) internal view {
         if(wrappedCollectionAddress_ == address(0) || wrappedCollectionAddress_.code.length == 0) {
             revert ERC20WrapperBase__InvalidERC20Collection();
         }
-
-        wrappedCollection = IERC20(wrappedCollectionAddress_);
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual;
@@ -230,7 +223,7 @@ abstract contract ERC20CW is ERC20WrapperBase, ERC20C {
     IERC20 private immutable wrappedCollectionImmutable;
 
     constructor(address wrappedCollectionAddress_) {
-        _setWrappedCollectionAddress(wrappedCollectionAddress_);
+        _validateWrappedCollectionAddress(wrappedCollectionAddress_);
         wrappedCollectionImmutable = IERC20(wrappedCollectionAddress_);
     }
 
@@ -278,6 +271,9 @@ abstract contract ERC20CWInitializable is ERC20WrapperBase, ERC20CInitializable 
 
     error ERC20CWInitializable__AlreadyInitializedWrappedCollection();
 
+    /// @dev Points to an external ERC20 contract that will be wrapped via staking.
+    IERC20 private wrappedCollection;
+
     bool private _wrappedCollectionInitialized;
 
     function initializeWrappedCollectionAddress(address wrappedCollectionAddress_) public {
@@ -289,7 +285,8 @@ abstract contract ERC20CWInitializable is ERC20WrapperBase, ERC20CInitializable 
 
         _wrappedCollectionInitialized = true;
 
-        _setWrappedCollectionAddress(wrappedCollectionAddress_);
+        _validateWrappedCollectionAddress(wrappedCollectionAddress_);
+        wrappedCollection = IERC20(wrappedCollectionAddress_);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
@@ -298,6 +295,11 @@ abstract contract ERC20CWInitializable is ERC20WrapperBase, ERC20CInitializable 
         interfaceId == type(ICreatorToken).interfaceId || 
         interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
+    }
+
+    /// @notice Returns the address of the wrapped ERC20 contract.
+    function getWrappedCollectionAddress() public virtual view override returns (address) {
+        return address(wrappedCollection);
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {

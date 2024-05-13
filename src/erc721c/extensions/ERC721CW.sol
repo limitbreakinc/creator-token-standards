@@ -27,9 +27,6 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
     error ERC721WrapperBase__InvalidERC721Collection();
     error ERC721WrapperBase__SmartContractsNotPermittedToStake();
 
-    /// @dev Points to an external ERC721 contract that will be wrapped via staking.
-    IERC721 private wrappedCollection;
-
     /// @dev The staking constraints that will be used to determine if an address is eligible to stake tokens.
     StakerConstraints private stakerConstraints;
 
@@ -84,8 +81,8 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
         
         _onStake(tokenId, msg.value);
         emit Staked(tokenId, tokenOwner);
-        _doTokenMint(tokenOwner, tokenId);
         wrappedCollection_.transferFrom(tokenOwner, address(this), tokenId);
+        _doTokenMint(tokenOwner, tokenId);
     }
 
     /// @notice Allows holders of the wrapped ERC721 token to stake into this enhanced ERC721 token.
@@ -125,8 +122,8 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
         
         _onStake(tokenId, msg.value);
         emit Staked(tokenId, to);
-        _doTokenMint(to, tokenId);
         wrappedCollection_.transferFrom(tokenOwner, address(this), tokenId);
+        _doTokenMint(to, tokenId);
     }
 
     /// @notice Allows holders of this wrapper ERC721 token to unstake and receive the original wrapped token.
@@ -167,9 +164,7 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
     }
 
     /// @notice Returns the address of the wrapped ERC721 contract.
-    function getWrappedCollectionAddress() public virtual view override returns (address) {
-        return address(wrappedCollection);
-    }
+    function getWrappedCollectionAddress() public virtual view override returns (address);
 
     /// @dev Optional logic hook that fires during stake transaction.
     function _onStake(uint256 /*tokenId*/, uint256 value) internal virtual {
@@ -185,12 +180,10 @@ abstract contract ERC721WrapperBase is WithdrawETH, ICreatorTokenWrapperERC721 {
         }
     }
 
-    function _setWrappedCollectionAddress(address wrappedCollectionAddress_) internal {
+    function _validateWrappedCollectionAddress(address wrappedCollectionAddress_) internal view {
         if(wrappedCollectionAddress_ == address(0) || wrappedCollectionAddress_.code.length == 0) {
             revert ERC721WrapperBase__InvalidERC721Collection();
         }
-
-        wrappedCollection = IERC721(wrappedCollectionAddress_);
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual;
@@ -214,7 +207,7 @@ abstract contract ERC721CW is ERC721WrapperBase, ERC721C {
     IERC721 private immutable wrappedCollectionImmutable;
 
     constructor(address wrappedCollectionAddress_) {
-        _setWrappedCollectionAddress(wrappedCollectionAddress_);
+        _validateWrappedCollectionAddress(wrappedCollectionAddress_);
         wrappedCollectionImmutable = IERC721(wrappedCollectionAddress_);
     }
 
@@ -272,6 +265,9 @@ abstract contract ERC721CWInitializable is ERC721WrapperBase, ERC721CInitializab
 
     error ERC721CWInitializable__AlreadyInitializedWrappedCollection();
 
+    /// @dev Points to an external ERC721 contract that will be wrapped via staking.
+    IERC721 private wrappedCollection;
+
     bool private _wrappedCollectionInitialized;
 
     function initializeWrappedCollectionAddress(address wrappedCollectionAddress_) public {
@@ -283,8 +279,10 @@ abstract contract ERC721CWInitializable is ERC721WrapperBase, ERC721CInitializab
 
         _wrappedCollectionInitialized = true;
 
-        _setWrappedCollectionAddress(wrappedCollectionAddress_);
+        _validateWrappedCollectionAddress(wrappedCollectionAddress_);
+        wrappedCollection = IERC721(wrappedCollectionAddress_);
     }
+
     /**
      * @notice Indicates whether the contract implements the specified interface.
      * @dev Overrides supportsInterface in ERC165.
@@ -297,6 +295,11 @@ abstract contract ERC721CWInitializable is ERC721WrapperBase, ERC721CInitializab
         interfaceId == type(ICreatorToken).interfaceId || 
         interfaceId == type(ICreatorTokenLegacy).interfaceId || 
         super.supportsInterface(interfaceId);
+    }
+
+    /// @notice Returns the address of the wrapped ERC721 contract.
+    function getWrappedCollectionAddress() public virtual view override returns (address) {
+        return address(wrappedCollection);
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {

@@ -5,6 +5,7 @@ import "../Constants.sol";
 import "../interfaces/IEOARegistry.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferPolicy.sol";
+import {CreatorTokenTransferValidatorConfiguration} from "./CreatorTokenTransferValidatorConfiguration.sol";
 import "@limitbreak/permit-c/PermitC.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -140,6 +141,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     /// @dev Thrown when attempting to set a authorized operator when authorization mode is disabled.
     error CreatorTokenTransferValidator__AuthorizationDisabledForCollection();
 
+    /// @dev Thrown when attempting to validate a permitted transfer where the permit type does not match the collection-defined token type.
+    error CreatorTokenTransferValidator__TokenTypesDoNotMatch();
+
     /*************************************************************************/
     /*                                EVENTS                                 */
     /*************************************************************************/
@@ -175,10 +179,13 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     event SetTransferSecurityLevel(address indexed collection, uint8 level);
 
     /// @dev Emitted when a collection updates its authorization mode.
-    event SetAuthorizationModeEnabled(address indexed collection, bool enabled, bool authorizersCanSetWildcardOperators);
+    event SetAuthorizationModeEnabled(address indexed collection, bool disabled, bool authorizersCannotSetWildcardOperators);
 
     /// @dev Emitted when a collection turns account freezing on or off.
     event SetAccountFreezingModeEnabled(address indexed collection, bool enabled);
+
+    /// @dev Emitted when a collection's token type is updated.
+    event SetTokenType(address indexed collection, uint16 tokenType);
 
     /*************************************************************************/
     /*                                STRUCTS                                */
@@ -227,6 +234,8 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
     address private constant WILDCARD_OPERATOR_ADDRESS = address(0x01);
 
+    uint16 private constant DEFAULT_TOKEN_TYPE = 0;
+
     /*************************************************************************/
     /*                                STORAGE                                */
     /*************************************************************************/
@@ -256,10 +265,16 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         address defaultOwner,
         address eoaRegistry_,
         string memory name,
-        string memory version
+        string memory version,
+        address validatorConfiguration
     ) 
     Tstorish()
-    PermitC(name, version) {
+    PermitC(
+        name,
+        version,
+        defaultOwner,
+        CreatorTokenTransferValidatorConfiguration(validatorConfiguration).getNativeValueToCheckPauseState(msg.sender)
+    ) {
         if (defaultOwner == address(0) || eoaRegistry_ == address(0)) {
             revert CreatorTokenTransferValidator__InvalidConstructorArgs();
         }
@@ -373,7 +388,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param to          The address of the token receiver.
      */
     function validateTransfer(address caller, address from, address to) public view {
-        bytes4 errorSelector = _validateTransfer(msg.sender, caller, from, to, 0);
+        (bytes4 errorSelector,) = _validateTransfer(_callerAuthorizedCheckCollection, msg.sender, caller, from, to, 0);
         if (errorSelector != SELECTOR_NO_ERROR) {
             _revertCustomErrorSelectorAsm(errorSelector);
         }
@@ -415,7 +430,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param tokenId     The token id being transferred.
      */
     function validateTransfer(address caller, address from, address to, uint256 tokenId) public view {
-        bytes4 errorSelector = _validateTransfer(msg.sender, caller, from, to, tokenId);
+        (bytes4 errorSelector,) = _validateTransfer(_callerAuthorizedCheckToken, msg.sender, caller, from, to, tokenId);
         if (errorSelector != SELECTOR_NO_ERROR) {
             _revertCustomErrorSelectorAsm(errorSelector);
         }
@@ -532,8 +547,8 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param token     The address of the token to authorize.
      * @param tokenId   The token id to set the authorized operator for.
      */
-    function beforeAuthorizedTransfer(address operator, address token, uint256 tokenId) public {
-        _setOperatorInTransientStorage(operator, token, tokenId);
+    function beforeAuthorizedTransfer(address operator, address token, uint256 tokenId) external {
+        _setOperatorInTransientStorage(operator, token, tokenId, false);
     }
 
     /**
@@ -552,7 +567,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param tokenId   The token id to set the authorized operator for.
      */
     function afterAuthorizedTransfer(address token, uint256 tokenId) public {
-        _setOperatorInTransientStorage(address(uint160(uint256(BYTES32_ZERO))), token, tokenId);
+        _setOperatorInTransientStorage(address(uint160(uint256(BYTES32_ZERO))), token, tokenId, false);
     }
 
     /**
@@ -575,7 +590,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param token     The address of the token to authorize.
      */
     function beforeAuthorizedTransfer(address operator, address token) external {
-        beforeAuthorizedTransfer(operator, token, 0);
+        _setOperatorInTransientStorage(operator, token, 0, true);
     }
 
     /**
@@ -615,7 +630,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param tokenId   The token id to set the authorized operator for.
      */
     function beforeAuthorizedTransfer(address token, uint256 tokenId) external {
-        beforeAuthorizedTransfer(WILDCARD_OPERATOR_ADDRESS, token, tokenId);
+        _setOperatorInTransientStorage(WILDCARD_OPERATOR_ADDRESS, token, tokenId, false);
     }
 
     /**
@@ -636,7 +651,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param tokenId   The token id to set the authorized operator for.
      */
     function beforeAuthorizedTransferWithAmount(address token, uint256 tokenId, uint256 /*amount*/) external {
-        beforeAuthorizedTransfer(WILDCARD_OPERATOR_ADDRESS, token, tokenId);
+        _setOperatorInTransientStorage(WILDCARD_OPERATOR_ADDRESS, token, tokenId, false);
     }
 
     /**
@@ -676,7 +691,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @return id   The id of the new list.
      */
     function createList(string calldata name) public returns (uint120 id) {
-        id = ++lastListId;
+        unchecked {
+            id = ++lastListId;
+        }
 
         listOwners[id] = msg.sender;
 
@@ -703,7 +720,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @return id           The id of the new list.
      */
     function createListCopy(string calldata name, uint120 sourceListId) external returns (uint120 id) {
-        id = ++lastListId;
+        unchecked {
+            id = ++lastListId;
+        }
 
         unchecked {
             if (sourceListId > id - 1) {
@@ -781,17 +800,17 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      *      6. A `SetAuthorizationModeEnabled` event is emitted.
      *      7. A `SetAccountFreezingModeEnabled` event is emitted.
      *
-     * @param collection                          The address of the collection.
-     * @param level                               The new transfer security level to apply.
-     * @param enableAuthorizationMode             Flag if the collection allows for authorizer mode.
-     * @param authorizersCanSetWildcardOperators  Flag if the authorizer can set wildcard operators.
-     * @param enableAccountFreezingMode           Flag if the collection is using account freezing.
+     * @param collection                 The address of the collection.
+     * @param level                      The new transfer security level to apply.
+     * @param disableAuthorizationMode   Flag if the collection allows for authorizer mode.
+     * @param disableWildcardOperators   Flag if the authorizer can set wildcard operators.
+     * @param enableAccountFreezingMode  Flag if the collection is using account freezing.
      */
     function setTransferSecurityLevelOfCollection(
         address collection, 
         uint8 level,
-        bool enableAuthorizationMode,
-        bool authorizersCanSetWildcardOperators,
+        bool disableAuthorizationMode,
+        bool disableWildcardOperators,
         bool enableAccountFreezingMode) external {
 
         if (level > TRANSFER_SECURITY_LEVEL_NINE) {
@@ -800,12 +819,33 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
         _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
         collectionSecurityPolicies[collection].transferSecurityLevel = level;
-        collectionSecurityPolicies[collection].enableAuthorizationMode = enableAuthorizationMode;
-        collectionSecurityPolicies[collection].authorizersCanSetWildcardOperators = authorizersCanSetWildcardOperators;
+        collectionSecurityPolicies[collection].disableAuthorizationMode = disableAuthorizationMode;
+        collectionSecurityPolicies[collection].authorizersCannotSetWildcardOperators = disableWildcardOperators;
         collectionSecurityPolicies[collection].enableAccountFreezingMode = enableAccountFreezingMode;
         emit SetTransferSecurityLevel(collection, level);
-        emit SetAuthorizationModeEnabled(collection, enableAuthorizationMode, authorizersCanSetWildcardOperators);
+        emit SetAuthorizationModeEnabled(collection, disableAuthorizationMode, disableWildcardOperators);
         emit SetAccountFreezingModeEnabled(collection, enableAccountFreezingMode);
+    }
+
+    /**
+     * @notice Set the token type setting of a collection.
+     *
+     * @dev Throws when the caller is neither collection contract, nor the owner or admin of the specified collection.
+     *
+     * @dev <h4>Postconditions:</h4>
+     *      1. The token type of the specified collection is set to the new value.
+     *      2. A `SetTokenType` event is emitted.
+     *
+     * @param collection  The address of the collection.
+     * @param tokenType   The new transfer security level to apply.
+     */
+    function setTokenTypeOfCollection(
+        address collection, 
+        uint16 tokenType
+    ) external {
+        _requireCallerIsNFTOrContractOwnerOrAdmin(collection);
+        collectionSecurityPolicies[collection].tokenType = tokenType;
+        emit SetTokenType(collection, tokenType);
     }
 
     /**
@@ -1325,8 +1365,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     }
 
     /// @notice ERC-165 Interface Support
-    /// @dev    Do not remove ITransferSecurityRegistry, ITransferSecurityRegistryV2, ICreatorTokenTransferValidator,
-    ///         or ICreatorTokenTransferValidatorV2 from this contract or future contracts.  
+    /// @dev    Do not remove LEGACY from this contract or future contracts.  
     ///         Doing so will break backwards compatibility with V1 and V2 creator tokens.
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
         return
@@ -1350,24 +1389,23 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param tokenAddress The contract address of the token to check permissions for.
      */
     function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
-        bool callerHasPermissions = false;
-
         address caller = msg.sender;
         
-        callerHasPermissions = caller == tokenAddress;
-        if(!callerHasPermissions) {
-            (address contractOwner,) = _safeOwner(tokenAddress);
-            callerHasPermissions = caller == contractOwner;
-
-            if(!callerHasPermissions) {
-                (bool callerIsContractAdmin,) = _safeHasRole(tokenAddress, DEFAULT_ACCESS_CONTROL_ADMIN_ROLE, caller);
-                callerHasPermissions = callerIsContractAdmin;
-            }
+        if(caller == tokenAddress) {
+            return;
         }
 
-        if(!callerHasPermissions) {
-            revert CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
+        (address contractOwner,) = _safeOwner(tokenAddress);
+        if(caller == contractOwner) {
+            return;
         }
+
+        (bool callerIsContractAdmin,) = _safeHasRole(tokenAddress, DEFAULT_ACCESS_CONTROL_ADMIN_ROLE, caller);
+        if(callerIsContractAdmin) {
+            return;
+        }
+
+        revert CreatorTokenTransferValidator__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
     }
 
     /**
@@ -1650,13 +1688,19 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param id     The token id being transferred.
      */
     function _beforeTransferFrom(
+        uint256 tokenType,
         address token, 
         address from, 
         address to, 
         uint256 id, 
         uint256 /*amount*/
     ) internal override returns (bool isError) {
-        isError = SELECTOR_NO_ERROR != _validateTransfer(token, msg.sender, from, to, id);
+        (bytes4 selector, uint16 collectionTokenType) = _validateTransfer(_callerAuthorizedCheckToken, token, msg.sender, from, to, id);
+        if (collectionTokenType == DEFAULT_TOKEN_TYPE || collectionTokenType == tokenType) {
+            isError = SELECTOR_NO_ERROR != selector;
+        } else {
+            revert CreatorTokenTransferValidator__TokenTypesDoNotMatch();
+        }
     }
 
     /**
@@ -1698,17 +1742,18 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @return The selector value for an error if the transfer is not allowed, `SELECTOR_NO_ERROR` if the transfer is allowed.
      */
     function _validateTransfer(
+        function(address,address,uint256) internal view returns(bool) _callerAuthorizedParam,
         address collection, 
         address caller, 
         address from, 
         address to,
         uint256 tokenId
-    ) internal view returns (bytes4) {
+    ) internal view returns (bytes4,uint16) {
         if (caller == address(this)) { 
             // If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
             // _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
             // that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
-            return SELECTOR_NO_ERROR;
+            return (SELECTOR_NO_ERROR,0);
         }
 
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
@@ -1722,16 +1767,16 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             AccountList storage frozenAccountList = frozenAccounts[collection];
             
             if (frozenAccountList.nonEnumerableAccounts[from]) {
-                return CreatorTokenTransferValidator__SenderAccountIsFrozen.selector;
+                return (CreatorTokenTransferValidator__SenderAccountIsFrozen.selector, DEFAULT_TOKEN_TYPE);
             }
 
             if (frozenAccountList.nonEnumerableAccounts[to]) {
-                return CreatorTokenTransferValidator__ReceiverAccountIsFrozen.selector;
+                return (CreatorTokenTransferValidator__ReceiverAccountIsFrozen.selector, DEFAULT_TOKEN_TYPE);
             }
         }
 
         if (callerConstraints == CALLER_CONSTRAINTS_SBT) {
-            return CreatorTokenTransferValidator__TokenIsSoulbound.selector;
+            return (CreatorTokenTransferValidator__TokenIsSoulbound.selector, DEFAULT_TOKEN_TYPE);
         }
 
         List storage whitelist = whitelists[listId];
@@ -1739,9 +1784,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         if (receiverConstraints == RECEIVER_CONSTRAINTS_NO_CODE) {
             if (_getCodeLengthAsm(to) > 0) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
+                    // Cache _callerAuthorizedParam on stack to avoid stack too deep
+                    function(address,address,uint256) internal view returns(bool) _callerAuthorized = _callerAuthorizedParam;
                     if(!_callerAuthorized(collection, caller, tokenId)) {
                         if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                            return CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector;
+                            return (CreatorTokenTransferValidator__ReceiverMustNotHaveDeployedCode.selector, DEFAULT_TOKEN_TYPE);
                         }
                     }
                 }
@@ -1749,9 +1796,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         } else if (receiverConstraints == RECEIVER_CONSTRAINTS_EOA) {
             if (!isVerifiedEOA(to)) {
                 if (!whitelist.nonEnumerableAccounts[to]) {
+                    // Cache _callerAuthorizedParam on stack to avoid stack too deep
+                    function(address,address,uint256) internal view returns(bool) _callerAuthorized = _callerAuthorizedParam;
                     if(!_callerAuthorized(collection, caller, tokenId)) {
                         if (!whitelist.nonEnumerableCodehashes[_getCodeHashAsm(to)]) {
-                            return CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector;
+                            return (CreatorTokenTransferValidator__ReceiverProofOfEOASignatureUnverified.selector, DEFAULT_TOKEN_TYPE);
                         }
                     }
                 }
@@ -1760,66 +1809,76 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
 
         if (caller == from) {
             if (callerConstraints != CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
         }
 
         if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_BLACKLIST_ENABLE_OTC) {
+            // Cache _callerAuthorizedParam on stack to avoid stack too deep
+            function(address,address,uint256) internal view returns(bool) _callerAuthorized = _callerAuthorizedParam;
             if(_callerAuthorized(collection, caller, tokenId)) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             List storage blacklist = blacklists[listId];
             if (blacklist.nonEnumerableAccounts[caller]) {
-                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
+                return (CreatorTokenTransferValidator__OperatorIsBlacklisted.selector, DEFAULT_TOKEN_TYPE);
             }
 
             if (blacklist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                return CreatorTokenTransferValidator__OperatorIsBlacklisted.selector;
+                return (CreatorTokenTransferValidator__OperatorIsBlacklisted.selector, DEFAULT_TOKEN_TYPE);
             }
         } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_ENABLE_OTC) {
             if (whitelist.nonEnumerableAccounts[caller]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
+            // Cache _callerAuthorizedParam on stack to avoid stack too deep
+            function(address,address,uint256) internal view returns(bool) _callerAuthorized = _callerAuthorizedParam;
             if( _callerAuthorized(collection, caller, tokenId)) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             if (whitelist.nonEnumerableCodehashes[_getCodeHashAsm(caller)]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
-            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
+            return (CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector, DEFAULT_TOKEN_TYPE);
         } else if (callerConstraints == CALLER_CONSTRAINTS_OPERATOR_WHITELIST_DISABLE_OTC) {
             mapping(address => bool) storage accountWhitelist = whitelist.nonEnumerableAccounts;
 
             if (accountWhitelist[caller]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             if (accountWhitelist[from]) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
+            // Cache _callerAuthorizedParam on stack to avoid stack too deep
+            function(address,address,uint256) internal view returns(bool) _callerAuthorized = _callerAuthorizedParam;
             if(_callerAuthorized(collection, caller, tokenId)) {
-                return SELECTOR_NO_ERROR;
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
             mapping(bytes32 => bool) storage codehashWhitelist = whitelist.nonEnumerableCodehashes;
 
-            if (codehashWhitelist[_getCodeHashAsm(caller)]) {
-                return SELECTOR_NO_ERROR;
+            // Cache caller on stack to avoid stack too deep
+            address tmpAddress = caller;
+            if (codehashWhitelist[_getCodeHashAsm(tmpAddress)]) {
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
-            if (codehashWhitelist[_getCodeHashAsm(from)]) {
-                return SELECTOR_NO_ERROR;
+            // Cache from on stack to avoid stack too deep
+            tmpAddress = from;
+            if (codehashWhitelist[_getCodeHashAsm(tmpAddress)]) {
+                return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
             }
 
-            return CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector;
+            return (CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector, DEFAULT_TOKEN_TYPE);
         }
 
-        return SELECTOR_NO_ERROR;
+        return (SELECTOR_NO_ERROR, collectionSecurityPolicy.tokenType);
     }
 
     /**
@@ -1854,11 +1913,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     ) internal view {
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
 
-        if (!collectionSecurityPolicy.enableAuthorizationMode) {
+        if (collectionSecurityPolicy.disableAuthorizationMode) {
             revert CreatorTokenTransferValidator__AuthorizationDisabledForCollection();
         }
 
-        if (!collectionSecurityPolicy.authorizersCanSetWildcardOperators) {
+        if (collectionSecurityPolicy.authorizersCannotSetWildcardOperators) {
             if (operator == WILDCARD_OPERATOR_ADDRESS) {
                 revert CreatorTokenTransferValidator__WildcardOperatorsCannotBeAuthorizedForCollection();
             }
@@ -1894,16 +1953,18 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     /**
      * @dev Internal function for setting the authorized operator in storage for a token and collection.
      * 
-     * @param operator   The allowed operator for an authorized transfer.
-     * @param collection The address of the collection that the operator is authorized for.
-     * @param tokenId    The id of the token that is authorized.
+     * @param operator         The allowed operator for an authorized transfer.
+     * @param collection       The address of the collection that the operator is authorized for.
+     * @param tokenId          The id of the token that is authorized.
+     * @param allowAnyTokenId  Flag if the authorizer is enabling transfers for any token id
      */
     function _setOperatorInTransientStorage(
         address operator,
         address collection, 
-        uint256 tokenId
+        uint256 tokenId,
+        bool allowAnyTokenId
     ) internal whenAuthorizerAndOperatorEnabledForCollection(collection, operator, msg.sender) {
-        _setTstorish(_getTransientOperatorSlot(collection), uint256(uint160(operator)));
+        _setTstorish(_getTransientOperatorSlot(collection), (allowAnyTokenId ? 1 << 255 : 0) | uint256(uint160(operator)));
         _setTstorish(_getTransientOperatorSlot(collection, tokenId), uint256(uint160(operator)));
     }
 
@@ -1916,14 +1977,32 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * 
      * @return isAuthorized  True if the caller is authorized to transfer the token, false otherwise.
      */
-    function _callerAuthorized(
+    function _callerAuthorizedCheckToken(
       address collection,
         address caller,
         uint256 tokenId
-    ) internal view returns (bool) {
-        return 
-            _callerAuthorized(caller, _getTransientOperatorSlot(collection, tokenId)) ||
-            _callerAuthorized(caller, _getTransientOperatorSlot(collection));
+    ) internal view returns (bool isAuthorized) {
+        uint256 slotValue;
+        (isAuthorized, ) = _callerAuthorized(caller, _getTransientOperatorSlot(collection, tokenId));
+        if (isAuthorized) return true;
+        (isAuthorized, slotValue) = _callerAuthorized(caller, _getTransientOperatorSlot(collection));
+        isAuthorized = isAuthorized && slotValue >> 255 == 1;
+    }
+
+    /**
+     * @dev Internal function to check if a caller is an authorized operator for the collection being transferred.
+     * 
+     * @param caller     The caller of the token transfer.
+     * @param collection The collection address of the token being transferred.
+     * 
+     * @return isAuthorized  True if the caller is authorized to transfer the collection, false otherwise.
+     */
+    function _callerAuthorizedCheckCollection(
+      address collection,
+        address caller,
+        uint256 /*tokenId*/
+    ) internal view returns (bool isAuthorized) {
+        (isAuthorized, ) = _callerAuthorized(caller, _getTransientOperatorSlot(collection));
     }
 
     /**
@@ -1934,9 +2013,11 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
      * @param slot       The storage slot to check for the caller address.
      * 
      * @return isAuthorized  True if the caller is authorized to transfer the token, false otherwise.
+     * @return slotValue     The transient storage value in `slot`, used to check for allow any token id flag if necessary.
      */
-    function _callerAuthorized(address caller, uint256 slot) internal view returns (bool isAuthorized) {
-        address authorizedOperator = address(uint160(_getTstorish(slot)));
+    function _callerAuthorized(address caller, uint256 slot) internal view returns (bool isAuthorized, uint256 slotValue) {
+        slotValue = _getTstorish(slot);
+        address authorizedOperator = address(uint160(slotValue));
         isAuthorized = authorizedOperator == WILDCARD_OPERATOR_ADDRESS || authorizedOperator == caller;
     }
 
