@@ -51,6 +51,11 @@ contract ERC20CTest is CreatorTokenFungibleTest {
         assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
         assertEq(isViewFunction, false);
     }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC20);
+    }
 }
 
 contract ERC20CWInitializableTest is CreatorTokenFungibleTest {
@@ -127,5 +132,10 @@ contract ERC20CWInitializableTest is CreatorTokenFungibleTest {
     function testRevertsWhenInitializingOwnerAgain(address badOwner) public {
         vm.expectRevert(OwnableInitializable.InitializableOwnable__OwnerAlreadyInitialized.selector);
         tokenMock.initializeOwner(badOwner);
+    }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC20);
     }
 }

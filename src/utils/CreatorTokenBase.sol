@@ -7,7 +7,6 @@ import "../interfaces/ICreatorTokenLegacy.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferValidation.sol";
 import "../interfaces/ITransferValidatorSetTokenType.sol";
-import "forge-std/console.sol";
 
 /**
  * @title CreatorTokenBase

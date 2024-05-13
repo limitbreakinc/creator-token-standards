@@ -33,6 +33,12 @@ contract ERC1155CTest is CreatorTokenNonfungibleTest {
         assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
         assertEq(isViewFunction, false);
     }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC1155);
+    }
 }
 
 contract ERC1155CInitializableTest is CreatorTokenNonfungibleTest {
@@ -103,5 +109,11 @@ contract ERC1155CInitializableTest is CreatorTokenNonfungibleTest {
 
         assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
         assertEq(isViewFunction, false);
+    }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC1155);
     }
 }
