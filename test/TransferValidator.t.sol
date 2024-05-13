@@ -4408,11 +4408,11 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         token.setApprovalForAll(address(operator), true);
         /// @dev Enable the operator to transfer the `firstTokenId`.
         validator.beforeAuthorizedTransfer(address(operator), address(token), firstTokenId);
-        operator.tokenTransferFrom(token, alice, bob, firstTokenId);
+        operator.tokenTransferFrom(address(token), alice, bob, firstTokenId);
 
         /// @dev Operator should *not* be able to transfer `secondTokenId`.
         vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector);
-        operator.tokenTransferFrom(token, alice, bob, secondTokenId);
+        operator.tokenTransferFrom(address(token), alice, bob, secondTokenId);
     }
 
     function testAuthorizationModeSucceedsWhenTransferringTokenIdsThatWereAuthorized(
@@ -4453,11 +4453,180 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         token.setApprovalForAll(address(operator), true);
         /// @dev Enable the operator to transfer the `firstTokenId`.
         validator.beforeAuthorizedTransfer(address(operator), address(token), firstTokenId);
-        operator.tokenTransferFrom(token, alice, bob, firstTokenId);
+        operator.tokenTransferFrom(address(token), alice, bob, firstTokenId);
 
         /// @dev Enable the operator to transfer the `secondTokenId`.
         validator.beforeAuthorizedTransfer(address(operator), address(token), secondTokenId);
-        operator.tokenTransferFrom(token, alice, bob, secondTokenId);
+        operator.tokenTransferFrom(address(token), alice, bob, secondTokenId);
+    }
+
+    function testAuthorizationModeSucceedsWhenTransferringTokenIdsWhenAllTokensAreAuthorized(
+        address alice,
+        address bob,
+        uint256 firstTokenId,
+        uint256 secondTokenId
+    ) external {
+        _sanitizeAddress(alice);
+        _sanitizeAddress(bob);
+
+        vm.assume(alice != bob);
+        vm.assume(firstTokenId != 0);
+        vm.assume(secondTokenId != 0);
+        vm.assume(firstTokenId != secondTokenId);
+
+        ERC721CMock token = new ERC721CMock();
+        token.setTransferValidator(address(validator));
+        validator.setTransferSecurityLevelOfCollection({
+            collection: address(token),
+            level: TRANSFER_SECURITY_LEVEL_RECOMMENDED,
+            disableAuthorizationMode: false,
+            disableWildcardOperators: true,
+            enableAccountFreezingMode: false
+        });
+
+        uint120 listId = validator.createList("");
+        validator.applyListToCollection(address(token), listId);
+        address[] memory authorizers = new address[](1);
+        authorizers[0] = address(this);
+        validator.addAccountsToAuthorizers(listId, authorizers);
+
+        OperatorMock operator = new OperatorMock();
+        token.mint(alice, firstTokenId);
+        token.mint(alice, secondTokenId);
+
+        vm.prank(alice);
+        token.setApprovalForAll(address(operator), true);
+        /// @dev Enable the operator to transfer all tokens.
+        validator.beforeAuthorizedTransfer(address(operator), address(token));
+        operator.tokenTransferFrom(address(token), alice, bob, firstTokenId);
+
+        operator.tokenTransferFrom(address(token), alice, bob, secondTokenId);
+    }
+
+    function testAuthorizationModeRevertsWhenTransferringTokenIdsAuthorizationEnds(
+        address alice,
+        address bob,
+        uint256 firstTokenId,
+        uint256 secondTokenId
+    ) external {
+        _sanitizeAddress(alice);
+        _sanitizeAddress(bob);
+
+        vm.assume(alice != bob);
+        vm.assume(firstTokenId != 0);
+        vm.assume(secondTokenId != 0);
+        vm.assume(firstTokenId != secondTokenId);
+
+        ERC721CMock token = new ERC721CMock();
+        token.setTransferValidator(address(validator));
+        validator.setTransferSecurityLevelOfCollection({
+            collection: address(token),
+            level: TRANSFER_SECURITY_LEVEL_RECOMMENDED,
+            disableAuthorizationMode: false,
+            disableWildcardOperators: true,
+            enableAccountFreezingMode: false
+        });
+
+        uint120 listId = validator.createList("");
+        validator.applyListToCollection(address(token), listId);
+        address[] memory authorizers = new address[](1);
+        authorizers[0] = address(this);
+        validator.addAccountsToAuthorizers(listId, authorizers);
+
+        OperatorMock operator = new OperatorMock();
+        token.mint(alice, firstTokenId);
+        token.mint(alice, secondTokenId);
+
+        vm.prank(alice);
+        token.setApprovalForAll(address(operator), true);
+        /// @dev Enable the operator to transfer all tokens.
+        validator.beforeAuthorizedTransfer(address(operator), address(token));
+        operator.tokenTransferFrom(address(token), alice, bob, firstTokenId);
+
+        validator.afterAuthorizedTransfer(address(token));
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector);
+        operator.tokenTransferFrom(address(token), alice, bob, secondTokenId);
+    }
+
+    function testAuthorizationModeSucceedsWhenTransferringLegacyTokenIds(
+        address alice,
+        address bob,
+        uint256 firstTokenId,
+        uint256 secondTokenId
+    ) external {
+        _sanitizeAddress(alice);
+        _sanitizeAddress(bob);
+
+        vm.assume(alice != bob);
+        vm.assume(firstTokenId != 0);
+        vm.assume(secondTokenId != 0);
+        vm.assume(firstTokenId != secondTokenId);
+
+        LegacyTokenMock token = new LegacyTokenMock(validator);
+        validator.setTransferSecurityLevelOfCollection({
+            collection: address(token),
+            level: TRANSFER_SECURITY_LEVEL_RECOMMENDED,
+            disableAuthorizationMode: false,
+            disableWildcardOperators: true,
+            enableAccountFreezingMode: false
+        });
+
+        uint120 listId = validator.createList("");
+        validator.applyListToCollection(address(token), listId);
+        address[] memory authorizers = new address[](1);
+        authorizers[0] = address(this);
+        validator.addAccountsToAuthorizers(listId, authorizers);
+
+        OperatorMock operator = new OperatorMock();
+
+        /// @dev Enable the operator to transfer `firstTokenId`.
+        validator.beforeAuthorizedTransfer(address(operator), address(token), firstTokenId);
+        operator.tokenTransferFrom(address(token), alice, bob, firstTokenId);
+
+        /// @dev Because this is a legacy token, additional transfers of tokenIds are allowed.
+        operator.tokenTransferFrom(address(token), alice, bob, secondTokenId);
+    }
+
+    function testAuthorizationModeRevertsWhenTransferringLegacyTokenIdsAuthorizationEnds(
+        address alice,
+        address bob,
+        uint256 firstTokenId,
+        uint256 secondTokenId
+    ) external {
+        _sanitizeAddress(alice);
+        _sanitizeAddress(bob);
+
+        vm.assume(alice != bob);
+        vm.assume(firstTokenId != 0);
+        vm.assume(secondTokenId != 0);
+        vm.assume(firstTokenId != secondTokenId);
+
+        LegacyTokenMock token = new LegacyTokenMock(validator);
+        validator.setTransferSecurityLevelOfCollection({
+            collection: address(token),
+            level: TRANSFER_SECURITY_LEVEL_RECOMMENDED,
+            disableAuthorizationMode: false,
+            disableWildcardOperators: true,
+            enableAccountFreezingMode: false
+        });
+
+        uint120 listId = validator.createList("");
+        validator.applyListToCollection(address(token), listId);
+        address[] memory authorizers = new address[](1);
+        authorizers[0] = address(this);
+        validator.addAccountsToAuthorizers(listId, authorizers);
+
+        OperatorMock operator = new OperatorMock();
+
+        /// @dev Enable the operator to transfer `firstTokenId`.
+        validator.beforeAuthorizedTransfer(address(operator), address(token), firstTokenId);
+        operator.tokenTransferFrom(address(token), alice, bob, firstTokenId);
+
+        validator.afterAuthorizedTransfer(address(token), firstTokenId);
+
+        vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__CallerMustBeWhitelisted.selector);
+        operator.tokenTransferFrom(address(token), alice, bob, secondTokenId);
     }
 
     // Lists
@@ -4729,8 +4898,22 @@ contract TransferValidatorTest is Events, EOARegistryTest {
         array[0] = account;
     }
 }
+
 contract OperatorMock {
-    function tokenTransferFrom(ERC721CMock token, address from, address to, uint256 tokenId) external {
-        token.transferFrom(from, to, tokenId);
+    function tokenTransferFrom(address token, address from, address to, uint256 tokenId) external {
+        IERC721(token).transferFrom(from, to, tokenId);
+    }
+}
+
+contract LegacyTokenMock {
+    CreatorTokenTransferValidator validator;
+    address public owner;
+    constructor(CreatorTokenTransferValidator _validator) {
+        validator = _validator;
+        owner = msg.sender;
+    }
+
+    function transferFrom(address from, address to, uint256) external {
+        validator.applyCollectionTransferPolicy(msg.sender, from, to);
     }
 }
