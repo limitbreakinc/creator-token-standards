@@ -63,7 +63,8 @@ contract BenchmarkCreatorTokenContracts is Test {
 
         validatorDeployer = vm.addr(1);
         vm.startPrank(validatorDeployer);
-        validatorConfiguration = new CreatorTokenTransferValidatorConfiguration(validatorDeployer, 0);
+        validatorConfiguration = new CreatorTokenTransferValidatorConfiguration(validatorDeployer);
+        validatorConfiguration.setNativeValueToCheckPauseState(0);
         validator = new CreatorTokenTransferValidator(validatorDeployer, address(eoaRegistry), "", "", address(validatorConfiguration));
         vm.stopPrank();
 

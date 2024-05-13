@@ -7,7 +7,7 @@ else
     exit 1
 fi
 
-constructorArgs=$(cast abi-encode "signature(address,address,string,string)" $DEFAULT_OWNER_ADDRESS $EXPECTED_EOA_REGISTRY_ADDRESS $VALIDATOR_NAME $VALIDATOR_VERSION)
+constructorArgs=$(cast abi-encode "signature(address,address,string,string,address)" $DEFAULT_OWNER_ADDRESS $EXPECTED_EOA_REGISTRY_ADDRESS $VALIDATOR_NAME $VALIDATOR_VERSION $EXPECTED_VALIDATOR_CONFIGURATION_ADDRESS)
 constructorArgs=${constructorArgs:2}
 
 echo "create2 CreatorTokenTransferValidator START"

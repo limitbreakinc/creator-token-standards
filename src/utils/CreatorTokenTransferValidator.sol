@@ -273,7 +273,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         name,
         version,
         defaultOwner,
-        CreatorTokenTransferValidatorConfiguration(validatorConfiguration).getNativeValueToCheckPauseState(msg.sender)
+        CreatorTokenTransferValidatorConfiguration(validatorConfiguration).getNativeValueToCheckPauseState()
     ) {
         if (defaultOwner == address(0) || eoaRegistry_ == address(0)) {
             revert CreatorTokenTransferValidator__InvalidConstructorArgs();

@@ -8,6 +8,7 @@ contract DeployValidator is Script {
     function run() public {
         bytes32 saltValue = bytes32(vm.envUint("SALT_TRANSFER_VALIDATOR"));
         address expectedAddress = vm.envAddress("EXPECTED_VALIDATOR_ADDRESS");
+        address validatorConfiguration = vm.envAddress("EXPECTED_VALIDATOR_CONFIGURATION_ADDRESS");
         address eoaRegistry = vm.envAddress("EXPECTED_EOA_REGISTRY_ADDRESS");
         string memory validatorName = vm.envString("VALIDATOR_NAME");
         string memory validatorVersion = vm.envString("VALIDATOR_VERSION");
@@ -16,8 +17,7 @@ contract DeployValidator is Script {
         address defaultOwner = vm.envAddress("DEFAULT_OWNER_ADDRESS");
         
         vm.startBroadcast(deployerPrivateKey);
-        address validatorConfiguration = address(new CreatorTokenTransferValidatorConfiguration{salt: saltValue}(defaultOwner));
-        address validator = address(new CreatorTokenTransferValidator{salt: saltValue}(defaultOwner, eoaRegistry, validatorName, validatorVersion, validatorConfiguration)));
+        address validator = address(new CreatorTokenTransferValidator{salt: saltValue}(defaultOwner, eoaRegistry, validatorName, validatorVersion, validatorConfiguration));
         vm.stopBroadcast();
 
         console.log("CreatorTokenTransferValidator: ", validator);
