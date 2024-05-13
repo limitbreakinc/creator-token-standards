@@ -1753,7 +1753,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
             // If the caller is self (Permit-C Processor) it means we have already applied operator validation in the 
             // _beforeTransferFrom callback.  In this case, the security policy was already applied and the operator
             // that used the Permit-C processor passed the security policy check and transfer can be safely allowed.
-            return (SELECTOR_NO_ERROR,0);
+            return (SELECTOR_NO_ERROR, DEFAULT_TOKEN_TYPE);
         }
 
         CollectionSecurityPolicyV3 storage collectionSecurityPolicy = collectionSecurityPolicies[collection];
