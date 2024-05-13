@@ -140,5 +140,5 @@ forge script script/common/DeployEOARegistry.s.sol:DeployEOARegistry \
   --priority-gas-price $PRIORITY_GAS_PRICE \
   --rpc-url $RPC_URL \
   --broadcast \
-  --optimizer-runs 19500 \
+  --optimizer-runs 777 \
   --verify $RESUME

@@ -141,5 +141,5 @@ forge script script/common/DeployValidatorConfiguration.s.sol:DeployValidatorCon
   --priority-gas-price $PRIORITY_GAS_PRICE \
   --rpc-url $RPC_URL \
   --broadcast \
-  --optimizer-runs 19500 \
+  --optimizer-runs 777 \
   --verify $RESUME
