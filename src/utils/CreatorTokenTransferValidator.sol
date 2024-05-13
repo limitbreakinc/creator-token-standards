@@ -141,6 +141,9 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
     /// @dev Thrown when attempting to set a authorized operator when authorization mode is disabled.
     error CreatorTokenTransferValidator__AuthorizationDisabledForCollection();
 
+    /// @dev Thrown when attempting to validate a permitted transfer where the permit type does not match the collection-defined token type.
+    error CreatorTokenTransferValidator__TokenTypesDoNotMatch();
+
     /*************************************************************************/
     /*                                EVENTS                                 */
     /*************************************************************************/
@@ -1696,7 +1699,7 @@ contract CreatorTokenTransferValidator is IEOARegistry, ITransferValidator, ERC1
         if (collectionTokenType == DEFAULT_TOKEN_TYPE || collectionTokenType == tokenType) {
             isError = SELECTOR_NO_ERROR != selector;
         } else {
-            revert();
+            revert CreatorTokenTransferValidator__TokenTypesDoNotMatch();
         }
     }
 
