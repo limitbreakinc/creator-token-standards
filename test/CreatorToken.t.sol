@@ -7,7 +7,8 @@ import "./mocks/ContractMock.sol";
 import "./mocks/ERC721CMock.sol";
 import "./interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
-import "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidator} from "src/utils/CreatorTokenTransferValidator.sol";
+import {CreatorTokenTransferValidatorConfiguration} from "src/utils/CreatorTokenTransferValidatorConfiguration.sol";
 import "src/Constants.sol";
 import "./utils/Events.sol";
 import "./utils/Helpers.sol";
@@ -16,12 +17,15 @@ import "src/utils/EOARegistry.sol";
 abstract contract CreatorTokenTest is Events, Helpers {
     EOARegistry public eoaRegistry;
     CreatorTokenTransferValidator public validator;
+    CreatorTokenTransferValidatorConfiguration public validatorConfiguration;
 
     function setUp() public virtual override {
         super.setUp();
 
         eoaRegistry = new EOARegistry();
-        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "");
+        validatorConfiguration = new CreatorTokenTransferValidatorConfiguration(address(this));
+        validatorConfiguration.setNativeValueToCheckPauseState(0);
+        validator = new CreatorTokenTransferValidator(address(this), address(eoaRegistry), "", "", address(validatorConfiguration));
 
         uint256 validatorCodeSize;
         assembly {
@@ -31,8 +35,8 @@ abstract contract CreatorTokenTest is Events, Helpers {
         assembly {
             extcodecopy(sload(validator.slot), add(validatorDeployedBytecode, 0x20), 0x00, validatorCodeSize)
         }
-        vm.etch(0x721C00182a990771244d7A71B9FA2ea789A3b433, validatorDeployedBytecode);
-        validator = CreatorTokenTransferValidator(0x721C00182a990771244d7A71B9FA2ea789A3b433);
+        vm.etch(0x721C00A3972a41D81d558607DEE5E968160Ff80b, validatorDeployedBytecode);
+        validator = CreatorTokenTransferValidator(0x721C00A3972a41D81d558607DEE5E968160Ff80b);
     }
 
     function _verifyEOA(uint160 toKey) internal returns (address to) {

@@ -6,6 +6,7 @@ import "../interfaces/ICreatorToken.sol";
 import "../interfaces/ICreatorTokenLegacy.sol";
 import "../interfaces/ITransferValidator.sol";
 import "./TransferValidation.sol";
+import "../interfaces/ITransferValidatorSetTokenType.sol";
 
 /**
  * @title CreatorTokenBase
@@ -39,13 +40,17 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
     error CreatorTokenBase__InvalidTransferValidatorContract();
 
     /// @dev The default transfer validator that will be used if no transfer validator has been set by the creator.
-    address public constant DEFAULT_TRANSFER_VALIDATOR = address(0x721C00182a990771244d7A71B9FA2ea789A3b433);
+    address public constant DEFAULT_TRANSFER_VALIDATOR = address(0x721C00A3972a41D81d558607DEE5E968160Ff80b);
 
     /// @dev Used to determine if the default transfer validator is applied.
     /// @dev Set to true when the creator sets a transfer validator address.
     bool private isValidatorInitialized;
     /// @dev Address of the transfer validator to apply to transactions.
     address private transferValidator;
+
+    constructor() {
+        _registerTokenType(DEFAULT_TRANSFER_VALIDATOR);
+    }
 
     /**
      * @notice Sets the transfer validator for the token contract.
@@ -72,6 +77,8 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
 
         isValidatorInitialized = true;
         transferValidator = transferValidator_;
+
+        _registerTokenType(transferValidator_);
     }
 
     /**
@@ -155,6 +162,21 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
             }
 
             ITransferValidator(validator).validateTransfer(caller, from, to, tokenId, amount);
+        }
+    }
+
+    function _tokenType() internal virtual pure returns(uint16);
+
+    function _registerTokenType(address validator) internal {
+        if (validator != address(0)) {
+            uint256 validatorCodeSize;
+            assembly {
+                validatorCodeSize := extcodesize(validator)
+            }
+            if(validatorCodeSize > 0) {
+                try ITransferValidatorSetTokenType(validator).setTokenTypeOfCollection(address(this), _tokenType()) {
+                } catch { }
+            }
         }
     }
 }

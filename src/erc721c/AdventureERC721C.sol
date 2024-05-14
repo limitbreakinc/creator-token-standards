@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "../utils/AutomaticValidatorTransferApproval.sol";
 import "../utils/CreatorTokenBase.sol";
 import "../adventures/AdventureERC721.sol";
+import {TOKEN_TYPE_ERC721} from "@limitbreak/permit-c/Constants.sol";
 
 /**
  * @title AdventureERC721C
@@ -87,6 +88,10 @@ abstract contract AdventureERC721C is AdventureERC721, CreatorTokenBase, Automat
             }
         }
     }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return uint16(TOKEN_TYPE_ERC721);
+    }
 }
 
 
@@ -96,6 +101,12 @@ abstract contract AdventureERC721C is AdventureERC721, CreatorTokenBase, Automat
  * @notice Initializable implementation of the AdventureERC721C contract to allow for EIP-1167 clones.
  */
 abstract contract AdventureERC721CInitializable is AdventureERC721Initializable, CreatorTokenBase, AutomaticValidatorTransferApproval {
+
+    function initializeERC721(string memory name_, string memory symbol_) public override {
+        super.initializeERC721(name_, symbol_);
+
+        _registerTokenType(getTransferValidator());
+    }
 
     /**
      * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved
@@ -163,5 +174,9 @@ abstract contract AdventureERC721CInitializable is AdventureERC721Initializable,
                 ++i;
             }
         }
+    }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return uint16(TOKEN_TYPE_ERC721);
     }
 }

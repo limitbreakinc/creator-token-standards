@@ -2,21 +2,21 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/console.sol";
-import "./mocks/ClonerMock.sol";
-import "./mocks/ContractMock.sol";
-import "./mocks/ERC721CMock.sol";
-import "./mocks/ERC1155CMock.sol";
-import "./interfaces/ITestCreatorToken.sol";
+import "../mocks/ClonerMock.sol";
+import "../mocks/ContractMock.sol";
+import "../mocks/ERC721CMock.sol";
+import "../mocks/ERC1155CMock.sol";
+import "../interfaces/ITestCreatorToken.sol";
 import "src/utils/TransferPolicy.sol";
 import {CreatorTokenTransferValidator} from "src/utils/CreatorTokenTransferValidator.sol";
 import "src/Constants.sol";
-import "./utils/Events.sol";
-import "./utils/Helpers.sol";
+import "../utils/Events.sol";
+import "../utils/Helpers.sol";
 import "src/utils/EOARegistry.sol";
-import "./TransferValidator.t.sol";
+import "../TransferValidator.t.sol";
 import "lib/PermitC/src/Constants.sol";
 
-contract PermitTransferValidatorTestERC721 is TransferValidatorTest {
+contract InvalidPermitTransferValidatorTestERC721AsERC20 is TransferValidatorTest {
     
     struct PermitSignatureDetails {
         // Collection Address
@@ -117,19 +117,28 @@ contract PermitTransferValidatorTestERC721 is TransferValidatorTest {
         vm.prank(from);
         erc721C.setApprovalForAll(address(validator), true);
 
+        _configureCollectionTokenType(address(collection), TOKEN_TYPE_ERC721);
+
         (PermitSignatureDetails memory permit, bytes memory signedPermit) = _getPermitAndSignature(fromKey, from, origin, tokenId);
 
         vm.startPrank(caller, origin);
 
-        bool isError = validator.permitTransferFromERC721(permit.token, permit.id, permit.nonce, permit.expiration, from, to, signedPermit);
-        assertEq(isError, expectedRevertSelector != 0x00000000);
-        vm.stopPrank();
+        if (expectedRevertSelector == bytes4(0x00000000) && caller != address(validator)) {
+            vm.expectRevert(CreatorTokenTransferValidator.CreatorTokenTransferValidator__TokenTypesDoNotMatch.selector);
+            bool isError = validator.permitTransferFromERC20(permit.token, permit.nonce, permit.id, permit.expiration, from, to, permit.id, signedPermit);
 
-        if (expectedRevertSelector == bytes4(0x00000000)) {
-            assertEq(erc721C.ownerOf(tokenId), to);
-        } else {
             assertEq(erc721C.ownerOf(tokenId), from);
+        } else {
+            bool isError = validator.permitTransferFromERC20(permit.token, permit.nonce, permit.id, permit.expiration, from, to, permit.id, signedPermit);
+            assertEq(isError, expectedRevertSelector != 0x00000000);
+
+            if (expectedRevertSelector == bytes4(0x00000000)) {
+                assertEq(erc721C.ownerOf(tokenId), to);
+            } else {
+                assertEq(erc721C.ownerOf(tokenId), from);
+            }
         }
+        vm.stopPrank();
     }
 
     function _getPermitAndSignature(
@@ -151,10 +160,10 @@ contract PermitTransferValidatorTestERC721 is TransferValidatorTest {
             keccak256(
                 abi.encode(
                     SINGLE_USE_PERMIT_TYPEHASH,
-                    TOKEN_TYPE_ERC721,
+                    TOKEN_TYPE_ERC20,
                     permit.token,
+                    0,
                     permit.id,
-                    permit.amount,
                     permit.nonce,
                     permit.operator,
                     permit.expiration,
@@ -171,7 +180,7 @@ contract PermitTransferValidatorTestERC721 is TransferValidatorTest {
     function test() public {}
 }
 
-contract PermitTransferValidatorTestERC721Initializable is PermitTransferValidatorTestERC721 {
+contract PermitTransferValidatorTestERC721Initializable is InvalidPermitTransferValidatorTestERC721AsERC20 {
     ClonerMock cloner;
 
     ERC721CInitializableMock public referenceTokenMock;

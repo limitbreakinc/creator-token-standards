@@ -40,6 +40,12 @@ contract ERC721CTest is CreatorTokenNonfungibleTest {
         assertEq(_tokenMock.name(), "ERC-721C Mock");
         assertEq(_tokenMock.symbol(), "MOCK");
     }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC721);
+    }
 }
 
 
@@ -110,5 +116,11 @@ contract ERC721CInitializableTest is CreatorTokenNonfungibleTest {
 
         assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
         assertEq(isViewFunction, true);
+    }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC721);
     }
 }

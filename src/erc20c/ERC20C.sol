@@ -5,6 +5,7 @@ import "../utils/AutomaticValidatorTransferApproval.sol";
 import "../utils/CreatorTokenBase.sol";
 import "../token/erc20/ERC20OpenZeppelin.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {TOKEN_TYPE_ERC20} from "@limitbreak/permit-c/Constants.sol";
 
 /**
  * @title ERC20C
@@ -70,6 +71,10 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase, Automat
         uint256 amount) internal virtual override {
         _validateAfterTransfer(from, to, 0, amount);
     }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return uint16(TOKEN_TYPE_ERC20);
+    }
 }
 
 /**
@@ -78,6 +83,12 @@ abstract contract ERC20C is ERC165, ERC20OpenZeppelin, CreatorTokenBase, Automat
  * @notice Initializable implementation of ERC20C to allow for EIP-1167 proxy clones.
  */
 abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable, CreatorTokenBase, AutomaticValidatorTransferApproval {
+
+    function initializeERC20(string memory name_, string memory symbol_, uint8 decimals_) public override {
+        super.initializeERC20(name_, symbol_, decimals_);
+
+        _registerTokenType(getTransferValidator());
+    }
 
     /**
      * @notice Overrides behavior of allowance such that if a spender is not explicitly approved,
@@ -133,5 +144,9 @@ abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable,
         address to,
         uint256 amount) internal virtual override {
         _validateAfterTransfer(from, to, 0, amount);
+    }
+
+    function _tokenType() internal pure override returns(uint16) {
+        return uint16(TOKEN_TYPE_ERC20);
     }
 }
