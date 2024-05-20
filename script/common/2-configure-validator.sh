@@ -139,7 +139,7 @@ case $yn in
 esac
 
 cast send \
-  --private-key $DEFAULT_OWNER_PRIVATE_KEY \
+  --private-key $DEPLOYER_KEY \
   --gas-price $GAS_PRICE \
   --priority-gas-price $PRIORITY_GAS_PRICE \
   --rpc-url $RPC_URL \
