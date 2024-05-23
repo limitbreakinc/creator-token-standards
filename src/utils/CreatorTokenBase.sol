@@ -49,6 +49,7 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
     address private transferValidator;
 
     constructor() {
+        _emitDefaultTransferValidator();
         _registerTokenType(DEFAULT_TRANSFER_VALIDATOR);
     }
 
@@ -178,5 +179,14 @@ abstract contract CreatorTokenBase is OwnablePermissions, TransferValidation, IC
                 } catch { }
             }
         }
+    }
+
+    /**
+     * @dev  Used during contract deployment for constructable and cloneable creator tokens
+     * @dev  to emit the `TransferValidatorUpdated` event signaling the validator for the contract
+     * @dev  is the default transfer validator.
+     */
+    function _emitDefaultTransferValidator() internal {
+        emit TransferValidatorUpdated(address(0), DEFAULT_TRANSFER_VALIDATOR);
     }
 }

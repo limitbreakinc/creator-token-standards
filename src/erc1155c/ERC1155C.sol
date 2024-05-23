@@ -104,6 +104,7 @@ abstract contract ERC1155CInitializable is ERC1155OpenZeppelinInitializable, Cre
     function initializeERC1155(string memory uri_) public override {
         super.initializeERC1155(uri_);
 
+        _emitDefaultTransferValidator();
         _registerTokenType(getTransferValidator());
     }
 
