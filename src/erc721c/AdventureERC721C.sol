@@ -105,6 +105,7 @@ abstract contract AdventureERC721CInitializable is AdventureERC721Initializable,
     function initializeERC721(string memory name_, string memory symbol_) public override {
         super.initializeERC721(name_, symbol_);
 
+        _emitDefaultTransferValidator();
         _registerTokenType(getTransferValidator());
     }
 

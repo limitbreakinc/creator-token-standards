@@ -87,6 +87,7 @@ abstract contract ERC20CInitializable is ERC165, ERC20OpenZeppelinInitializable,
     function initializeERC20(string memory name_, string memory symbol_, uint8 decimals_) public override {
         super.initializeERC20(name_, symbol_, decimals_);
 
+        _emitDefaultTransferValidator();
         _registerTokenType(getTransferValidator());
     }
 
