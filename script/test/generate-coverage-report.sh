@@ -1,6 +1,6 @@
-forge coverage --report lcov
+forge coverage --ir-minimum --report lcov
 
-lcov --remove ./lcov.info -o ./lcov.info.pruned '/test/mocks/*' 'test/mocks/*' '/test/v2/mocks/*' 'test/v2/mocks/*' '/test/adventures/*' 'test/adventures/*' '/test/v2/adventures/*' 'test/v2/adventures/*'
+lcov --remove ./lcov.info -o ./lcov.info.pruned '/test/mocks/*' 'test/mocks/*' '/test/adventures/*' 'test/adventures/*' '/test/utils/*' 'test/utils/*' '/script/common/*' 'script/common/*' 
 
 genhtml lcov.info.pruned --output-directory coverage
 

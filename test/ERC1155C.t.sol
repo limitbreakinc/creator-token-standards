@@ -1,25 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
 import "./mocks/ERC1155CMock.sol";
-import "./mocks/ClonerMock.sol";
-import "./CreatorTokenTransferValidatorERC1155.t.sol";
+import "./CreatorTokenNonfungible.t.sol";
 
-contract ERC1155CTest is CreatorTokenTransferValidatorERC1155Test {
-    ERC1155CMock public tokenMock;
-
+contract ERC1155CTest is CreatorTokenNonfungibleTest {
     function setUp() public virtual override {
         super.setUp();
-
-        tokenMock = new ERC1155CMock();
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
     }
 
-    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken1155) {
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
         vm.prank(creator);
-        return ITestCreatorToken1155(address(new ERC1155CMock()));
+        return ITestCreatorToken(address(new ERC1155CMock()));
     }
 
     function _mintToken(address tokenAddress, address to, uint256 tokenId, uint256 amount) internal virtual override {
@@ -27,14 +19,29 @@ contract ERC1155CTest is CreatorTokenTransferValidatorERC1155Test {
     }
 
     function testSupportedTokenInterfaces() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC1155).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC1155MetadataURI).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
+
+    function testGetTransferValidationFunction() public override {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
+    }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC1155);
+    }
 }
 
-contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
+contract ERC1155CInitializableTest is CreatorTokenNonfungibleTest {
     ClonerMock cloner;
 
     ERC1155CInitializableMock public referenceTokenMock;
@@ -58,10 +65,10 @@ contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
                 address(referenceTokenMock), address(this), initializationSelectors, initializationArguments
             )
         );
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
-    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken1155) {
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
         bytes4[] memory initializationSelectors = new bytes4[](1);
         bytes[] memory initializationArguments = new bytes[](1);
 
@@ -69,7 +76,7 @@ contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
         initializationArguments[0] = abi.encode("testuri.com");
 
         vm.prank(creator);
-        return ITestCreatorToken1155(
+        return ITestCreatorToken(
             cloner.cloneContract(address(referenceTokenMock), creator, initializationSelectors, initializationArguments)
         );
     }
@@ -95,5 +102,18 @@ contract ERC1155CInitializableTest is CreatorTokenTransferValidatorERC1155Test {
             ERC1155OpenZeppelinInitializable.ERC1155OpenZeppelinInitializable__AlreadyInitializedERC1155.selector
         );
         tokenMock.initializeERC1155(uri);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256,uint256)")));
+        assertEq(isViewFunction, false);
+    }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC1155);
     }
 }

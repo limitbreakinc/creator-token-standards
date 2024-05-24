@@ -3,15 +3,8 @@
 pragma solidity ^0.8.4;
 
 import "../interfaces/IEOARegistry.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-
-/// @dev Thrown when the caller does not match the recovered address for the signature.
-error CallerDidNotSignTheMessage();
-
-/// @dev Thrown when the caller has already been verified.
-error SignatureAlreadyVerified();
 
 /**
  * @title EOARegistry
@@ -21,7 +14,7 @@ error SignatureAlreadyVerified();
  * so if Defi composability is an objective, this is not a good option.  Be advised that in the future, EOA accounts might not be a thing
  * but this is yet to be determined.  See https://eips.ethereum.org/EIPS/eip-4337 for more information.
  */
-contract EOARegistry is Context, ERC165, IEOARegistry {
+contract EOARegistry is ERC165, IEOARegistry {
 
     /// @dev A pre-cached signed message hash used for gas-efficient signature recovery
     bytes32 immutable private signedMessageHash;
@@ -40,57 +33,46 @@ contract EOARegistry is Context, ERC165, IEOARegistry {
     }
 
     /// @notice Allows a user to verify an ECDSA signature to definitively prove they are an EOA account.
-    ///
-    /// Throws when the caller has already verified their signature.
-    /// Throws when the caller did not sign the message.
+    //          Any user can submit a signature for any other user.
     ///
     /// Postconditions:
     /// ---------------
     /// The verified signature mapping has been updated to `true` for the caller.
+    /// 
+    /// @param signature  The signature supplied as a bytes array by an EOA to verify their address is an EOA.
     function verifySignature(bytes calldata signature) external {
-        if(eoaSignatureVerified[_msgSender()]) {
-            revert SignatureAlreadyVerified();
-        }
-
-        if(_msgSender() != ECDSA.recover(signedMessageHash, signature)) {
-            revert CallerDidNotSignTheMessage();
-        }
-
-        eoaSignatureVerified[_msgSender()] = true;
-
-        emit VerifiedEOASignature(_msgSender());
+        address signer = ECDSA.recover(signedMessageHash, signature);
+        eoaSignatureVerified[signer] = true;
+        emit VerifiedEOASignature(signer);
     }
 
     /// @notice Allows a user to verify an ECDSA signature to definitively prove they are an EOA account.
     /// This version is passed the v, r, s components of the signature, and is slightly more gas efficient than
-    /// calculating the v, r, s components on-chain.
-    ///
-    /// Throws when the caller has already verified their signature.
-    /// Throws when the caller did not sign the message.
+    /// calculating the v, r, s components on-chain.  Any user can submit a signature for any other user.
     ///
     /// Postconditions:
     /// ---------------
     /// The verified signature mapping has been updated to `true` for the caller.
+    /// 
+    /// @param v  The signature v component supplied by an EOA to verify their address is an EOA.
+    /// @param r  The signature r component supplied by an EOA to verify their address is an EOA.
+    /// @param s  The signature s component supplied by an EOA to verify their address is an EOA.
     function verifySignatureVRS(uint8 v, bytes32 r, bytes32 s) external {
-        if(eoaSignatureVerified[msg.sender]) {
-            revert SignatureAlreadyVerified();
-        }
-
-        if(msg.sender != ECDSA.recover(signedMessageHash, v, r, s)) {
-            revert CallerDidNotSignTheMessage();
-        }
-
-        eoaSignatureVerified[msg.sender] = true;
-
-        emit VerifiedEOASignature(msg.sender);
+        address signer = ECDSA.recover(signedMessageHash, v, r, s);
+        eoaSignatureVerified[signer] = true;
+        emit VerifiedEOASignature(signer);
     }
 
     /// @notice Returns true if the specified account has verified a signature on this registry, false otherwise.
+    /// 
+    /// @param account  The address to check to see if it has verified as an EOA.
     function isVerifiedEOA(address account) public view override returns (bool) {
         return eoaSignatureVerified[account];
     }
 
     /// @dev ERC-165 interface support
+    /// 
+    /// @param interfaceId  The identifier of the interface to check if this contract supports it.
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
         return
             interfaceId == type(IEOARegistry).interfaceId ||

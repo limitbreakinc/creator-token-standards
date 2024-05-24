@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "../mocks/AdventureMock.sol";
 import "../mocks/AdventureERC721CMock.sol";
 import "../mocks/ClonerMock.sol";
-import "../../src/adventures/AdventureERC721.sol";
-import "../CreatorTokenTransferValidatorERC721.t.sol";
+import "src/adventures/AdventureERC721.sol";
 
 abstract contract AdventureHelper {
     AdventureMock adventure;
@@ -18,14 +16,9 @@ abstract contract AdventureHelper {
     }
 }
 
-contract AdventureERC721CTest is CreatorTokenTransferValidatorERC721Test, AdventureHelper {
-    AdventureERC721CMock public tokenMock;
-
+contract ERC721CTest is CreatorTokenNonfungibleTest, AdventureHelper {
     function setUp() public virtual override {
         super.setUp();
-
-        tokenMock = new AdventureERC721CMock();
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
@@ -34,18 +27,28 @@ contract AdventureERC721CTest is CreatorTokenTransferValidatorERC721Test, Advent
     }
 
     function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
-        AdventureERC721CMock(tokenAddress).mint(to, tokenId);
+        ITestCreatorToken(tokenAddress).mint(to, tokenId);
     }
 
     function testSupportedTokenInterfaces() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
-        assertEq(tokenMock.supportsInterface(type(IAdventurous).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+        assertEq(tokenMock.supportsInterface(type(IAdventurous).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testAdventureLocksTokens() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
         deployAdventure(true, address(tokenMock));
 
         tokenMock.mint(address(this), 1);
@@ -57,7 +60,7 @@ contract AdventureERC721CTest is CreatorTokenTransferValidatorERC721Test, Advent
     }
 }
 
-contract AdventureERC721CInitializableTest is AdventureHelper, CreatorTokenTransferValidatorERC721Test {
+contract AdventureERC721CInitializableTest is AdventureHelper, CreatorTokenNonfungibleTest {
     ClonerMock cloner;
 
     AdventureERC721CInitializableMock public tokenMock;
@@ -84,7 +87,7 @@ contract AdventureERC721CInitializableTest is AdventureHelper, CreatorTokenTrans
                 address(referenceTokenMock), address(this), initializationSelectors, initializationArguments
             )
         );
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
@@ -113,6 +116,13 @@ contract AdventureERC721CInitializableTest is AdventureHelper, CreatorTokenTrans
         assertEq(tokenMock.supportsInterface(type(IAdventurous).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testAdventureLocksTokens() public {

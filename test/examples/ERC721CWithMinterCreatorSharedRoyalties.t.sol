@@ -3,16 +3,19 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../CreatorTokenTransferValidatorERC721.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "../mocks/ERC20Mock.sol";
 import "../mocks/ClonerMock.sol";
 import "src/examples/erc721c/ERC721CWithMinterCreatorSharedRoyalties.sol";
+import "src/examples/adventure-erc721c/AdventureERC721CWithMinterCreatorSharedRoyalties.sol";
 import "src/programmable-royalties/helpers/PaymentSplitterInitializable.sol";
 
-contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorTokenTransferValidatorERC721Test {
+contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorTokenNonfungibleTest {
     ERC20Mock public coinMock;
     ERC721CWithMinterCreatorSharedRoyalties public tokenMock;
     uint256 public constant DEFAULT_ROYALTY_FEE_NUMERATOR = 1000;
+    uint256 public constant DEFAULT_MINTER_SHARES = 25;
+    uint256 public constant DEFAULT_CREATOR_SHARES = 75;
 
     address public defaultTokenCreator;
     address paymentSplitterReference;
@@ -28,8 +31,8 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
 
         vm.startPrank(defaultTokenCreator);
         tokenMock =
-        new ERC721CWithMinterCreatorSharedRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, 25, 75, defaultTokenCreator, paymentSplitterReference, "Test", "TEST");
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        new ERC721CWithMinterCreatorSharedRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, DEFAULT_MINTER_SHARES, DEFAULT_CREATOR_SHARES, defaultTokenCreator, paymentSplitterReference, "Test", "TEST");
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
         vm.stopPrank();
     }
 
@@ -37,7 +40,7 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         vm.prank(creator);
         return ITestCreatorToken(
             address(
-                new ERC721CWithMinterCreatorSharedRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, 25, 75, creator, paymentSplitterReference, "Test", "TEST")
+                new ERC721CWithMinterCreatorSharedRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, DEFAULT_MINTER_SHARES, DEFAULT_CREATOR_SHARES, creator, paymentSplitterReference, "Test", "TEST")
             )
         );
     }
@@ -46,7 +49,7 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         ERC721CWithMinterCreatorSharedRoyalties(tokenAddress).mint(to, tokenId);
     }
 
-    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal {
+    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal virtual {
         ERC721CWithMinterCreatorSharedRoyalties(tokenAddress).safeMint(to, tokenId);
     }
 
@@ -56,6 +59,13 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
     }
 
     function testRevertsWhenFeeNumeratorExceedsSalesPrice(
@@ -132,6 +142,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         new ERC721CWithMinterCreatorSharedRoyalties(royaltyFeeNumerator, minterShares, creatorShares, creator, address(0), "Test", "TEST");
     }
 
+    function testRevertsWhenMintingToZeroAddress(uint256 tokenId) public {
+        vm.expectRevert(MinterCreatorSharedRoyaltiesBase.MinterCreatorSharedRoyalties__MinterCannotBeZeroAddress.selector);
+        _mintToken(address(tokenMock), address(0), tokenId);
+    }
+
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {
         vm.assume(salePrice < type(uint256).max / tokenMock.royaltyFeeNumerator());
 
@@ -175,8 +190,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         uint256 minterShares = splitter.shares(minter);
         uint256 creatorShares = splitter.shares(defaultTokenCreator);
 
-        assertEq(minterShares, 25);
-        assertEq(creatorShares, 75);
+        assertEq(minterShares, DEFAULT_MINTER_SHARES);
+        assertEq(creatorShares, DEFAULT_CREATOR_SHARES);
+        assertEq((DEFAULT_CREATOR_SHARES + DEFAULT_MINTER_SHARES), splitter.totalShares());
+        assertEq(splitter.payee(0), minter);
+        assertEq(splitter.payee(1), defaultTokenCreator);
 
         assertEq(
             tokenMock.releasableNativeFunds(tokenId, MinterCreatorSharedRoyaltiesBase.ReleaseTo.Minter), 0.25 ether
@@ -255,8 +273,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         uint256 minterShares = splitter.shares(minter);
         uint256 creatorShares = splitter.shares(defaultTokenCreator);
 
-        assertEq(minterShares, 25);
-        assertEq(creatorShares, 75);
+        assertEq(minterShares, DEFAULT_MINTER_SHARES);
+        assertEq(creatorShares, DEFAULT_CREATOR_SHARES);
+        assertEq((DEFAULT_CREATOR_SHARES + DEFAULT_MINTER_SHARES), splitter.totalShares());
+        assertEq(splitter.payee(0), minter);
+        assertEq(splitter.payee(1), defaultTokenCreator);
 
         assertEq(
             tokenMock.releasableNativeFunds(tokenId, MinterCreatorSharedRoyaltiesBase.ReleaseTo.Minter), 0.25 ether
@@ -388,8 +409,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         uint256 minterShares = splitter.shares(reminter);
         uint256 creatorShares = splitter.shares(defaultTokenCreator);
 
-        assertEq(minterShares, 25);
-        assertEq(creatorShares, 75);
+        assertEq(minterShares, DEFAULT_MINTER_SHARES);
+        assertEq(creatorShares, DEFAULT_CREATOR_SHARES);
+        assertEq((DEFAULT_CREATOR_SHARES + DEFAULT_MINTER_SHARES), splitter.totalShares());
+        assertEq(splitter.payee(0), reminter);
+        assertEq(splitter.payee(1), defaultTokenCreator);
 
         assertEq(
             tokenMock.releasableNativeFunds(tokenId, MinterCreatorSharedRoyaltiesBase.ReleaseTo.Minter), 0.25 ether
@@ -458,8 +482,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
         uint256 minterShares = splitter.shares(minter);
         uint256 creatorShares = splitter.shares(defaultTokenCreator);
 
-        assertEq(minterShares, 25);
-        assertEq(creatorShares, 75);
+        assertEq(minterShares, DEFAULT_MINTER_SHARES);
+        assertEq(creatorShares, DEFAULT_CREATOR_SHARES);
+        assertEq((DEFAULT_CREATOR_SHARES + DEFAULT_MINTER_SHARES), splitter.totalShares());
+        assertEq(splitter.payee(0), minter);
+        assertEq(splitter.payee(1), defaultTokenCreator);
 
         assertEq(
             tokenMock.releasableNativeFunds(tokenId, MinterCreatorSharedRoyaltiesBase.ReleaseTo.Minter), 0.25 ether
@@ -564,7 +591,7 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest is CreatorToke
     }
 }
 
-contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorTokenTransferValidatorERC721Test {
+contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorTokenNonfungibleTest {
 
     ClonerMock cloner;
 
@@ -572,6 +599,8 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
     ERC721CWithMinterCreatorSharedRoyaltiesInitializable public referenceToken;
     ERC721CWithMinterCreatorSharedRoyaltiesInitializable public tokenMock;
     uint256 public constant DEFAULT_ROYALTY_FEE_NUMERATOR = 1000;
+    uint256 public constant DEFAULT_MINTER_SHARES = 25;
+    uint256 public constant DEFAULT_CREATOR_SHARES = 75;
 
     address public defaultTokenCreator;
     address paymentSplitterReference;
@@ -594,13 +623,13 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         initializationArguments[0] = abi.encode("Test", "TST");
 
         initializationSelectors[1] = referenceToken.initializeMinterRoyaltyFee.selector;
-        initializationArguments[1] = abi.encode(DEFAULT_ROYALTY_FEE_NUMERATOR, 25, 75, defaultTokenCreator, paymentSplitterReference);
+        initializationArguments[1] = abi.encode(DEFAULT_ROYALTY_FEE_NUMERATOR, DEFAULT_MINTER_SHARES, DEFAULT_CREATOR_SHARES, defaultTokenCreator, paymentSplitterReference);
 
         tokenMock = ERC721CWithMinterCreatorSharedRoyaltiesInitializable(
             cloner.cloneContract(address(referenceToken), defaultTokenCreator, initializationSelectors, initializationArguments)
         );
-        vm.prank(defaultTokenCreator);
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: vm.prank(defaultTokenCreator);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
@@ -611,7 +640,7 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         initializationArguments[0] = abi.encode("Test", "TST");
 
         initializationSelectors[1] = referenceToken.initializeMinterRoyaltyFee.selector;
-        initializationArguments[1] = abi.encode(DEFAULT_ROYALTY_FEE_NUMERATOR, 25, 75, defaultTokenCreator, paymentSplitterReference);
+        initializationArguments[1] = abi.encode(DEFAULT_ROYALTY_FEE_NUMERATOR, DEFAULT_MINTER_SHARES, DEFAULT_CREATOR_SHARES, defaultTokenCreator, paymentSplitterReference);
 
         return ITestCreatorToken(
             cloner.cloneContract(address(referenceToken), creator, initializationSelectors, initializationArguments)
@@ -630,10 +659,17 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         ERC721CWithMinterCreatorSharedRoyalties(tokenAddress).safeMint(to, tokenId);
     }
 
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
     function testInitializeAlreadyInitialized() public {
         vm.prank(defaultTokenCreator);
         vm.expectRevert(MinterCreatorSharedRoyaltiesInitializable.MinterCreatorSharedRoyaltiesInitializable__RoyaltyFeeAndSharesAlreadyInitialized.selector);
-        tokenMock.initializeMinterRoyaltyFee(DEFAULT_ROYALTY_FEE_NUMERATOR, 25, 75, defaultTokenCreator, paymentSplitterReference);
+        tokenMock.initializeMinterRoyaltyFee(DEFAULT_ROYALTY_FEE_NUMERATOR, DEFAULT_MINTER_SHARES, DEFAULT_CREATOR_SHARES, defaultTokenCreator, paymentSplitterReference);
     }
 
     function testRevertsWhenMinterSharesAreZero(
@@ -826,8 +862,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         uint256 minterShares = splitter.shares(minter);
         uint256 creatorShares = splitter.shares(defaultTokenCreator);
 
-        assertEq(minterShares, 25);
-        assertEq(creatorShares, 75);
+        assertEq(minterShares, DEFAULT_MINTER_SHARES);
+        assertEq(creatorShares, DEFAULT_CREATOR_SHARES);
+        assertEq((DEFAULT_CREATOR_SHARES + DEFAULT_MINTER_SHARES), splitter.totalShares());
+        assertEq(splitter.payee(0), minter);
+        assertEq(splitter.payee(1), defaultTokenCreator);
 
         assertEq(
             tokenMock.releasableNativeFunds(tokenId, MinterCreatorSharedRoyaltiesBase.ReleaseTo.Minter), 0.25 ether
@@ -906,8 +945,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         uint256 minterShares = splitter.shares(minter);
         uint256 creatorShares = splitter.shares(defaultTokenCreator);
 
-        assertEq(minterShares, 25);
-        assertEq(creatorShares, 75);
+        assertEq(minterShares, DEFAULT_MINTER_SHARES);
+        assertEq(creatorShares, DEFAULT_CREATOR_SHARES);
+        assertEq((DEFAULT_CREATOR_SHARES + DEFAULT_MINTER_SHARES), splitter.totalShares());
+        assertEq(splitter.payee(0), minter);
+        assertEq(splitter.payee(1), defaultTokenCreator);
 
         assertEq(
             tokenMock.releasableNativeFunds(tokenId, MinterCreatorSharedRoyaltiesBase.ReleaseTo.Minter), 0.25 ether
@@ -1039,8 +1081,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         uint256 minterShares = splitter.shares(reminter);
         uint256 creatorShares = splitter.shares(defaultTokenCreator);
 
-        assertEq(minterShares, 25);
-        assertEq(creatorShares, 75);
+        assertEq(minterShares, DEFAULT_MINTER_SHARES);
+        assertEq(creatorShares, DEFAULT_CREATOR_SHARES);
+        assertEq((DEFAULT_CREATOR_SHARES + DEFAULT_MINTER_SHARES), splitter.totalShares());
+        assertEq(splitter.payee(0), reminter);
+        assertEq(splitter.payee(1), defaultTokenCreator);
 
         assertEq(
             tokenMock.releasableNativeFunds(tokenId, MinterCreatorSharedRoyaltiesBase.ReleaseTo.Minter), 0.25 ether
@@ -1109,8 +1154,11 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         uint256 minterShares = splitter.shares(minter);
         uint256 creatorShares = splitter.shares(defaultTokenCreator);
 
-        assertEq(minterShares, 25);
-        assertEq(creatorShares, 75);
+        assertEq(minterShares, DEFAULT_MINTER_SHARES);
+        assertEq(creatorShares, DEFAULT_CREATOR_SHARES);
+        assertEq((DEFAULT_CREATOR_SHARES + DEFAULT_MINTER_SHARES), splitter.totalShares());
+        assertEq(splitter.payee(0), minter);
+        assertEq(splitter.payee(1), defaultTokenCreator);
 
         assertEq(
             tokenMock.releasableNativeFunds(tokenId, MinterCreatorSharedRoyaltiesBase.ReleaseTo.Minter), 0.25 ether
@@ -1213,4 +1261,34 @@ contract ERC721CWithMinterCreatorSharedRoyaltiesInitializableTest is CreatorToke
         );
         tokenMock.releaseERC20Funds(tokenId, address(coinMock), MinterCreatorSharedRoyaltiesBase.ReleaseTo.Creator);
     }
+}
+
+contract AdventureERC721CWithMinterCreatorSharedRoyaltiesTest is ERC721CWithMinterCreatorSharedRoyaltiesConstructableTest {
+    uint256 public constant MAX_SIMULTANEOUS_QUESTS = 10;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        tokenMock = ERC721CWithMinterCreatorSharedRoyalties(address(new AdventureERC721CWithMinterCreatorSharedRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, DEFAULT_MINTER_SHARES, DEFAULT_CREATOR_SHARES, defaultTokenCreator, paymentSplitterReference, MAX_SIMULTANEOUS_QUESTS, "Test", "TEST")));
+        vm.prank(address(tokenMock));
+        validator.setTransferSecurityLevelOfCollection(address(tokenMock), 1, false, false, false);
+    }
+
+    function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
+        vm.prank(creator);
+        return ITestCreatorToken(
+            address(new AdventureERC721CWithMinterCreatorSharedRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, DEFAULT_MINTER_SHARES, DEFAULT_CREATOR_SHARES, defaultTokenCreator, paymentSplitterReference, MAX_SIMULTANEOUS_QUESTS, "Test", "TEST"))
+        );
+    }
+
+    function _mintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+        AdventureERC721CWithMinterCreatorSharedRoyalties(tokenAddress).mint(to, tokenId);
+    }
+
+    function _safeMintToken(address tokenAddress, address to, uint256 tokenId) internal virtual override {
+        AdventureERC721CWithMinterCreatorSharedRoyalties(tokenAddress).safeMint(to, tokenId);
+    }
+
+    // foundry cheat to exclude from test coverage
+    function test() public {}
 }

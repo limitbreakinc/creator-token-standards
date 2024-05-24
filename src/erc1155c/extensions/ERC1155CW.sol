@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "../ERC1155C.sol";
 import "../../interfaces/ICreatorTokenWrapperERC1155.sol";
+import "../../interfaces/IEOARegistry.sol";
 import "../../utils/WithdrawETH.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -28,9 +29,6 @@ abstract contract ERC1155WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTo
     error ERC1155WrapperBase__DefaultImplementationOfUnstakeDoesNotAcceptPayment();
     error ERC1155WrapperBase__InvalidERC1155Collection();
     error ERC1155WrapperBase__SmartContractsNotPermittedToStake();
-
-    /// @dev Points to an external ERC1155 contract that will be wrapped via staking.
-    IERC1155 private wrappedCollection;
 
     /// @dev The staking constraints that will be used to determine if an address is eligible to stake tokens.
     StakerConstraints private stakerConstraints;
@@ -91,8 +89,8 @@ abstract contract ERC1155WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTo
         
         _onStake(id, amount, msg.value);
         emit Staked(id, _msgSender(), amount);
-        _doTokenMint(_msgSender(), id, amount);
         wrappedCollection_.safeTransferFrom(_msgSender(), address(this), id, amount, "");
+        _doTokenMint(_msgSender(), id, amount);
     }
 
     /// @notice Allows holders of the wrapped ERC1155 token to stake into this enhanced ERC1155 token.
@@ -137,8 +135,8 @@ abstract contract ERC1155WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTo
         
         _onStake(id, amount, msg.value);
         emit Staked(id, to, amount);
-        _doTokenMint(to, id, amount);
         wrappedCollection_.safeTransferFrom(_msgSender(), address(this), id, amount, "");
+        _doTokenMint(to, id, amount);
     }
 
     /// @notice Allows holders of this wrapper ERC1155 token to unstake and receive the original wrapped tokens.
@@ -184,9 +182,7 @@ abstract contract ERC1155WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTo
     }
 
     /// @notice Returns the address of the wrapped ERC1155 contract.
-    function getWrappedCollectionAddress() public virtual view override returns (address) {
-        return address(wrappedCollection);
-    }
+    function getWrappedCollectionAddress() public virtual view override returns (address);
 
     /// @dev Optional logic hook that fires during stake transaction.
     function _onStake(uint256 /*tokenId*/, uint256 /*amount*/, uint256 value) internal virtual {
@@ -202,12 +198,10 @@ abstract contract ERC1155WrapperBase is WithdrawETH, ReentrancyGuard, ICreatorTo
         }
     }
 
-    function _setWrappedCollectionAddress(address wrappedCollectionAddress_) internal {
+    function _validateWrappedCollectionAddress(address wrappedCollectionAddress_) internal view {
         if(wrappedCollectionAddress_ == address(0) || wrappedCollectionAddress_.code.length == 0) {
             revert ERC1155WrapperBase__InvalidERC1155Collection();
         }
-
-        wrappedCollection = IERC1155(wrappedCollectionAddress_);
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual;
@@ -229,12 +223,16 @@ abstract contract ERC1155CW is ERC1155Holder, ERC1155WrapperBase, ERC1155C {
     IERC1155 private immutable wrappedCollectionImmutable;
 
     constructor(address wrappedCollectionAddress_) {
-        _setWrappedCollectionAddress(wrappedCollectionAddress_);
+        _validateWrappedCollectionAddress(wrappedCollectionAddress_);
         wrappedCollectionImmutable = IERC1155(wrappedCollectionAddress_);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155C, ERC1155Receiver) returns (bool) {
-        return interfaceId == type(ICreatorTokenWrapperERC1155).interfaceId || super.supportsInterface(interfaceId);
+        return 
+        interfaceId == type(ICreatorTokenWrapperERC1155).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
+        super.supportsInterface(interfaceId);
     }
 
     function getWrappedCollectionAddress() public virtual view override returns (address) {
@@ -242,9 +240,10 @@ abstract contract ERC1155CW is ERC1155Holder, ERC1155WrapperBase, ERC1155C {
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC1155WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }
@@ -274,6 +273,9 @@ abstract contract ERC1155CWInitializable is ERC1155Holder, ERC1155WrapperBase, E
 
     bool private _wrappedCollectionInitialized;
 
+    /// @dev Points to an external ERC1155 contract that will be wrapped via staking.
+    IERC1155 private wrappedCollection;
+
     function initializeWrappedCollectionAddress(address wrappedCollectionAddress_) public {
         _requireCallerIsContractOwner();
 
@@ -283,17 +285,28 @@ abstract contract ERC1155CWInitializable is ERC1155Holder, ERC1155WrapperBase, E
 
         _wrappedCollectionInitialized = true;
 
-        _setWrappedCollectionAddress(wrappedCollectionAddress_);
+        _validateWrappedCollectionAddress(wrappedCollectionAddress_);
+        wrappedCollection = IERC1155(wrappedCollectionAddress_);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155CInitializable, ERC1155Receiver) returns (bool) {
-        return interfaceId == type(ICreatorTokenWrapperERC1155).interfaceId || super.supportsInterface(interfaceId);
+        return 
+        interfaceId == type(ICreatorTokenWrapperERC1155).interfaceId || 
+        interfaceId == type(ICreatorToken).interfaceId || 
+        interfaceId == type(ICreatorTokenLegacy).interfaceId || 
+        super.supportsInterface(interfaceId);
+    }
+
+    /// @notice Returns the address of the wrapped ERC1155 contract.
+    function getWrappedCollectionAddress() public virtual view override returns (address) {
+        return address(wrappedCollection);
     }
 
     function _requireAccountIsVerifiedEOA(address account) internal view virtual override {
-        ICreatorTokenTransferValidator transferValidator_ = getTransferValidator();
-        if (address(transferValidator_) != address(0)) {
-            if (!transferValidator_.isVerifiedEOA(account)) {
+        address validator = getTransferValidator();
+
+        if(validator != address(0)) {
+            if(!IEOARegistry(validator).isVerifiedEOA(account)) {
                 revert ERC1155WrapperBase__CallerSignatureNotVerifiedInEOARegistry();
             }
         }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import "../mocks/minting/ClaimableHolderMintMock.sol";
 import "../mocks/ClonerMock.sol";
@@ -13,6 +13,9 @@ contract ClaimableHolderMintConstructableTest is MaxSupplyTest, ClaimPeriodTest 
 
     ERC721Mock rootCollection1;
     ERC721Mock rootCollection2;
+
+    uint256 internal constant DEFAULT_MAX_SUPPLY = 10010;
+    uint256 internal constant DEFAULT_OWNER_MINTS = 10;
 
     function _deployNewToken(address creator)
         internal
@@ -37,7 +40,7 @@ contract ClaimableHolderMintConstructableTest is MaxSupplyTest, ClaimPeriodTest 
         tokensPerClaim[1] = 2;
 
         vm.startPrank(creator);
-        token = new ClaimableHolderMintMock(rootCollections, maxSupplies, tokensPerClaim, 10010, 10);
+        token = new ClaimableHolderMintMock(rootCollections, maxSupplies, tokensPerClaim, DEFAULT_MAX_SUPPLY, DEFAULT_OWNER_MINTS);
 
         token.initializeIneligibleTokens(false, address(rootCollection1), new uint256[](0), new uint256[](0));
         token.initializeIneligibleTokens(true, address(rootCollection2), new uint256[](0), new uint256[](0));
@@ -62,10 +65,14 @@ contract ClaimableHolderMintConstructableTest is MaxSupplyTest, ClaimPeriodTest 
         tokensPerClaim[0] = 1;
         tokensPerClaim[1] = 2;
 
-        token = new ClaimableHolderMintMock(rootCollections, maxSupplies, tokensPerClaim, 10010, 10);
+        token = new ClaimableHolderMintMock(rootCollections, maxSupplies, tokensPerClaim, DEFAULT_MAX_SUPPLY, DEFAULT_OWNER_MINTS);
 
         token.initializeIneligibleTokens(false, address(rootCollection1), new uint256[](0), new uint256[](0));
         token.initializeIneligibleTokens(true, address(rootCollection2), new uint256[](0), new uint256[](0));
+    }
+
+    function testMaxSupply() public {
+        assertEq(token.maxSupply(), DEFAULT_MAX_SUPPLY);
     }
 
     function testDeployMismatchArray() public {

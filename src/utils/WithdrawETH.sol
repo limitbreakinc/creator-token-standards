@@ -2,7 +2,6 @@
 pragma solidity ^0.8.4;
 
 import "../access/OwnablePermissions.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title WithdrawETH

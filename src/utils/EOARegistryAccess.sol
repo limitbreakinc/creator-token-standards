@@ -33,6 +33,8 @@ abstract contract EOARegistryAccess is Ownable {
     /// ---------------
     /// The eoa registry address is set to the specified address.
     /// An `EOARegistryUpdated` event has been emitted.
+    ///
+    /// @param eoaRegistry_ The address of the EOA Registry to set for verified EOA lookups.
     function setEOARegistry(address eoaRegistry_) public onlyOwner {
         bool isValidEOARegistry = false;
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../../src/adventures/IAdventure.sol";
-import "../../src/adventures/IAdventurousERC721.sol";
+import "src/adventures/IAdventure.sol";
+import "src/adventures/IAdventurousERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";

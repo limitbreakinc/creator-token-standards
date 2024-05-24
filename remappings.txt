@@ -3,3 +3,5 @@ ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 murky/=lib/murky/src
 erc721a/=lib/ERC721A/
+@limitbreak/permit-c/=lib/PermitC/src/
+@opensea/tstorish/=lib/tstorish/src/

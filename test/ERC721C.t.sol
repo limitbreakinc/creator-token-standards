@@ -1,20 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
-import "./mocks/ERC721CMock.sol";
-import "./mocks/ClonerMock.sol";
-import "./CreatorTokenTransferValidatorERC721.t.sol";
+import "./CreatorTokenNonfungible.t.sol";
+import "src/token/erc721/MetadataURI.sol";
 
-contract ERC721CTest is CreatorTokenTransferValidatorERC721Test {
-    ERC721CMock public tokenMock;
-
+contract ERC721CTest is CreatorTokenNonfungibleTest {
     function setUp() public virtual override {
         super.setUp();
-
-        tokenMock = new ERC721CMock();
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
@@ -27,14 +19,37 @@ contract ERC721CTest is CreatorTokenTransferValidatorERC721Test {
     }
 
     function testSupportedTokenInterfaces() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
+
+    function testGetTransferValidationFunction() public override {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
+    function testNameAndSymbol() public {
+        ERC721CMock _tokenMock = ERC721CMock(address(_deployNewToken(address(this))));
+
+        assertEq(_tokenMock.name(), "ERC-721C Mock");
+        assertEq(_tokenMock.symbol(), "MOCK");
+    }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC721);
+    }
 }
 
-contract ERC721CInitializableTest is CreatorTokenTransferValidatorERC721Test {
+
+contract ERC721CInitializableTest is CreatorTokenNonfungibleTest {
     ClonerMock cloner;
 
     ERC721CInitializableMock public tokenMock;
@@ -59,7 +74,7 @@ contract ERC721CInitializableTest is CreatorTokenTransferValidatorERC721Test {
             )
         );
 
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.Two, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
@@ -86,8 +101,26 @@ contract ERC721CInitializableTest is CreatorTokenTransferValidatorERC721Test {
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
     }
 
+    function testInitializeAlreadyInitialized(string memory badName, string memory badSymbol) public {
+        vm.expectRevert(ERC721OpenZeppelinInitializable.ERC721OpenZeppelinInitializable__AlreadyInitializedERC721.selector);
+        tokenMock.initializeERC721(badName, badSymbol);
+    }
+
     function testRevertsWhenInitializingOwnerAgain(address badOwner) public {
         vm.expectRevert(OwnableInitializable.InitializableOwnable__OwnerAlreadyInitialized.selector);
         tokenMock.initializeOwner(badOwner);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC721);
     }
 }

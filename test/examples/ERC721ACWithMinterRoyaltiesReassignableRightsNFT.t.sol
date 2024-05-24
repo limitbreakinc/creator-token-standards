@@ -3,12 +3,12 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../CreatorTokenTransferValidatorERC721.t.sol";
+import "../CreatorTokenNonfungible.t.sol";
 import "../mocks/ERC20Mock.sol";
 import "src/examples/erc721ac/ERC721ACWithReassignableMinterRoyalties.sol";
 import "src/programmable-royalties/helpers/RoyaltyRightsNFT.sol";
 
-contract ERC721ACWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenTransferValidatorERC721Test {
+contract ERC721ACWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenNonfungibleTest {
     address public royaltyRightsNFTReference;
     ERC20Mock public coinMock;
     ERC721ACWithReassignableMinterRoyalties public tokenMock;
@@ -28,7 +28,7 @@ contract ERC721ACWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenTra
         vm.startPrank(defaultTokenCreator);
         tokenMock =
         new ERC721ACWithReassignableMinterRoyalties(DEFAULT_ROYALTY_FEE_NUMERATOR, royaltyRightsNFTReference, "Test", "TEST");
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
+        //TODO: tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
         vm.stopPrank();
     }
 
@@ -58,6 +58,13 @@ contract ERC721ACWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenTra
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
     }
 
+    function testGetTransferValidationFunction() public override {
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
     function testRevertsWhenFeeNumeratorExceedsSalesPrice(
         uint256 royaltyFeeNumerator,
         uint256 minterShares,
@@ -74,6 +81,12 @@ contract ERC721ACWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenTra
                 .selector
         );
         new ERC721ACWithReassignableMinterRoyalties(royaltyFeeNumerator, royaltyRightsNFTReference, "Test", "TEST");
+    }
+
+    function testRevertsWhenMintingToZeroAddress(uint256 quantity) public {
+        vm.assume(quantity > 0 && quantity < 5);
+        vm.expectRevert(MinterRoyaltiesReassignableRightsNFT.MinterRoyaltiesReassignableRightsNFT__MinterCannotBeZeroAddress.selector);
+        _mintToken(address(tokenMock), address(0), quantity);
     }
 
     function testRoyaltyInfoForUnmintedTokenIds(uint256 tokenId, uint256 salePrice) public {
@@ -101,6 +114,24 @@ contract ERC721ACWithMinterRoyaltiesReassignableRightsNFTTest is CreatorTokenTra
 
             assertEq(RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT())).ownerOf(tokenId), minter);
         }
+    }
+
+    function testRevertsWhenRoyaltyRightsAreAlreadyInitialized() public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__CollectionAlreadyInitialized.selector);
+        royaltyRights.initializeAndBindToCollection();
+    }
+
+    function testRevertsWhenRoyaltyRightsMintCalledByAccountOtherThanBoundCollection(address to, uint256 tokenId) public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__OnlyMintableFromCollection.selector);
+        royaltyRights.mint(to, tokenId);
+    }
+
+    function testRevertsWhenRoyaltyRightsBurnCalledByAccountOtherThanBoundCollection(uint256 tokenId) public {
+        RoyaltyRightsNFT royaltyRights = RoyaltyRightsNFT(address(tokenMock.royaltyRightsNFT()));
+        vm.expectRevert(RoyaltyRightsNFT.RoyaltyRightsNFT__OnlyBurnableFromCollection.selector);
+        royaltyRights.burn(tokenId);
     }
 
     function testRoyaltyInfoForMintedTokenIdsAfterTransfer(

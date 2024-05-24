@@ -1,19 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
 import "./mocks/ERC721ACMock.sol";
-import "./CreatorTokenTransferValidatorERC721.t.sol";
+import "./CreatorTokenNonfungible.t.sol";
 
-contract ERC721ACTest is CreatorTokenTransferValidatorERC721Test {
-    ERC721ACMock public tokenMock;
-
+contract ERC721CTest is CreatorTokenNonfungibleTest {
     function setUp() public virtual override {
         super.setUp();
-
-        tokenMock = new ERC721ACMock();
-        tokenMock.setToCustomValidatorAndSecurityPolicy(address(validator), TransferSecurityLevels.One, 1, 0);
     }
 
     function _deployNewToken(address creator) internal virtual override returns (ITestCreatorToken) {
@@ -26,9 +19,24 @@ contract ERC721ACTest is CreatorTokenTransferValidatorERC721Test {
     }
 
     function testSupportedTokenInterfaces() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
         assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testGetTransferValidationFunction() public override {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        (bytes4 functionSignature, bool isViewFunction) = tokenMock.getTransferValidationFunction();
+
+        assertEq(functionSignature, bytes4(keccak256("validateTransfer(address,address,address,uint256)")));
+        assertEq(isViewFunction, true);
+    }
+
+    function testTransferValidatorTokenTypeIsSet() public {
+        ITestCreatorToken tokenMock = _deployNewToken(address(this));
+        CollectionSecurityPolicyV3 memory securityPolicy = validator.getCollectionSecurityPolicy(address(tokenMock));
+        assertEq(securityPolicy.tokenType, TOKEN_TYPE_ERC721);
     }
 }
