@@ -1,4 +1,4 @@
-## 3.0.0 (TBD)
+## 3.0.0 (2024-05-24)
 
 * Creator Token Transfer Validator (V3)
     * Inherit from Permit-C so that ERC20C/ERC721C/ERC1155C tokens can use permits while honoring creator-defined security settings.
