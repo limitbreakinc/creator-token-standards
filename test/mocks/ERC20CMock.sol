@@ -2,14 +2,14 @@
 pragma solidity 0.8.24;
 
 import "src/erc20c/ERC20C.sol";
-import "src/erc20c/ERC20CInitializable.sol";
 import "src/access/OwnableBasic.sol";
 import "src/access/OwnableInitializable.sol";
 
 contract ERC20CMock is OwnableBasic, ERC20C {
     uint8 private _decimals;
 
-    constructor(uint8 decimals_) ERC20("ERC20CMock", "E20CM") { 
+    constructor(uint8 decimals_) 
+    ERC20C("ERC20CMock", "E20CM") { 
         _decimals = decimals_;
     }
 

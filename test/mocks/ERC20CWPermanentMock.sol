@@ -11,7 +11,7 @@ contract ERC20CWPermanentMock is OwnableBasic, ERC20CWPermanent {
 
     constructor(address wrappedCollectionAddress_, uint8 decimals_)
         ERC20CW(wrappedCollectionAddress_)
-        ERC20("ERC20CWPermanentMock", "E20CWPM") {
+        ERC20C("ERC20CWPermanentMock", "E20CWPM") {
         _decimals = decimals_;
     }
 

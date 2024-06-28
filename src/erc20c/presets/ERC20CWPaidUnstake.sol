@@ -20,7 +20,7 @@ abstract contract ERC20CWPaidUnstake is ERC20CW {
         address wrappedCollectionAddress_, 
         string memory name_, 
         string memory symbol_,
-        uint8 decimals_) ERC20CW(wrappedCollectionAddress_) ERC20(name_, symbol_) {
+        uint8 decimals_) ERC20CW(wrappedCollectionAddress_) ERC20C(name_, symbol_) {
         unstakeUnitPrice = unstakeUnitPrice_;
     }
 
