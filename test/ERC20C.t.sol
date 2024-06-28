@@ -124,9 +124,9 @@ contract ERC20CWInitializableTest is CreatorTokenFungibleTest {
         assertEq(isViewFunction, false);
     }
 
-    function testInitializeAlreadyInitialized(string memory badName, string memory badSymbol, uint8 badDecimals) public {
-        vm.expectRevert(ERC20OpenZeppelinInitializable.ERC20OpenZeppelinInitializable__AlreadyInitializedERC20.selector);
-        tokenMock.initializeERC20(badName, badSymbol, badDecimals);
+    function testInitializeAlreadyInitialized(string memory badName, string memory badSymbol) public {
+        vm.expectRevert(ERC20Initializable.ERC20Initializable__AlreadyInitializedERC20.selector);
+        tokenMock.initializeERC20(badName, badSymbol);
     }
 
     function testRevertsWhenInitializingOwnerAgain(address badOwner) public {

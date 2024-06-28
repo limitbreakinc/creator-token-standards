@@ -3,18 +3,23 @@ pragma solidity ^0.8.4;
 
 import "../utils/AutomaticValidatorTransferApproval.sol";
 import "../utils/CreatorTokenBase.sol";
-import "../token/erc20/ERC20.sol";
+import "../token/erc20/ERC20Initializable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {TOKEN_TYPE_ERC20} from "@limitbreak/permit-c/Constants.sol";
 
 /**
- * @title ERC20C
+ * @title ERC20CInitializable
  * @author Limit Break, Inc.
- * @notice Extends OpenZeppelin's ERC20 implementation with Creator Token functionality, which
- *         allows the contract owner to update the transfer validation logic by managing a security policy in
- *         an external transfer validation security policy registry.  See {CreatorTokenTransferValidator}.
+ * @notice Initializable implementation of ERC20C to allow for EIP-1167 proxy clones.
  */
-abstract contract ERC20C is ERC165, ERC20, CreatorTokenBase, AutomaticValidatorTransferApproval {
+abstract contract ERC20CInitializable is ERC165, ERC20Initializable, CreatorTokenBase, AutomaticValidatorTransferApproval {
+
+    function initializeERC20(string memory name_, string memory symbol_) public override {
+        super.initializeERC20(name_, symbol_);
+
+        _emitDefaultTransferValidator();
+        _registerTokenType(getTransferValidator());
+    }
 
     /**
      * @notice Overrides behavior of allowance such that if a spender is not explicitly approved,

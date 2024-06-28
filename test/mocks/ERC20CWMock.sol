@@ -7,13 +7,20 @@ import "src/access/OwnableInitializable.sol";
 import "src/erc20c/extensions/ERC20CW.sol";
 
 contract ERC20CWMock is OwnableBasic, ERC20CW {
+    uint8 private _decimals;
+
     constructor(address wrappedCollectionAddress_, uint8 decimals_)
         ERC20CW(wrappedCollectionAddress_)
-        ERC20OpenZeppelin("ERC20CWMock", "E20CWM", decimals_) 
-    {}
+        ERC20("ERC20CWMock", "E20CWM") {
+        _decimals = decimals_;
+    }
 
     function mint(address, /*to*/ uint256 amount) external {
         stake(amount);
+    }
+
+    function decimals() public view override returns (uint8) {
+        return _decimals;
     }
 }
 

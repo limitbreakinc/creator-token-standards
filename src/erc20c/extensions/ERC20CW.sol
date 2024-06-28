@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "../ERC20C.sol";
+import "../ERC20CInitializable.sol";
 import "../../interfaces/ICreatorTokenWrapperERC20.sol";
 import "../../interfaces/IEOARegistry.sol";
 import "../../utils/WithdrawETH.sol";
