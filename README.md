@@ -203,7 +203,7 @@ The `CreatorTokenTransferValidator` is a smart contract used for managing and ap
 
 - Version 1: `0x0000721C310194CcfC01E523fc93C9cCcFa2A0Ac`
 - Version 2: `0x721C00182a990771244d7A71B9FA2ea789A3b433`
-- Version 3: `TODO: Update With Deployment Address`
+- Version 3: `0x721C0078c2328597Ca70F5451ffF5A7B38D4E947`
 
 The `CreatorTokenTransferValidator` V3 has the following features:
 
