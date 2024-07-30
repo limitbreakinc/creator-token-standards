@@ -99,7 +99,7 @@ Open a browser to http://localhost:3000 to view docs.
 * **Interfaces** - for ease of integration, the following interfaces have been defined for 3rd party consumption
     * [ICreatorToken](./src/interfaces/ICreatorToken.sol) - Base interface for all Creator Token Implementations.
     * [ICreatorTokenWrapperERC721](./src/interfaces/ICreatorTokenWrapperERC721.sol) - Base interface for all Wrapper Creator Token ERC721 Implementations.
-    * [ICreatorTokenWrapperERC1155](./contracts/interfaces/ICreatorTokenWrapperERC1155.sol) - Base interface for all Wrapper Creator Token ERC1155 Implementations.
+    * [ICreatorTokenWrapperERC1155](./src/interfaces/ICreatorTokenWrapperERC1155.sol) - Base interface for all Wrapper Creator Token ERC1155 Implementations.
     * [ICreatorTokenWrapperERC20](./src/interfaces/ICreatorTokenWrapperERC20.sol) - Base interface for all Wrapper Creator Token ERC20 Implementations.
     * [IEOARegistry](./src/interfaces/IEOARegistry.sol) - Base interface for an EOA Registry.
     * [ITransferValidator](./src/interfaces/ITransferValidator.sol) - Base interface for a transfer validator to apply transfer security to token transfers.
