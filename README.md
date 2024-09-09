@@ -294,7 +294,7 @@ The `CreatorTokenTransferValidator` contract defines 9 transfer security levels,
 
    - Caller Constraints: OperatorWhitelistEnableOTC (Over-the-counter)
    - Receiver Constraints: None
-   - In this level, the caller must be whitelisted as an operator or the owner of the token. There are no constraints on the receiver. (Default Equivalent To Level Two)
+   - In this level, the caller must be whitelisted as an operator or the owner of the token. There are no constraints on the receiver. (Default Equivalent To Level Three)
 
 1. **Transfer Security Level - One**
 
