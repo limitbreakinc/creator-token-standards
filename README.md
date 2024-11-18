@@ -204,6 +204,7 @@ The `CreatorTokenTransferValidator` is a smart contract used for managing and ap
 - Version 1: `0x0000721C310194CcfC01E523fc93C9cCcFa2A0Ac`
 - Version 2: `0x721C00182a990771244d7A71B9FA2ea789A3b433`
 - Version 3: `0x721C0078c2328597Ca70F5451ffF5A7B38D4E947`
+- Version 4: `0x721C002B0059009a671D00aD1700c9748146cd1B`
 
 The `CreatorTokenTransferValidator` V3 has the following features:
 
@@ -214,6 +215,8 @@ The `CreatorTokenTransferValidator` V3 has the following features:
 - Control token transfers based on the caller and receiver constraints
 - Enable account freezing and add accounts to a list of frozen accounts to prevent transfers to or from those accounts
 - Use events to track changes in security policies and allowlists
+
+The `Creator Token Transfer Validator` V4 release has the same features as V3 with the ability to permissionlessly deploy to any EVM blockchain.
 
 Interact with the deployed contract using the provided functions to create, manage, and apply security policies.  A multi-sig such as Gnosis safe is strongly encouraged, and the Gnosis Safe transaction builder can be used to securely manage collections using the following functions.
 
