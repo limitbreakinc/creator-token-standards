@@ -25,7 +25,8 @@ contract AdventureERC721CWithBasicRoyalties is OwnableBasic, AdventureERC721C, B
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(AdventureERC721C, ERC2981) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return AdventureERC721C.supportsInterface(interfaceId) ||
+            ERC2981.supportsInterface(interfaceId);
     }
 
     function mint(address to, uint256 tokenId) external {

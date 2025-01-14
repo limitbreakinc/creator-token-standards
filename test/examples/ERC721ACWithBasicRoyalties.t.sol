@@ -36,10 +36,9 @@ contract ERC721ACWithBasicRoyaltiesTest is CreatorTokenNonfungibleTest {
     }
 
     function testSupportedTokenInterfaces() public {
-        // TODO: Figure out why these assertions fail
-        //assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
-        //assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
-        //assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
+        assertEq(tokenMock.supportsInterface(type(ICreatorToken).interfaceId), true);
+        assertEq(tokenMock.supportsInterface(type(IERC721).interfaceId), true);
+        assertEq(tokenMock.supportsInterface(type(IERC721Metadata).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC165).interfaceId), true);
         assertEq(tokenMock.supportsInterface(type(IERC2981).interfaceId), true);
     }

@@ -27,7 +27,8 @@ contract ERC721ACWithMinterCreatorSharedRoyalties is OwnableBasic, ERC721AC, Min
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721AC, MinterCreatorSharedRoyaltiesBase) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return ERC721AC.supportsInterface(interfaceId) ||
+            MinterCreatorSharedRoyaltiesBase.supportsInterface(interfaceId);
     }
 
     function mint(address to, uint256 quantity) external {

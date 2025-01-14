@@ -26,7 +26,8 @@ contract AdventureERC721CWithReassignableMinterRoyalties is OwnableBasic, Advent
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(AdventureERC721C, MinterRoyaltiesReassignableRightsNFT) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return AdventureERC721C.supportsInterface(interfaceId) ||
+            MinterRoyaltiesReassignableRightsNFT.supportsInterface(interfaceId);
     }
 
     function mint(address to, uint256 tokenId) external {
