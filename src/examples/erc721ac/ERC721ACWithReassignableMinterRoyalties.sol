@@ -24,7 +24,8 @@ contract ERC721ACWithReassignableMinterRoyalties is OwnableBasic, ERC721AC, Mint
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721AC, MinterRoyaltiesReassignableRightsNFT) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return ERC721AC.supportsInterface(interfaceId) ||
+            MinterRoyaltiesReassignableRightsNFT.supportsInterface(interfaceId);
     }
 
     function mint(address to, uint256 quantity) external {

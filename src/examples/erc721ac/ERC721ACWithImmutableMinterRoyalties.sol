@@ -23,7 +23,8 @@ contract ERC721ACWithImmutableMinterRoyalties is OwnableBasic, ERC721AC, Immutab
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721AC, ImmutableMinterRoyaltiesBase) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return ERC721AC.supportsInterface(interfaceId) ||
+            ImmutableMinterRoyaltiesBase.supportsInterface(interfaceId);
     }
 
     function mint(address to, uint256 quantity) external {
