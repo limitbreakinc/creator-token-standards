@@ -7,9 +7,9 @@ import "erc721a/contracts/extensions/ERC721AQueryable.sol";
 import {TOKEN_TYPE_ERC721} from "@limitbreak/permit-c/Constants.sol";
 
 /**
- * @title ERC721AC
+ * @title ERC721ACQueryable
  * @author Limit Break, Inc.
- * @notice Extends Azuki's ERC721-A implementation with Creator Token functionality, which
+ * @notice Extends Azuki's ERC721AQueryable implementation with Creator Token functionality, which
  *         allows the contract owner to update the transfer validation logic by managing a security policy in
  *         an external transfer validation security policy registry.  See {CreatorTokenTransferValidator}.
  */
