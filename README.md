@@ -1,6 +1,10 @@
 # Creator Token Standards
 
-**A backwards compatible library of NFT contract standards and mix-ins that power programmable royalty use cases and expand possible NFT use cases by introducing creator tokens.** 
+**A backwards compatible library of NFT contract standards and mix-ins that power programmable royalty use cases and expand possible NFT use cases by introducing creator tokens.**
+
+## Complete Documentation
+
+**[View Creator Token Standards Documentation](https://apptokens.com/docs/category/creator-token-standards)** - Complete infrastructure documentation and guides.
 
 ## Installation with Foundry
 
